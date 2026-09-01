@@ -140,7 +140,7 @@ const Hero = () => {
   // Show loading state
   if (loading) {
     return (
-      <div className="relative w-full h-[46vh] md:h-[46vh] overflow-hidden bg-gray-900">
+      <div className="relative w-full h-[30vh] md:h-[46vh] overflow-hidden bg-gray-900">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900 animate-pulse"></div>
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
           {[1, 2, 3].map((_, i) => (
@@ -153,8 +153,8 @@ const Hero = () => {
 
   return (
     <>
-      {/* Hero Section - 5:2.3 ratio (46vh) */}
-      <div className="relative w-full h-[46vh] md:h-[46vh] overflow-hidden bg-gray-900">
+      {/* Hero Section - Mobile: 30vh, Desktop: 46vh */}
+      <div className="relative w-full h-[30vh] md:h-[46vh] overflow-hidden bg-gray-900">
         {/* Slides */}
         {slides.map((slide, index) => (
           <div
@@ -163,11 +163,13 @@ const Hero = () => {
               index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
           >
-            {/* Background image only */}
+            {/* Background image with landscape fit */}
             <div 
               className="absolute inset-0 bg-cover bg-center"
               style={{ 
-                backgroundImage: `url(${slide.image})`
+                backgroundImage: `url(${slide.image})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
               }}
             ></div>
           </div>
@@ -213,11 +215,11 @@ const Hero = () => {
       </div>
       
       {/* CTA Button - Mobile (full width with padding) */}
-      <div className="md:hidden w-full px-4 mt-4">
+      <div className="md:hidden w-full px-4 mt-3">
         {user ? (
           <button 
             onClick={handleChallenge}
-            className="w-full bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm flex items-center justify-center gap-2"
           >
             <Share2 className="w-4 h-4" />
             Challenge Your Friend Into the Contest
@@ -225,7 +227,7 @@ const Hero = () => {
         ) : (
           <button 
             onClick={handleRegister}
-            className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
+            className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
           >
             REGISTER NOW
           </button>
