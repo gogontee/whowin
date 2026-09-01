@@ -29,7 +29,9 @@ import {
   Search,
   AlertCircle,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Home,
+  AlertTriangle
 } from 'lucide-react';
 
 // Custom Searchable Select Component
@@ -104,17 +106,19 @@ const SearchableSelect = ({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label htmlFor={id} className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-        {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3" />} {label} {required && '*'}
+    <div className="relative w-full" ref={dropdownRef}>
+      <label htmlFor={id} className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+        {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />} 
+        <span>{label}</span> 
+        {required && <span className="text-yellow-400">*</span>}
       </label>
       
-      <div className="relative">
+      <div className="relative w-full">
         <div className={`relative w-full bg-white/5 border rounded-lg md:rounded-xl transition-all ${
           error ? 'border-red-400 bg-red-500/10' : 
           isOpen ? 'border-yellow-400 ring-1 ring-yellow-400/50' : 'border-white/20 hover:border-white/40'
         }`}>
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 text-white/30" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 text-white/30 flex-shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -136,19 +140,22 @@ const SearchableSelect = ({
             className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
             disabled={disabled || loading}
           >
-            <ChevronDown className={`w-3 h-3 md:w-3.5 md:h-3.5 text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-3 h-3 md:w-3.5 md:h-3.5 text-white/40 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
         {loading && (
           <div className="absolute right-8 top-1/2 -translate-y-1/2">
-            <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
           </div>
         )}
       </div>
 
       {error && (
-        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{error}</p>
+        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+          <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+          {error}
+        </p>
       )}
 
       <AnimatePresence>
@@ -161,7 +168,7 @@ const SearchableSelect = ({
             className="absolute z-50 w-full mt-1 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden"
           >
             <div className="relative p-2 border-b border-white/5">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 flex-shrink-0" />
               <input
                 type="text"
                 value={searchTerm}
@@ -196,7 +203,7 @@ const SearchableSelect = ({
 
             {searchTerm && !filteredOptions.includes(searchTerm) && (
               <div className="px-4 py-2 border-t border-white/5 bg-white/5">
-                <p className="text-[8px] md:text-[9px] text-white/30">
+                <p className="text-[8px] md:text-[9px] text-white/30 flex items-center gap-1">
                   <span className="text-yellow-400/60">Tip:</span> Type a custom value and press Enter or click outside to save
                 </p>
               </div>
@@ -220,24 +227,6 @@ const SearchableSelect = ({
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(250, 204, 21, 0.6);
         }
-        .text-yellow-400 {
-          color: #facc15;
-        }
-        .hover\\:text-yellow-400:hover {
-          color: #facc15;
-        }
-        .bg-yellow-400\\/10 {
-          background-color: rgba(250, 204, 21, 0.1);
-        }
-        .border-yellow-400 {
-          border-color: #facc15;
-        }
-        .ring-yellow-400\\/50 {
-          --tw-ring-color: rgba(250, 204, 21, 0.5);
-        }
-        .hover\\:bg-green-500\\/10:hover {
-          background-color: rgba(34, 197, 94, 0.1);
-        }
       `}</style>
     </div>
   );
@@ -249,6 +238,9 @@ export default function SignupPage() {
   const [showRoleModal, setShowRoleModal] = useState(true);
   const [selectedRole, setSelectedRole] = useState(null);
   const [switchingRole, setSwitchingRole] = useState(false);
+  
+  // Fan registration disabled state
+  const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
   
   const [formData, setFormData] = useState({
     username: '',
@@ -504,6 +496,12 @@ export default function SignupPage() {
 
   // Handle role selection
   const handleRoleSelect = (role) => {
+    // If fan is selected, show disabled modal
+    if (role === 'fan') {
+      setShowFanDisabledModal(true);
+      return;
+    }
+    
     setSelectedRole(role);
     setShowRoleModal(false);
     setFormData(prev => ({
@@ -517,8 +515,35 @@ export default function SignupPage() {
     }));
   };
 
+  // Handle fan disabled modal actions
+  const handleFanModalAction = (action) => {
+    setShowFanDisabledModal(false);
+    if (action === 'home') {
+      router.push('/');
+    } else if (action === 'contest') {
+      // Switch to candidate registration
+      setSelectedRole('candidate');
+      setShowRoleModal(false);
+      setFormData(prev => ({
+        ...prev,
+        username: prev.username || '',
+        phone: prev.phone || '',
+        country: prev.country || '',
+        state: prev.state || '',
+        city: prev.city || '',
+        lga: prev.lga || '',
+      }));
+    }
+  };
+
   // Handle role switch
   const handleRoleSwitch = (role) => {
+    // If fan is selected, show disabled modal
+    if (role === 'fan') {
+      setShowFanDisabledModal(true);
+      return;
+    }
+    
     setSwitchingRole(true);
     setSelectedRole(role);
     setFormData(prev => ({
@@ -733,7 +758,8 @@ export default function SignupPage() {
             city: formData.city || '',
             lga: selectedRole === 'candidate' ? formData.lga : null,
             role: selectedRole === 'candidate' ? 'user' : 'fan',
-            avatar_url: null
+            avatar_url: null,
+            accept_terms: formData.agreeTerms // Set accept_terms to TRUE when checkbox is checked
           }
         }
       });
@@ -790,6 +816,21 @@ export default function SignupPage() {
 
       if (!profileCreated) {
         throw new Error('Profile creation failed. Please try again.');
+      }
+
+      // Update profile with accept_terms if not already set
+      if (formData.agreeTerms) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            accept_terms: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+        
+        if (updateError) {
+          console.error('Error updating accept_terms:', updateError);
+        }
       }
 
       if (avatarFile) {
@@ -967,11 +1008,11 @@ export default function SignupPage() {
               initial={{ y: -2, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="relative"
+              className="relative flex-shrink-0"
             >
               <div className="relative w-32 h-14 md:w-40 md:h-16">
                 <Image
-                  src="/logo.jpg"
+                  src="/logo.png"
                   alt="WhoWin Logo"
                   fill
                   sizes="(max-width: 768px) 128px, 160px"
@@ -983,30 +1024,32 @@ export default function SignupPage() {
             
             {/* Role Switch Buttons */}
             {!showRoleModal && (
-              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
+              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => handleRoleSwitch('candidate')}
-                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all ${
+                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
                     selectedRole === 'candidate'
                       ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
                       : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  <Crown className="w-3 h-3 inline mr-1" />
-                  Candidate
+                  <Crown className="w-3 h-3 flex-shrink-0" />
+                  <span>Candidate</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRoleSwitch('fan')}
-                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all ${
+                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 opacity-50 cursor-not-allowed ${
                     selectedRole === 'fan'
                       ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
                       : 'text-white/60 hover:text-white'
                   }`}
+                  title="Fan registration is currently disabled"
                 >
-                  <Users className="w-3 h-3 inline mr-1" />
-                  Fan
+                  <Users className="w-3 h-3 flex-shrink-0" />
+                  <span>Fan</span>
+                  <span className="text-[6px] bg-yellow-400/20 text-yellow-400 px-1 rounded">Soon</span>
                 </button>
               </div>
             )}
@@ -1033,7 +1076,7 @@ export default function SignupPage() {
             {/* Auto-save indicator */}
             {formInitialized && !success && (
               <div className="flex items-center justify-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/50 animate-pulse"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/50 animate-pulse flex-shrink-0"></div>
                 <span className="text-[8px] text-white/20">Auto-saving...</span>
               </div>
             )}
@@ -1047,8 +1090,9 @@ export default function SignupPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-2 text-center"
                 >
-                  <p className="text-yellow-400 text-xs">
-                    ⚠️ Too many signup attempts. Please wait {cooldownSeconds} seconds.
+                  <p className="text-yellow-400 text-xs flex items-center justify-center gap-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    Too many signup attempts. Please wait {cooldownSeconds} seconds.
                   </p>
                 </motion.div>
               )}
@@ -1061,11 +1105,14 @@ export default function SignupPage() {
                   initial={{ opacity: 0, x: -5 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 }}
+                  className="w-full"
                 >
-                  <label htmlFor="username" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                    <User className="w-2.5 h-2.5 md:w-3 md:h-3" /> Username *
+                  <label htmlFor="username" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                    <User className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                    <span>Username</span> 
+                    <span className="text-yellow-400">*</span>
                   </label>
-                  <div className="relative">
+                  <div className="relative w-full">
                     <input
                       type="text"
                       id="username"
@@ -1086,61 +1133,61 @@ export default function SignupPage() {
                     
                     {checkingUsername && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                       </div>
                     )}
                     
                     {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <Check className="w-3 h-3 text-yellow-400" />
+                        <Check className="w-3 h-3 text-yellow-400 flex-shrink-0" />
                       </div>
                     )}
                     
                     {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <X className="w-3 h-3 text-red-500" />
+                        <X className="w-3 h-3 text-red-500 flex-shrink-0" />
                       </div>
                     )}
                   </div>
                   
                   {errors.username && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5" />
+                      <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       {errors.username}
                     </p>
                   )}
                   
                   {checkingUsername && formData.username.length >= 3 && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-white/40 flex items-center gap-1">
-                      <div className="w-2 h-2 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-2 h-2 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                       Checking username availability...
                     </p>
                   )}
                   
                   {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && !errors.username && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1 animate-pulse">
-                      <Check className="w-2.5 h-2.5" />
+                      <Check className="w-2.5 h-2.5 flex-shrink-0" />
                       ✓ Username is available!
                     </p>
                   )}
                   
                   {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && !errors.username && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
-                      <X className="w-2.5 h-2.5" />
+                      <X className="w-2.5 h-2.5 flex-shrink-0" />
                       ✗ Username is already taken. Please choose a different one.
                     </p>
                   )}
                   
                   {formData.username.length > 0 && formData.username.length < 3 && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5" />
+                      <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       Minimum 3 characters required
                     </p>
                   )}
                   
                   {formData.username.length >= 3 && !/^[a-zA-Z0-9_]+$/.test(formData.username) && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5" />
+                      <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       Only letters, numbers, and underscores allowed
                     </p>
                   )}
@@ -1152,9 +1199,12 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 }}
+                className="w-full"
               >
-                <label htmlFor="fullName" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Award className="w-2.5 h-2.5 md:w-3 md:h-3" /> Full Name *
+                <label htmlFor="fullName" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Award className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>Full Name</span> 
+                  <span className="text-yellow-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -1170,7 +1220,10 @@ export default function SignupPage() {
                   disabled={cooldownSeconds > 0}
                 />
                 {errors.fullName && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.fullName}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.fullName}
+                  </p>
                 )}
               </motion.div>
 
@@ -1179,9 +1232,12 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
+                className="w-full"
               >
-                <label htmlFor="email" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Mail className="w-2.5 h-2.5 md:w-3 md:h-3" /> Email *
+                <label htmlFor="email" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Mail className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>Email</span> 
+                  <span className="text-yellow-400">*</span>
                 </label>
                 <input
                   type="email"
@@ -1197,7 +1253,10 @@ export default function SignupPage() {
                   disabled={cooldownSeconds > 0}
                 />
                 {errors.email && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.email}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.email}
+                  </p>
                 )}
               </motion.div>
 
@@ -1206,9 +1265,12 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.45 }}
+                className="w-full"
               >
-                <label htmlFor="phone" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Phone className="w-2.5 h-2.5 md:w-3 md:h-3" /> {selectedRole === 'candidate' ? 'WhatsApp Number *' : 'Phone (Optional)'}
+                <label htmlFor="phone" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>{selectedRole === 'candidate' ? 'WhatsApp Number' : 'Phone (Optional)'}</span>
+                  {selectedRole === 'candidate' && <span className="text-yellow-400">*</span>}
                 </label>
                 <input
                   type="tel"
@@ -1224,7 +1286,10 @@ export default function SignupPage() {
                   disabled={cooldownSeconds > 0}
                 />
                 {errors.phone && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.phone}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.phone}
+                  </p>
                 )}
               </motion.div>
 
@@ -1233,12 +1298,14 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
+                className="w-full"
               >
-                <label className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> Profile Picture
+                <label className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Camera className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>Profile Picture</span>
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                  <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                     {avatarPreview ? (
                       <Image
                         src={avatarPreview}
@@ -1247,13 +1314,13 @@ export default function SignupPage() {
                         className="object-cover"
                       />
                     ) : (
-                      <User className="w-6 h-6 md:w-8 md:h-8 text-white/30" />
+                      <User className="w-6 h-6 md:w-8 md:h-8 text-white/30 flex-shrink-0" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <label className="cursor-pointer">
+                  <div className="flex-1 min-w-0">
+                    <label className="cursor-pointer inline-block">
                       <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2">
-                        <Upload className="w-3 h-3 md:w-4 md:h-4" />
+                        <Upload className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                         {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
                       </div>
                       <input
@@ -1266,7 +1333,10 @@ export default function SignupPage() {
                     </label>
                     <p className="text-[7px] md:text-[8px] text-white/30 mt-1">JPG, PNG, GIF up to 5MB</p>
                     {uploadError && (
-                      <p className="text-[8px] md:text-[10px] text-red-400 mt-1">{uploadError}</p>
+                      <p className="text-[8px] md:text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                        {uploadError}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1279,9 +1349,12 @@ export default function SignupPage() {
                     initial={{ opacity: 0, x: -5 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.55 }}
+                    className="w-full"
                   >
-                    <label htmlFor="country" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                      <Globe className="w-2.5 h-2.5 md:w-3 md:h-3" /> Country *
+                    <label htmlFor="country" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                      <Globe className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                      <span>Country</span> 
+                      <span className="text-yellow-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -1297,7 +1370,10 @@ export default function SignupPage() {
                       disabled={cooldownSeconds > 0}
                     />
                     {errors.country && (
-                      <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.country}</p>
+                      <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                        {errors.country}
+                      </p>
                     )}
                   </motion.div>
 
@@ -1327,9 +1403,12 @@ export default function SignupPage() {
                       initial={{ opacity: 0, x: -5 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6 }}
+                      className="w-full"
                     >
-                      <label htmlFor="state" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> State/Region *
+                      <label htmlFor="state" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                        <span>State/Region</span> 
+                        <span className="text-yellow-400">*</span>
                       </label>
                       <input
                         type="text"
@@ -1345,7 +1424,10 @@ export default function SignupPage() {
                         disabled={cooldownSeconds > 0}
                       />
                       {errors.state && (
-                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.state}</p>
+                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                          <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                          {errors.state}
+                        </p>
                       )}
                     </motion.div>
                   )}
@@ -1379,9 +1461,12 @@ export default function SignupPage() {
                       initial={{ opacity: 0, x: -5 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.65 }}
+                      className="w-full"
                     >
-                      <label htmlFor="city" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> City *
+                      <label htmlFor="city" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                        <span>City</span> 
+                        <span className="text-yellow-400">*</span>
                       </label>
                       <input
                         type="text"
@@ -1397,7 +1482,10 @@ export default function SignupPage() {
                         disabled={cooldownSeconds > 0}
                       />
                       {errors.city && (
-                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.city}</p>
+                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                          <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                          {errors.city}
+                        </p>
                       )}
                     </motion.div>
                   )}
@@ -1409,11 +1497,14 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.7 }}
+                className="w-full"
               >
-                <label htmlFor="password" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3" /> Password *
+                <label htmlFor="password" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>Password</span> 
+                  <span className="text-yellow-400">*</span>
                 </label>
-                <div className="relative">
+                <div className="relative w-full">
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -1434,11 +1525,14 @@ export default function SignupPage() {
                     tabIndex={-1}
                     disabled={cooldownSeconds > 0}
                   >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {showPassword ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.password}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.password}
+                  </p>
                 )}
 
                 <AnimatePresence>
@@ -1457,7 +1551,7 @@ export default function SignupPage() {
                             className={`h-full ${getStrengthColor()}`}
                           />
                         </div>
-                        <span className="text-[8px] md:text-[9px] font-medium text-white/60">
+                        <span className="text-[8px] md:text-[9px] font-medium text-white/60 flex-shrink-0">
                           {getStrengthText()}
                         </span>
                       </div>
@@ -1465,33 +1559,33 @@ export default function SignupPage() {
                       <div className="grid grid-cols-2 gap-0.5 text-[7px] md:text-[8px]">
                         <div className="flex items-center gap-1">
                           {passwordStrength.minLength ? (
-                            <Check className="w-2 h-2 text-yellow-400" />
+                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-white/20" />
+                            <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
                           <span className="text-white/40">8+ chars</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasLower ? (
-                            <Check className="w-2 h-2 text-yellow-400" />
+                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-white/20" />
+                            <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
                           <span className="text-white/40">Lowercase</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasUpper ? (
-                            <Check className="w-2 h-2 text-yellow-400" />
+                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-white/20" />
+                            <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
                           <span className="text-white/40">Uppercase</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasNumber ? (
-                            <Check className="w-2 h-2 text-yellow-400" />
+                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-white/20" />
+                            <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
                           <span className="text-white/40">Number</span>
                         </div>
@@ -1506,11 +1600,14 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.75 }}
+                className="w-full"
               >
-                <label htmlFor="confirmPassword" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
-                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3" /> Confirm Password *
+                <label htmlFor="confirmPassword" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <span>Confirm Password</span> 
+                  <span className="text-yellow-400">*</span>
                 </label>
-                <div className="relative">
+                <div className="relative w-full">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     id="confirmPassword"
@@ -1531,7 +1628,7 @@ export default function SignupPage() {
                     tabIndex={-1}
                     disabled={cooldownSeconds > 0}
                   >
-                    {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {showConfirmPassword ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                   </button>
                 </div>
 
@@ -1545,16 +1642,21 @@ export default function SignupPage() {
                     >
                       {formData.password === formData.confirmPassword ? (
                         <p className="text-[8px] md:text-[9px] text-yellow-400 flex items-center gap-1">
-                          <Check className="w-2 h-2" /> Passwords match
+                          <Check className="w-2 h-2 flex-shrink-0" /> Passwords match
                         </p>
                       ) : (
-                        <p className="text-[8px] md:text-[9px] text-red-400">Passwords do not match</p>
+                        <p className="text-[8px] md:text-[9px] text-red-400 flex items-center gap-1">
+                          <AlertCircle className="w-2 h-2 flex-shrink-0" /> Passwords do not match
+                        </p>
                       )}
                     </motion.div>
                   )}
                 </AnimatePresence>
                 {errors.confirmPassword && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.confirmPassword}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </motion.div>
 
@@ -1563,7 +1665,7 @@ export default function SignupPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.8 }}
-                className="bg-white/5 rounded-lg p-2 border border-white/10"
+                className="bg-white/5 rounded-lg p-2 border border-white/10 w-full"
               >
                 <label htmlFor="terms" className="flex items-start gap-1.5 cursor-pointer group">
                   <div className="relative flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -1576,12 +1678,12 @@ export default function SignupPage() {
                       className="w-3 h-3 opacity-0 absolute cursor-pointer"
                       disabled={cooldownSeconds > 0}
                     />
-                    <div className={`w-3 h-3 border rounded flex items-center justify-center transition-all ${
+                    <div className={`w-3 h-3 border rounded flex items-center justify-center transition-all flex-shrink-0 ${
                       formData.agreeTerms 
                         ? 'bg-yellow-400 border-yellow-400' 
                         : 'border-white/30 group-hover:border-yellow-400'
                     }`}>
-                      {formData.agreeTerms && <Check className="w-2 h-2 text-black" />}
+                      {formData.agreeTerms && <Check className="w-2 h-2 text-black flex-shrink-0" />}
                     </div>
                   </div>
                   <span className="text-[9px] md:text-[10px] text-white/60 leading-tight">
@@ -1604,11 +1706,14 @@ export default function SignupPage() {
                   </span>
                 </label>
                 {errors.agreeTerms && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.agreeTerms}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {errors.agreeTerms}
+                  </p>
                 )}
               </motion.div>
 
-              {/* Submit Button - Yellow/Gold with Green Hover */}
+              {/* Submit Button */}
               <motion.button
                 type="submit"
                 disabled={loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)}
@@ -1639,7 +1744,7 @@ export default function SignupPage() {
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-3 h-3 border-2 border-black border-t-transparent rounded-full"
+                      className="w-3 h-3 border-2 border-black border-t-transparent rounded-full flex-shrink-0"
                     />
                     <span className="text-xs md:text-sm">Creating...</span>
                   </div>
@@ -1649,14 +1754,14 @@ export default function SignupPage() {
                   </span>
                 ) : selectedRole === 'candidate' && usernameAvailable !== true ? (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
-                    <X className="w-3 h-3" />
+                    <X className="w-3 h-3 flex-shrink-0" />
                     Choose Available Username
                   </span>
                 ) : (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
-                    <Star className="w-3 h-3 md:w-4 md:h-4" />
+                    <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                     Join WhoWin
-                    <Star className="w-3 h-3 md:w-4 md:h-4" />
+                    <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                   </span>
                 )}
               </motion.button>
@@ -1686,7 +1791,7 @@ export default function SignupPage() {
                 transition={{ delay: 0.9 }}
                 className="flex items-center justify-center gap-1"
               >
-                <Shield className="w-2.5 h-2.5 text-white/20" />
+                <Shield className="w-2.5 h-2.5 text-white/20 flex-shrink-0" />
                 <span className="text-[6px] md:text-[7px] text-white/20">Secure • Encrypted</span>
               </motion.div>
             </form>
@@ -1694,7 +1799,7 @@ export default function SignupPage() {
         </motion.div>
       </motion.div>
 
-      {/* Role Selection Modal - Yellow/Gold with Green Hover */}
+      {/* Role Selection Modal */}
       <AnimatePresence>
         {showRoleModal && (
           <motion.div
@@ -1713,7 +1818,7 @@ export default function SignupPage() {
               <div className="mb-6">
                 <div className="relative w-20 h-20 mx-auto mb-4">
                   <Image
-                    src="/logo.jpg"
+                    src="/logo.png"
                     alt="WhoWin Logo"
                     fill
                     className="object-contain"
@@ -1732,26 +1837,91 @@ export default function SignupPage() {
                   onClick={() => handleRoleSelect('candidate')}
                   className="w-full p-4 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-green-500/30"
                 >
-                  <Crown className="w-5 h-5" />
+                  <Crown className="w-5 h-5 flex-shrink-0" />
                   <div className="text-left">
                     <div className="text-sm">Sign up as a</div>
                     <div className="text-lg font-bold">Contestant</div>
                   </div>
-                  <div className="ml-auto text-xs opacity-70">Competitive</div>
+                  <div className="ml-auto text-xs opacity-70 flex-shrink-0">Competitive</div>
                 </motion.button>
 
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleRoleSelect('fan')}
-                  className="w-full p-4 rounded-xl bg-white/10 border border-white/20 hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-500 hover:text-white hover:border-green-500 text-white font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-green-500/30"
+                  className="w-full p-4 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 text-white font-semibold flex items-center gap-3 transition-all relative"
                 >
-                  <Users className="w-5 h-5" />
+                  <Users className="w-5 h-5 flex-shrink-0" />
                   <div className="text-left">
                     <div className="text-sm">Sign up as a</div>
                     <div className="text-lg font-bold">Fan</div>
                   </div>
-                  <div className="ml-auto text-xs opacity-70">Support</div>
+                  <div className="ml-auto text-xs opacity-70 flex-shrink-0">Support</div>
+                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-[8px] px-2 py-0.5 rounded-full font-bold">
+                    Soon
+                  </span>
+                </motion.button>
+              </div>
+
+              <p className="text-white/30 text-xs mt-4">
+                Already have an account?{' '}
+                <Link href="/auth/login" className="text-yellow-400 hover:text-green-400 transition-colors hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fan Disabled Modal */}
+      <AnimatePresence>
+        {showFanDisabledModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
+            >
+              <div className="mb-6">
+                <div className="w-20 h-20 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-10 h-10 text-yellow-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-3">
+                  Fan Portal Coming Soon! 🎉
+                </h2>
+                <p className="text-white/70 text-sm leading-relaxed">
+                  The fan registration will be open as soon as the candidate registration period is over. 
+                  We appreciate your patience and enthusiasm!
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleFanModalAction('contest')}
+                  className="w-full p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-green-500/30"
+                >
+                  <Crown className="w-4 h-4 flex-shrink-0" />
+                  Register as Contestant
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleFanModalAction('home')}
+                  className="w-full p-3 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 text-white font-semibold flex items-center justify-center gap-2 transition-all"
+                >
+                  <Home className="w-4 h-4 flex-shrink-0" />
+                  Go to Homepage
                 </motion.button>
               </div>
 
@@ -1805,7 +1975,7 @@ export default function SignupPage() {
                 </div>
                 
                 <div className="flex items-center justify-center gap-2 text-sm text-yellow-400/80">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"></div>
                   <span>Taking you to your dashboard...</span>
                 </div>
               </div>
@@ -1814,7 +1984,6 @@ export default function SignupPage() {
         )}
       </AnimatePresence>
 
-      {/* Global custom scrollbar styles */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -1829,51 +1998,6 @@ export default function SignupPage() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(250, 204, 21, 0.6);
-        }
-        .text-yellow-400 {
-          color: #facc15;
-        }
-        .bg-yellow-400 {
-          background-color: #facc15;
-        }
-        .border-yellow-400 {
-          border-color: #facc15;
-        }
-        .from-yellow-400 {
-          --tw-gradient-from: #facc15;
-        }
-        .to-yellow-500 {
-          --tw-gradient-to: #eab308;
-        }
-        .bg-yellow-400/10 {
-          background-color: rgba(250, 204, 21, 0.1);
-        }
-        .bg-yellow-400/30 {
-          background-color: rgba(250, 204, 21, 0.3);
-        }
-        .ring-yellow-400/50 {
-          --tw-ring-color: rgba(250, 204, 21, 0.5);
-        }
-        .shadow-yellow-400/30 {
-          --tw-shadow-color: rgba(250, 204, 21, 0.3);
-        }
-        .shadow-yellow-400/10 {
-          --tw-shadow-color: rgba(250, 204, 21, 0.1);
-        }
-        .hover\\:from-green-500:hover {
-          --tw-gradient-from: #22c55e;
-        }
-        .hover\\:to-emerald-500:hover {
-          --tw-gradient-to: #10b981;
-        }
-        .hover\\:text-green-400:hover {
-          color: #22c55e;
-        }
-        .hover\\:border-green-500:hover {
-          border-color: #22c55e;
-        }
-        .shadow-green-500/30 {
-          --tw-shadow-color: rgba(34, 197, 94, 0.3);
         }
       `}</style>
     </section>
