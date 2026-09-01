@@ -25,7 +25,7 @@ const TopCandidates = () => {
       // Get all eligible candidates (active and fully verified)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, country, verification_level, account_status')
+        .select('id, username, avatar_url, country, verification_level, account_status, vote_control')
         .eq('account_status', 'active')
         .eq('verification_level', 'fully_verified')
         .not('username', 'is', null);
@@ -129,7 +129,6 @@ const TopCandidates = () => {
           <div className="w-20"></div>
           <div className="text-center">
             <h2 className="text-xl md:text-2xl font-bold text-white">Top 4 Candidates</h2>
-            
           </div>
           <div className="w-20"></div>
         </div>
@@ -137,7 +136,7 @@ const TopCandidates = () => {
         {/* Empty State */}
         <div className="text-center py-12 md:py-16">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500/20 to-yellow-500/20 flex items-center justify-center border border-orange-500/30">
-            <Info className="w-8 h-8 text-orange-400" />
+            <Info className="w-8 h-8 text-orange-400 flex-shrink-0" />
           </div>
           <h3 className="text-lg md:text-xl font-bold text-white mb-2">No Candidates Yet</h3>
           <p className="text-white/60 text-sm max-w-md mx-auto">
@@ -156,7 +155,6 @@ const TopCandidates = () => {
         
         <div className="text-center">
           <h2 className="text-xl md:text-2xl font-bold text-white">Top Candidates</h2>
-          
         </div>
         
         {/* View All Button */}
@@ -166,7 +164,7 @@ const TopCandidates = () => {
         >
           <span className="text-xs font-medium">VIEW ALL</span>
           <div className="w-5 h-5 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center">
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
           </div>
         </button>
       </div>
@@ -208,32 +206,56 @@ const TopCandidates = () => {
                   <h3 className="text-sm md:text-base font-bold text-white truncate max-w-[60%]">
                     {formatUsername(candidate.username)}
                   </h3>
-                  <p className="text-white/70 text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                  <p className="text-white/70 text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 flex-shrink-0">
                     {candidate.country || 'INTL'}
                   </p>
                 </div>
                 
-                {/* Votes and View - Side by side */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-white/50 text-[8px] md:text-[10px]">VOTES</div>
-                    <div className="text-orange-400 text-sm md:text-base font-bold">
-                      {formatVotes(candidate.total_votes)}
+                {/* Only show vote count if vote_control is TRUE */}
+                {candidate.vote_control === true && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white/50 text-[8px] md:text-[10px]">VOTES</div>
+                      <div className="text-orange-400 text-sm md:text-base font-bold">
+                        {formatVotes(candidate.total_votes)}
+                      </div>
                     </div>
+                    
+                    {/* Small View Button */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewProfile(candidate.username);
+                      }}
+                      className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors border border-gray-400/30 text-[10px] md:text-xs font-medium text-white flex items-center gap-1"
+                    >
+                      <Eye className="w-3 h-3 flex-shrink-0" />
+                      <span>VIEW</span>
+                    </button>
                   </div>
-                  
-                  {/* Small View Button */}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewProfile(candidate.username);
-                    }}
-                    className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors border border-gray-400/30 text-[10px] md:text-xs font-medium text-white flex items-center gap-1"
-                  >
-                    <Eye className="w-3 h-3" />
-                    <span>VIEW</span>
-                  </button>
-                </div>
+                )}
+
+                {/* If vote_control is FALSE, show different layout */}
+                {candidate.vote_control !== true && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white/50 text-[8px] md:text-[10px]">STATUS</div>
+                      <div className="text-green-400 text-xs md:text-sm font-medium">Active</div>
+                    </div>
+                    
+                    {/* Small View Button */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewProfile(candidate.username);
+                      }}
+                      className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors border border-gray-400/30 text-[10px] md:text-xs font-medium text-white flex items-center gap-1"
+                    >
+                      <Eye className="w-3 h-3 flex-shrink-0" />
+                      <span>VIEW</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

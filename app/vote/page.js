@@ -48,12 +48,10 @@ export default function VotePage() {
       // Skip suspended accounts
       if (profile.account_status === 'suspended') return false;
       
-      const fullName = profile.full_name?.toLowerCase() || '';
       const username = profile.username?.toLowerCase() || '';
       const country = profile.country?.toLowerCase() || '';
       
-      return fullName.includes(query) || 
-             username.includes(query) || 
+      return username.includes(query) || 
              country.includes(query);
     });
 
@@ -81,7 +79,7 @@ export default function VotePage() {
       // Get ALL profiles (including unverified) for search
       const { data: allProfilesData, error: allError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control')
         .not('username', 'is', null);
 
       if (allError) throw allError;
@@ -90,7 +88,7 @@ export default function VotePage() {
       // Get only eligible candidates for display (active and fully verified)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control')
         .eq('account_status', 'active')
         .eq('verification_level', 'fully_verified')
         .not('username', 'is', null);
@@ -150,6 +148,7 @@ export default function VotePage() {
 
   const formatUsername = (username) => {
     if (!username) return '';
+    // Capitalize first letter, keep rest as is
     return username.charAt(0).toUpperCase() + username.slice(1);
   };
 
@@ -216,7 +215,7 @@ export default function VotePage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 mb-4">
-            <Flame className="w-4 h-4 text-orange-400" />
+            <Flame className="w-4 h-4 text-orange-400 flex-shrink-0" />
             <span className="text-orange-400 text-xs font-medium tracking-wider">VOTE NOW</span>
           </div>
           <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
@@ -233,7 +232,7 @@ export default function VotePage() {
         {/* Search Bar */}
         <div className="max-w-xl mx-auto mb-6">
           <div className="relative flex items-center bg-black/50 rounded-lg border border-white/10">
-            <Search className="w-4 h-4 text-gray-500 ml-3" />
+            <Search className="w-4 h-4 text-gray-500 ml-3 flex-shrink-0" />
             <input
               type="text"
               placeholder="Search candidates by name..."
@@ -246,7 +245,7 @@ export default function VotePage() {
                 onClick={clearSearch}
                 className="p-2 hover:bg-white/5 rounded-lg transition-colors"
               >
-                <X className="w-3 h-3 text-gray-500" />
+                <X className="w-3 h-3 text-gray-500 flex-shrink-0" />
               </button>
             )}
           </div>
@@ -292,7 +291,7 @@ export default function VotePage() {
         {/* Results Info */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-white/60 text-sm">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 flex-shrink-0" />
             <span>
               {isSearching 
                 ? `${filteredCandidates.length} results found`
@@ -307,7 +306,7 @@ export default function VotePage() {
                 onClick={clearSearch}
                 className="text-white/40 hover:text-white/60 transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3 flex-shrink-0" />
               </button>
             </div>
           )}
@@ -328,7 +327,7 @@ export default function VotePage() {
                     {candidate.avatar_url ? (
                       <Image
                         src={candidate.avatar_url}
-                        alt={candidate.full_name || candidate.username}
+                        alt={formatUsername(candidate.username)}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-700"
                         sizes="(max-width: 768px) 50vw, 25vw"
@@ -337,7 +336,7 @@ export default function VotePage() {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500/30 to-yellow-500/30">
                         <span className="text-4xl font-bold text-white/50">
-                          {candidate.full_name?.charAt(0) || candidate.username?.charAt(0)}
+                          {formatUsername(candidate.username)?.charAt(0) || '?'}
                         </span>
                       </div>
                     )}
@@ -363,37 +362,58 @@ export default function VotePage() {
 
                   {/* Candidate Info */}
                   <div className="p-2.5">
+                    {/* Name - Using username with first letter capitalized, no @ */}
                     <h3 className="text-sm font-bold text-white mb-1 truncate group-hover:text-orange-400 transition-colors">
-                      {candidate.full_name || formatUsername(candidate.username)}
+                      {formatUsername(candidate.username)}
                     </h3>
                     
-                    {/* Username */}
-                    <p className="text-[10px] text-white/40 truncate mb-1">
-                      @{candidate.username}
-                    </p>
-                    
-                    {/* Votes */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[8px] text-white/40">VOTES</div>
-                        <div className="text-xs font-bold text-orange-400">
-                          {formatVotes(candidate.total_votes || 0)}
+                    {/* Only show vote count if vote_control is TRUE */}
+                    {candidate.vote_control === true && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[8px] text-white/40">VOTES</div>
+                          <div className="text-xs font-bold text-orange-400">
+                            {formatVotes(candidate.total_votes || 0)}
+                          </div>
                         </div>
+                        
+                        {/* View Candidate Button */}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewProfile(candidate.username);
+                          }}
+                          className="px-2 py-1 rounded-md bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold text-[10px] transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/20 flex items-center gap-0.5"
+                        >
+                          <Eye className="w-2.5 h-2.5 flex-shrink-0" />
+                          <span>VIEW</span>
+                          <ChevronRight className="w-2.5 h-2.5 flex-shrink-0" />
+                        </button>
                       </div>
-                      
-                      {/* View Candidate Button */}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewProfile(candidate.username);
-                        }}
-                        className="px-2 py-1 rounded-md bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold text-[10px] transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/20 flex items-center gap-0.5"
-                      >
-                        <Eye className="w-2.5 h-2.5" />
-                        <span>VIEW</span>
-                        <ChevronRight className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
+                    )}
+
+                    {/* If vote_control is FALSE, show different layout */}
+                    {candidate.vote_control !== true && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[8px] text-white/40">STATUS</div>
+                          <div className="text-[10px] font-medium text-green-400">Active</div>
+                        </div>
+                        
+                        {/* View Candidate Button */}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewProfile(candidate.username);
+                          }}
+                          className="px-2 py-1 rounded-md bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold text-[10px] transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/20 flex items-center gap-0.5"
+                        >
+                          <Eye className="w-2.5 h-2.5 flex-shrink-0" />
+                          <span>VIEW</span>
+                          <ChevronRight className="w-2.5 h-2.5 flex-shrink-0" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -401,7 +421,7 @@ export default function VotePage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <Search className="w-12 h-12 mx-auto text-white/20 mb-4" />
+            <Search className="w-12 h-12 mx-auto text-white/20 mb-4 flex-shrink-0" />
             <h3 className="text-lg font-medium text-white mb-2">
               {searchQuery ? 'No candidates found' : 'No verified candidates yet'}
             </h3>
