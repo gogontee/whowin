@@ -40,7 +40,7 @@ export default function LiveTVPage() {
   const fetchLiveVideo = async () => {
     try {
       const { data, error } = await supabase
-        .from('celeb_star')
+        .from('who_win')
         .select('tv')
         .single();
 
