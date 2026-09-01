@@ -246,7 +246,7 @@ export default function LoginPage() {
         >
           <Sparkles 
             size={spark.size} 
-            className="text-amber-400/30"
+            className="text-amber-400/30 flex-shrink-0"
           />
         </motion.div>
       ))}
@@ -263,7 +263,7 @@ export default function LoginPage() {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
-          className="relative backdrop-blur-xl bg-white/95 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden border border-amber-200/50"
+          className="relative backdrop-blur-xl bg-white/95 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden border border-amber-200/50 w-full"
         >
           <motion.div
             className="absolute inset-0 pointer-events-none"
@@ -287,11 +287,11 @@ export default function LoginPage() {
               initial={{ y: -10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="relative"
+              className="relative flex-shrink-0"
             >
               <div className="relative w-48 h-16 md:w-56 md:h-20">
                 <Image
-                  src="/logo.jpg"
+                  src="/logo.png"
                   alt="WhoWin Logo"
                   fill
                   sizes="(max-width: 768px) 192px, 224px"
@@ -303,15 +303,15 @@ export default function LoginPage() {
           </div>
 
           {/* Gold Accent Line */}
-          <div className="h-1 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600"></div>
+          <div className="h-1 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 w-full"></div>
 
           {/* Form Content */}
-          <div className="p-6 md:p-8 space-y-5 md:space-y-6">
+          <div className="p-6 md:p-8 space-y-5 md:space-y-6 w-full">
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="text-center"
+              className="text-center w-full"
             >
               <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
                 Welcome Back
@@ -328,10 +328,10 @@ export default function LoginPage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-center"
+                  className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-center w-full"
                 >
-                  <p className="text-amber-700 text-xs md:text-sm">
-                    ⚠️ Too many login attempts
+                  <p className="text-amber-700 text-xs md:text-sm flex items-center justify-center gap-1">
+                    <span>⚠️</span> Too many login attempts
                   </p>
                   <p className="text-amber-600 text-[10px] md:text-xs mt-1">
                     Please wait {cooldownSeconds} seconds before trying again.
@@ -347,26 +347,35 @@ export default function LoginPage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className={`rounded-lg p-3 text-center ${
+                  className={`rounded-lg p-3 text-center w-full ${
                     errors.submit.includes('sent') || errors.submit.includes('Success')
                       ? 'bg-green-50 border border-green-200 text-green-700'
                       : 'bg-red-50 border border-red-200 text-red-600'
                   }`}
                 >
-                  <p className="text-xs md:text-sm">{errors.submit}</p>
+                  <p className="text-xs md:text-sm flex items-center justify-center gap-1">
+                    {errors.submit.includes('sent') || errors.submit.includes('Success') ? (
+                      <Check className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                    ) : (
+                      <X className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                    )}
+                    {errors.submit}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5 w-full">
               {/* Email */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
+                className="w-full"
               >
-                <label htmlFor="email" className="block text-xs md:text-sm font-medium text-gray-600 mb-1 ml-1 flex items-center gap-1">
-                  <Mail className="w-3 h-3 md:w-4 md:h-4" /> Email Address
+                <label htmlFor="email" className="flex items-center gap-1 text-xs md:text-sm font-medium text-gray-600 mb-1 ml-1">
+                  <Mail className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                  <span>Email Address</span>
                 </label>
                 <input
                   type="email"
@@ -382,7 +391,10 @@ export default function LoginPage() {
                   required
                 />
                 {errors.email && (
-                  <p className="mt-1 text-[10px] md:text-xs text-red-600">{errors.email}</p>
+                  <p className="mt-1 text-[10px] md:text-xs text-red-600 flex items-center gap-1">
+                    <X className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                    {errors.email}
+                  </p>
                 )}
               </motion.div>
 
@@ -391,11 +403,13 @@ export default function LoginPage() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 }}
+                className="w-full"
               >
-                <label htmlFor="password" className="block text-xs md:text-sm font-medium text-gray-600 mb-1 ml-1 flex items-center gap-1">
-                  <Lock className="w-3 h-3 md:w-4 md:h-4" /> Password
+                <label htmlFor="password" className="flex items-center gap-1 text-xs md:text-sm font-medium text-gray-600 mb-1 ml-1">
+                  <Lock className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                  <span>Password</span>
                 </label>
-                <div className="relative">
+                <div className="relative w-full">
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -416,11 +430,18 @@ export default function LoginPage() {
                     tabIndex={-1}
                     disabled={loading || cooldownSeconds > 0}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? (
+                      <EyeOff size={18} className="flex-shrink-0" />
+                    ) : (
+                      <Eye size={18} className="flex-shrink-0" />
+                    )}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 text-[10px] md:text-xs text-red-600">{errors.password}</p>
+                  <p className="mt-1 text-[10px] md:text-xs text-red-600 flex items-center gap-1">
+                    <X className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                    {errors.password}
+                  </p>
                 )}
               </motion.div>
 
@@ -429,7 +450,7 @@ export default function LoginPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between w-full"
               >
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input
@@ -437,7 +458,7 @@ export default function LoginPage() {
                     name="rememberMe"
                     checked={formData.rememberMe}
                     onChange={handleChange}
-                    className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 focus:ring-offset-0"
+                    className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 focus:ring-offset-0 flex-shrink-0"
                     disabled={loading || cooldownSeconds > 0}
                   />
                   <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-800 transition-colors">Remember me</span>
@@ -446,7 +467,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-xs md:text-sm text-amber-600 hover:text-green-600 font-medium transition-colors"
+                  className="text-xs md:text-sm text-amber-600 hover:text-green-600 font-medium transition-colors flex-shrink-0"
                   disabled={loading || cooldownSeconds > 0}
                 >
                   Forgot password?
@@ -485,7 +506,7 @@ export default function LoginPage() {
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full flex-shrink-0"
                     />
                     <span className="text-sm md:text-base relative z-10">Signing in...</span>
                   </div>
@@ -495,7 +516,7 @@ export default function LoginPage() {
                   </span>
                 ) : (
                   <span className="text-sm md:text-base relative z-10 flex items-center justify-center gap-2">
-                    <LogIn className="w-4 h-4" />
+                    <LogIn className="w-4 h-4 flex-shrink-0" />
                     Sign In
                   </span>
                 )}
@@ -506,7 +527,7 @@ export default function LoginPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.45 }}
-                className="text-center"
+                className="text-center w-full"
               >
                 <p className="text-xs md:text-sm text-gray-500">
                   Don't have an account?{' '}
@@ -515,7 +536,7 @@ export default function LoginPage() {
                     className="text-amber-600 font-semibold hover:text-green-600 hover:underline transition-colors inline-flex items-center gap-1"
                   >
                     Sign up
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3 h-3 flex-shrink-0" />
                   </Link>
                 </p>
               </motion.div>
@@ -525,9 +546,9 @@ export default function LoginPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="flex items-center justify-center gap-1"
+                className="flex items-center justify-center gap-1 w-full"
               >
-                <Shield className="w-3 h-3 text-gray-400" />
+                <Shield className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 <span className="text-[8px] md:text-[10px] text-gray-400">Secure • Encrypted • Protected</span>
               </motion.div>
             </form>
@@ -552,7 +573,7 @@ export default function LoginPage() {
               className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center border border-amber-200"
             >
               <div className="w-20 h-20 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-white" />
+                <Check className="w-10 h-10 text-white flex-shrink-0" />
               </div>
               
               <h2 className="text-2xl font-bold text-gray-800 mb-3">
@@ -570,7 +591,7 @@ export default function LoginPage() {
                 </div>
                 
                 <div className="flex items-center justify-center gap-2 text-sm text-amber-600">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse flex-shrink-0"></div>
                   <span>Redirecting to your personalized space</span>
                 </div>
               </div>
