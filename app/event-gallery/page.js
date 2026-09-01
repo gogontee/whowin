@@ -22,10 +22,10 @@ const EventGalleryPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch both in parallel
+        // Fetch both in parallel from who_win table
         const [galleryResult, videoResult] = await Promise.allSettled([
-          supabase.from('celeb_star').select('celeb_gallery').single(),
-          supabase.from('celeb_star').select('video').single()
+          supabase.from('who_win').select('celeb_gallery').single(),
+          supabase.from('who_win').select('video').single()
         ]);
 
         // Process gallery posts
@@ -74,7 +74,7 @@ const EventGalleryPage = () => {
       id: 'videos',
       label: 'Videos',
       icon: Video,
-      color: 'from-blue-500 to-cyan-400',
+      color: 'from-green-500 to-emerald-400',
       count: videoPosts.length
     },
   ], [imagePosts.length, videoPosts.length]);
@@ -92,7 +92,7 @@ const EventGalleryPage = () => {
     const videoId = url.split('youtu.be/')[1]?.split('?')[0] || 
                    url.split('v=')[1]?.split('&')[0] ||
                    url.split('embed/')[1]?.split('?')[0];
-    return videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null; // Using mqdefault (smaller) instead of maxresdefault
+    return videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
   }, []);
 
   const formatDate = useCallback((dateString) => {
@@ -106,7 +106,6 @@ const EventGalleryPage = () => {
 
   // Generate random stats only once per item
   const getRandomStats = useCallback((id) => {
-    // Use the id to generate consistent random numbers
     const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return {
       views: 500 + (hash % 5000),
@@ -119,7 +118,7 @@ const EventGalleryPage = () => {
       <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black pt-4">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            {/* Tab skeleton - reduced size */}
+            {/* Tab skeleton */}
             <div className="max-w-xs mx-auto mb-6">
               <div className="bg-black/40 rounded-lg p-0.5">
                 <div className="flex gap-1">
@@ -129,7 +128,7 @@ const EventGalleryPage = () => {
               </div>
             </div>
             
-            {/* Gallery skeleton - 8 items, smaller */}
+            {/* Gallery skeleton */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-square bg-gray-800/30 rounded-lg animate-pulse"></div>
@@ -145,7 +144,17 @@ const EventGalleryPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black pt-3">
       <div className="container mx-auto px-3">
         <div className="max-w-6xl mx-auto">
-          {/* Tab Navigation - smaller */}
+          {/* Page Header with Description */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Event Gallery
+            </h1>
+            <p className="text-white/50 text-sm md:text-base max-w-2xl mx-auto">
+              Explore highlights from the WHO WIN show
+            </p>
+          </div>
+
+          {/* Tab Navigation */}
           <div className="max-w-xs mx-auto mb-6">
             <div className="bg-black/40 backdrop-blur-sm rounded-lg border border-white/10 p-0.5">
               <div className="flex">
@@ -175,7 +184,7 @@ const EventGalleryPage = () => {
             </div>
           </div>
           
-          {/* Content Area - reduced padding */}
+          {/* Content Area */}
           <div className="bg-black/20 backdrop-blur-sm rounded-lg border border-white/10 overflow-hidden p-3 md:p-4">
             {/* Active Content */}
             {activeTab === 'images' ? (
@@ -233,7 +242,7 @@ const EventGalleryPage = () => {
                       <div
                         key={post.id}
                         onClick={() => setSelectedMedia(post)}
-                        className="group cursor-pointer relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 to-black border border-white/10 hover:border-blue-500/30 transition-all duration-200"
+                        className="group cursor-pointer relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 to-black border border-white/10 hover:border-green-500/30 transition-all duration-200"
                       >
                         {thumbnailUrl ? (
                           <div className="relative w-full h-full">
@@ -262,7 +271,7 @@ const EventGalleryPage = () => {
                             </p>
                           </div>
                         )}
-                        <div className="absolute top-1.5 right-1.5 bg-blue-500/80 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+                        <div className="absolute top-1.5 right-1.5 bg-green-500/80 backdrop-blur-sm rounded-full px-1.5 py-0.5">
                           <span className="text-[8px] text-white font-medium">
                             {post.media[0]?.provider === 'youtube' ? 'YT' : 'Video'}
                           </span>
@@ -279,13 +288,13 @@ const EventGalleryPage = () => {
               )
             )}
             
-            {/* Tab Indicator - thinner */}
+            {/* Tab Indicator */}
             <div className="mt-3 h-0.5 bg-gradient-to-r from-orange-500 via-yellow-400 to-orange-500 animate-gradient-x"></div>
           </div>
         </div>
       </div>
 
-      {/* Media Detail Modal - simplified for performance */}
+      {/* Media Detail Modal */}
       {selectedMedia && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/95 backdrop-blur-sm"
@@ -340,7 +349,7 @@ const EventGalleryPage = () => {
                 )}
               </div>
 
-              {/* Right Side - Details (simplified) */}
+              {/* Right Side - Details */}
               <div className="p-4 overflow-y-auto max-h-[45vh] md:max-h-[90vh]">
                 <div className="mb-4">
                   <h3 className="text-base font-semibold text-white mb-1">Caption</h3>
@@ -349,7 +358,6 @@ const EventGalleryPage = () => {
                   </p>
                 </div>
 
-                {/* Simplified details grid */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div className="bg-white/5 rounded-lg p-2">
                     <div className="flex items-center gap-1 text-white/60 text-[9px] mb-0.5">
@@ -372,7 +380,6 @@ const EventGalleryPage = () => {
                   </div>
                 </div>
 
-                {/* Single action button */}
                 <button
                   onClick={() => setLiked(!liked)}
                   className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white text-xs font-medium transition-colors flex items-center justify-center gap-1"

@@ -1,7 +1,7 @@
 // /app/auth/signup/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -19,11 +19,236 @@ import {
   Phone,
   Lock,
   Globe,
-  Award
+  Award,
+  Users,
+  Crown,
+  MapPin,
+  Upload,
+  Camera,
+  ChevronDown,
+  Search,
+  AlertCircle,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
+
+// Custom Searchable Select Component
+const SearchableSelect = ({
+  id,
+  name,
+  value,
+  onChange,
+  options,
+  placeholder,
+  label,
+  required,
+  disabled,
+  loading,
+  error,
+  icon: Icon,
+  onBlur
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredOptions, setFilteredOptions] = useState(options);
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredOptions(options);
+    } else {
+      const filtered = options.filter(option =>
+        option.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredOptions(filtered);
+    }
+  }, [searchTerm, options]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (option) => {
+    onChange({ target: { name, value: option } });
+    setSearchTerm(option);
+    setIsOpen(false);
+    if (onBlur) onBlur();
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    onChange({ target: { name, value: val } });
+    if (!isOpen) setIsOpen(true);
+  };
+
+  const handleFocus = () => {
+    setIsOpen(true);
+    setSearchTerm(value || '');
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      if (!dropdownRef.current?.contains(document.activeElement)) {
+        setIsOpen(false);
+        if (onBlur) onBlur();
+      }
+    }, 200);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label htmlFor={id} className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+        {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3" />} {label} {required && '*'}
+      </label>
+      
+      <div className="relative">
+        <div className={`relative w-full bg-white/5 border rounded-lg md:rounded-xl transition-all ${
+          error ? 'border-red-400 bg-red-500/10' : 
+          isOpen ? 'border-yellow-400 ring-1 ring-yellow-400/50' : 'border-white/20 hover:border-white/40'
+        }`}>
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 text-white/30" />
+          <input
+            ref={inputRef}
+            type="text"
+            id={id}
+            name={name}
+            value={searchTerm || value || ''}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder={placeholder}
+            required={required}
+            disabled={disabled || loading}
+            className="w-full pl-7 pr-8 py-1.5 md:py-2 bg-transparent text-xs md:text-sm text-white placeholder-white/30 focus:outline-none"
+            autoComplete="off"
+          />
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
+            disabled={disabled || loading}
+          >
+            <ChevronDown className={`w-3 h-3 md:w-3.5 md:h-3.5 text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        {loading && (
+          <div className="absolute right-8 top-1/2 -translate-y-1/2">
+            <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{error}</p>
+      )}
+
+      <AnimatePresence>
+        {isOpen && !disabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -5, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute z-50 w-full mt-1 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+          >
+            <div className="relative p-2 border-b border-white/5">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-8 pr-3 py-1.5 bg-white/5 rounded-lg text-xs text-white placeholder-white/30 border border-white/10 focus:border-yellow-400 focus:outline-none transition-colors"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+
+            <div className="max-h-48 md:max-h-56 overflow-y-auto custom-scrollbar">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSelect(option)}
+                    className={`w-full px-4 py-2 text-left text-xs md:text-sm text-white hover:text-yellow-400 hover:bg-green-500/10 transition-all duration-150 ${
+                      option === value ? 'bg-yellow-400/10 text-yellow-400' : ''
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-center text-white/30 text-xs">
+                  No results found
+                </div>
+              )}
+            </div>
+
+            {searchTerm && !filteredOptions.includes(searchTerm) && (
+              <div className="px-4 py-2 border-t border-white/5 bg-white/5">
+                <p className="text-[8px] md:text-[9px] text-white/30">
+                  <span className="text-yellow-400/60">Tip:</span> Type a custom value and press Enter or click outside to save
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(250, 204, 21, 0.4);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(250, 204, 21, 0.6);
+        }
+        .text-yellow-400 {
+          color: #facc15;
+        }
+        .hover\\:text-yellow-400:hover {
+          color: #facc15;
+        }
+        .bg-yellow-400\\/10 {
+          background-color: rgba(250, 204, 21, 0.1);
+        }
+        .border-yellow-400 {
+          border-color: #facc15;
+        }
+        .ring-yellow-400\\/50 {
+          --tw-ring-color: rgba(250, 204, 21, 0.5);
+        }
+        .hover\\:bg-green-500\\/10:hover {
+          background-color: rgba(34, 197, 94, 0.1);
+        }
+      `}</style>
+    </div>
+  );
+};
 
 export default function SignupPage() {
   const router = useRouter();
+  
+  const [showRoleModal, setShowRoleModal] = useState(true);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [switchingRole, setSwitchingRole] = useState(false);
   
   const [formData, setFormData] = useState({
     username: '',
@@ -33,8 +258,17 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     country: '',
+    state: '',
+    city: '',
+    lga: '',
+    avatarUrl: '',
     agreeTerms: false
   });
+  
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
   
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -53,11 +287,118 @@ export default function SignupPage() {
     hasSpecial: false,
     minLength: false,
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [formInitialized, setFormInitialized] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
+
+  // Load saved form data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('whowin_signup_form');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setFormData(prev => ({ ...prev, ...parsed }));
+        if (parsed.selectedRole) {
+          setSelectedRole(parsed.selectedRole);
+          setShowRoleModal(false);
+        }
+        if (parsed.avatarPreview) {
+          setAvatarPreview(parsed.avatarPreview);
+        }
+      } catch (e) {
+        console.error('Error loading saved form data:', e);
+      }
+    }
+    setFormInitialized(true);
+  }, []);
+
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    if (!formInitialized) return;
+    
+    const dataToSave = {
+      ...formData,
+      selectedRole: selectedRole,
+      avatarPreview: avatarPreview
+    };
+    localStorage.setItem('whowin_signup_form', JSON.stringify(dataToSave));
+  }, [formData, selectedRole, avatarPreview, formInitialized]);
+
+  // Clear saved data when signup is successful
+  useEffect(() => {
+    if (success) {
+      localStorage.removeItem('whowin_signup_form');
+    }
+  }, [success]);
+
+  // Fetch states on mount
+  useEffect(() => {
+    fetchStates();
+  }, []);
+
+  const fetchStates = async () => {
+    setLoadingStates(true);
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('state')
+        .order('state');
+      
+      if (error) throw error;
+      
+      const uniqueStates = [...new Set(data.map(item => item.state))];
+      setStates(uniqueStates);
+    } catch (error) {
+      console.error('Error fetching states:', error);
+    } finally {
+      setLoadingStates(false);
+    }
+  };
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formData.state && formData.country?.toLowerCase() === 'nigeria') {
+      fetchCities(formData.state);
+    } else {
+      setCities([]);
+    }
+  }, [formData.state, formData.country]);
+
+  const fetchCities = async (stateName) => {
+    setLoadingCities(true);
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('cities')
+        .eq('state', stateName)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data?.cities) {
+        const citiesData = typeof data.cities === 'string' 
+          ? JSON.parse(data.cities) 
+          : data.cities;
+        const cityNames = citiesData.map(item => item.name);
+        const uniqueCityNames = [...new Set(cityNames)];
+        setCities(uniqueCityNames);
+      } else {
+        setCities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      setCities([]);
+    } finally {
+      setLoadingCities(false);
+    }
+  };
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -91,14 +432,13 @@ export default function SignupPage() {
     });
   };
 
-  // Check username availability with proper debouncing and error handling
+  // Check username availability
   useEffect(() => {
     let isMounted = true;
     
     const checkUsername = async () => {
       const usernameToCheck = formData.username.trim();
       
-      // Don't check if username is too short
       if (usernameToCheck.length < 3) {
         if (isMounted) {
           setUsernameAvailable(null);
@@ -107,7 +447,6 @@ export default function SignupPage() {
         return;
       }
 
-      // Validate username format before checking
       if (!/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
         if (isMounted) {
           setUsernameAvailable(null);
@@ -116,7 +455,6 @@ export default function SignupPage() {
         return;
       }
 
-      // Don't check if it looks like an email
       if (usernameToCheck.includes('@')) {
         if (isMounted) {
           setUsernameAvailable(null);
@@ -128,7 +466,6 @@ export default function SignupPage() {
       setCheckingUsername(true);
       
       try {
-        // Case-insensitive username check using ilike
         const { data, error } = await supabase
           .from('profiles')
           .select('username')
@@ -141,10 +478,8 @@ export default function SignupPage() {
             setUsernameAvailable(null);
           }
         } else if (data) {
-          // Username is taken (case-insensitive match found)
           if (isMounted) setUsernameAvailable(false);
         } else {
-          // Username is available
           if (isMounted) setUsernameAvailable(true);
         }
       } catch (error) {
@@ -157,7 +492,6 @@ export default function SignupPage() {
       }
     };
 
-    // Debounce the check
     const timer = setTimeout(() => {
       checkUsername();
     }, 800);
@@ -168,17 +502,50 @@ export default function SignupPage() {
     };
   }, [formData.username, supabase]);
 
+  // Handle role selection
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);
+    setShowRoleModal(false);
+    setFormData(prev => ({
+      ...prev,
+      username: role === 'candidate' ? prev.username : '',
+      phone: role === 'candidate' ? prev.phone : '',
+      country: role === 'candidate' ? prev.country : '',
+      state: role === 'candidate' ? prev.state : '',
+      city: role === 'candidate' ? prev.city : '',
+      lga: role === 'candidate' ? prev.lga : '',
+    }));
+  };
+
+  // Handle role switch
+  const handleRoleSwitch = (role) => {
+    setSwitchingRole(true);
+    setSelectedRole(role);
+    setFormData(prev => ({
+      ...prev,
+      username: role === 'candidate' ? prev.username : '',
+      phone: role === 'candidate' ? prev.phone : '',
+      country: role === 'candidate' ? prev.country : '',
+      state: role === 'candidate' ? prev.state : '',
+      city: role === 'candidate' ? prev.city : '',
+      lga: role === 'candidate' ? prev.lga : '',
+    }));
+    setTimeout(() => setSwitchingRole(false), 300);
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      newErrors.username = 'Username can only contain letters, numbers, and underscores';
-    } else if (usernameAvailable === false) {
-      newErrors.username = 'Username is already taken. Please choose a different one.';
+    if (selectedRole === 'candidate') {
+      if (!formData.username.trim()) {
+        newErrors.username = 'Username is required';
+      } else if (formData.username.length < 3) {
+        newErrors.username = 'Username must be at least 3 characters';
+      } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+        newErrors.username = 'Username can only contain letters, numbers, and underscores';
+      } else if (usernameAvailable === false) {
+        newErrors.username = 'Username is already taken. Please choose a different one.';
+      }
     }
     
     if (!formData.fullName.trim()) {
@@ -194,8 +561,24 @@ export default function SignupPage() {
       newErrors.email = 'Please enter a valid email address';
     }
     
-    if (formData.phone && !/^[\+]?[0-9\s\-\(\)]{10,}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+    if (selectedRole === 'candidate') {
+      if (!formData.phone) {
+        newErrors.phone = 'WhatsApp number is required';
+      } else if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+      }
+    }
+    
+    if (selectedRole === 'candidate') {
+      if (!formData.country) {
+        newErrors.country = 'Country is required';
+      }
+      if (!formData.state) {
+        newErrors.state = 'State is required';
+      }
+      if (!formData.city) {
+        newErrors.city = 'City is required';
+      }
     }
     
     const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
@@ -220,11 +603,10 @@ export default function SignupPage() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Auto-format username: replace spaces with underscores and remove invalid chars
     if (name === 'username') {
       const formattedValue = value
-        .replace(/\s+/g, '_') // Replace spaces with underscore
-        .replace(/[^a-zA-Z0-9_]/g, ''); // Remove any other invalid characters
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
       
       setFormData(prev => ({
         ...prev,
@@ -252,6 +634,65 @@ export default function SignupPage() {
     }
   };
 
+  // Handle avatar upload
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setAvatarFile(file);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+    setUploadingAvatar(false);
+    setErrors(prev => ({ ...prev, avatar: '' }));
+  };
+
+  // Upload avatar to storage
+  const uploadAvatar = async (file, userId) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (uploadError) {
+        console.error('Avatar upload error:', uploadError);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
+      
+      return publicUrl;
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -259,8 +700,7 @@ export default function SignupPage() {
       return;
     }
     
-    // Final username availability check before submission
-    if (usernameAvailable !== true) {
+    if (selectedRole === 'candidate' && usernameAvailable !== true) {
       setErrors(prev => ({
         ...prev,
         username: 'Please wait for username availability check or choose a different username.'
@@ -268,7 +708,6 @@ export default function SignupPage() {
       return;
     }
     
-    // Check if in cooldown
     if (cooldownSeconds > 0) {
       setErrors(prev => ({
         ...prev,
@@ -281,16 +720,20 @@ export default function SignupPage() {
     setErrors(prev => ({ ...prev, submit: '' }));
     
     try {
-      // Create auth user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            username: formData.username,
+            username: selectedRole === 'candidate' ? formData.username : null,
             full_name: formData.fullName,
             phone: formData.phone || '',
-            country: formData.country || ''
+            country: formData.country || '',
+            state: formData.state || '',
+            city: formData.city || '',
+            lga: selectedRole === 'candidate' ? formData.lga : null,
+            role: selectedRole === 'candidate' ? 'user' : 'fan',
+            avatar_url: null
           }
         }
       });
@@ -298,7 +741,6 @@ export default function SignupPage() {
       if (signUpError) {
         console.error('Signup error details:', signUpError);
         
-        // Handle rate limiting
         if (signUpError.status === 429 || signUpError.message.includes('security purposes') || signUpError.message.includes('rate limit')) {
           const waitTime = 60;
           setCooldownUntil(Date.now() + (waitTime * 1000));
@@ -315,8 +757,6 @@ export default function SignupPage() {
           throw new Error('An account with this email already exists. Please log in instead.');
         } else if (signUpError.message.includes('Password should be at least')) {
           throw new Error('Password must be at least 8 characters long.');
-        } else if (signUpError.message.includes('Database error')) {
-          throw new Error('There was an issue creating your account. Please try again.');
         }
         throw signUpError;
       }
@@ -325,36 +765,74 @@ export default function SignupPage() {
         throw new Error('Failed to create user account');
       }
 
-      // Wait a bit for the trigger to complete and profile to be created
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const userId = authData.user.id;
 
-      // Fetch the newly created profile to get the username
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        // If we can't get the profile, try to sign in and redirect to home
-        try {
-          await supabase.auth.signInWithPassword({
-            email: formData.email,
-            password: formData.password,
-          });
-        } catch (loginError) {
-          console.error('Auto-login error:', loginError);
-        }
+      let profileCreated = false;
+      let attempts = 0;
+      const maxAttempts = 10;
+      let profileData = null;
+      
+      while (!profileCreated && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
         
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/');
-        }, 2000);
-        return;
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (!error && data) {
+          profileCreated = true;
+          profileData = data;
+        }
       }
 
-      // Auto-login the user (email confirmation is disabled in Supabase)
+      if (!profileCreated) {
+        throw new Error('Profile creation failed. Please try again.');
+      }
+
+      if (avatarFile) {
+        try {
+          const fileExt = avatarFile.name.split('.').pop();
+          const fileName = `${userId}.${fileExt}`;
+          const filePath = `${userId}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('profiles')
+            .upload(filePath, avatarFile, {
+              cacheControl: '3600',
+              upsert: true
+            });
+          
+          if (uploadError) {
+            console.error('Avatar upload error:', uploadError);
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('profiles')
+              .getPublicUrl(filePath);
+            
+            if (publicUrl) {
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ 
+                  avatar_url: publicUrl,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', userId);
+              
+              if (updateError) {
+                console.error('Avatar URL update error:', updateError);
+              } else {
+                console.log('Avatar URL updated successfully:', publicUrl);
+              }
+            }
+          }
+        } catch (uploadError) {
+          console.error('Avatar upload process error:', uploadError);
+        }
+      }
+
       try {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -363,11 +841,10 @@ export default function SignupPage() {
 
         if (signInError) {
           console.error('Auto-login error:', signInError);
-          // Still show success and redirect to login
           setSuccess(true);
           setTimeout(() => {
             router.push('/auth/login?email=' + encodeURIComponent(formData.email));
-          }, 2000);
+          }, 3000);
           return;
         }
       } catch (loginError) {
@@ -376,10 +853,13 @@ export default function SignupPage() {
 
       setSuccess(true);
       
-      // Redirect to the user's profile page using their username
       setTimeout(() => {
-        router.push(`/${profile.username}`);
-      }, 2000);
+        if (selectedRole === 'candidate' && formData.username) {
+          router.push(`/${formData.username}`);
+        } else {
+          router.push('/');
+        }
+      }, 3000);
       
     } catch (error) {
       console.error('Signup error:', error);
@@ -396,7 +876,7 @@ export default function SignupPage() {
     const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
     const checks = [hasLower, hasUpper, hasNumber, minLength].filter(Boolean).length;
     
-    if (checks <= 2) return "bg-orange-500";
+    if (checks <= 2) return "bg-yellow-400";
     if (checks <= 3) return "bg-yellow-500";
     return "bg-green-500";
   };
@@ -411,19 +891,19 @@ export default function SignupPage() {
   };
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-burnt-orange-700 via-yellow-100 to-burnt-orange-800 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
-      {/* Animated Background Stars */}
-      {Array.from({ length: 15 }, (_, i) => ({
-        id: i,
-        x: (i * 13) % 90 + 5,
-        y: (i * 17) % 90 + 5,
-        size: (i % 3) * 6 + 8,
-        duration: (i % 5) * 2 + 10,
-        delay: (i % 4) * 0.3,
+    <section className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
+      {/* Background decor - gold/yellow sparks */}
+      {Array.from({ length: 15 }, (_, index) => ({
+        id: index,
+        x: (index * 13) % 90 + 5,
+        y: (index * 17) % 90 + 5,
+        size: (index % 3) * 6 + 8,
+        duration: (index % 5) * 2 + 10,
+        delay: (index % 4) * 0.3,
       })).map((star) => (
         <motion.div
           key={star.id}
-          className="absolute pointer-events-none text-yellow-100/20 hidden md:block"
+          className="absolute pointer-events-none hidden md:block"
           initial={{ 
             x: `${star.x}vw`, 
             y: `${star.y}vh`,
@@ -444,10 +924,9 @@ export default function SignupPage() {
             ease: "linear"
           }}
         >
-          <Star 
+          <Sparkles 
             size={star.size} 
-            className="text-yellow-100/20"
-            fill="currentColor"
+            className="text-yellow-400/20"
           />
         </motion.div>
       ))}
@@ -464,15 +943,15 @@ export default function SignupPage() {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
-          className="relative backdrop-blur-xl bg-white/95 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden border border-yellow-200/30"
+          className="relative backdrop-blur-xl bg-white/5 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden border border-white/10"
         >
           <motion.div
             className="absolute inset-0 pointer-events-none"
             animate={{
               boxShadow: [
-                "0 0 15px rgba(249, 115, 22, 0.2), inset 0 0 15px rgba(234, 179, 8, 0.05)",
-                "0 0 25px rgba(249, 115, 22, 0.3), inset 0 0 20px rgba(234, 179, 8, 0.1)",
-                "0 0 15px rgba(249, 115, 22, 0.2), inset 0 0 15px rgba(234, 179, 8, 0.05)",
+                "0 0 15px rgba(250, 204, 21, 0.05), inset 0 0 15px rgba(250, 204, 21, 0.02)",
+                "0 0 25px rgba(250, 204, 21, 0.08), inset 0 0 20px rgba(250, 204, 21, 0.05)",
+                "0 0 15px rgba(250, 204, 21, 0.05), inset 0 0 15px rgba(250, 204, 21, 0.02)",
               ],
             }}
             transition={{
@@ -483,39 +962,81 @@ export default function SignupPage() {
           />
 
           {/* Header with Logo */}
-          <div className="bg-black flex items-center justify-center py-2">
+          <div className="bg-black/50 backdrop-blur-sm flex items-center justify-between py-3 px-4 border-b border-white/10">
             <motion.div
               initial={{ y: -2, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="relative"
             >
-              <div className="relative w-40 h-16 md:w-48 md:h-20">
+              <div className="relative w-32 h-14 md:w-40 md:h-16">
                 <Image
-                  src="https://vfpyefrlecyrdvbmeyty.supabase.co/storage/v1/object/public/brand-assets/G.png"
-                  alt="Celebrity Star"
+                  src="/logo.jpg"
+                  alt="WhoWin Logo"
                   fill
-                  sizes="(max-width: 768px) 160px, 192px"
+                  sizes="(max-width: 768px) 128px, 160px"
                   className="object-contain"
                   priority
                 />
               </div>
             </motion.div>
+            
+            {/* Role Switch Buttons */}
+            {!showRoleModal && (
+              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleRoleSwitch('candidate')}
+                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all ${
+                    selectedRole === 'candidate'
+                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  <Crown className="w-3 h-3 inline mr-1" />
+                  Candidate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleSwitch('fan')}
+                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all ${
+                    selectedRole === 'fan'
+                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3 h-3 inline mr-1" />
+                  Fan
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Form Content */}
-          <div className="p-4 md:p-5 space-y-3 md:space-y-4">
+          <div className="p-4 md:p-6 space-y-3 md:space-y-4">
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
               className="text-center"
             >
-              <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-burnt-orange-600 to-yellow-500 bg-clip-text text-transparent">
-                Join Celebrity Star
+              <h2 className="text-lg md:text-xl font-bold text-yellow-400">
+                {selectedRole === 'candidate' ? 'Become a Contestant' : 'Join as a Fan'}
               </h2>
-              <p className="text-[10px] md:text-xs text-gray-500">Create your account to get started</p>
+              <p className="text-[10px] md:text-xs text-white/50">
+                {selectedRole === 'candidate' 
+                  ? 'Create your contestant profile to participate in WhoWin' 
+                  : 'Support your favorite contestants'}
+              </p>
             </motion.div>
+
+            {/* Auto-save indicator */}
+            {formInitialized && !success && (
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/50 animate-pulse"></div>
+                <span className="text-[8px] text-white/20">Auto-saving...</span>
+              </div>
+            )}
 
             {/* Rate Limit Warning */}
             <AnimatePresence>
@@ -524,9 +1045,9 @@ export default function SignupPage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="bg-orange-50 border border-orange-200 rounded-lg p-2 text-center"
+                  className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-2 text-center"
                 >
-                  <p className="text-orange-600 text-xs">
+                  <p className="text-yellow-400 text-xs">
                     ⚠️ Too many signup attempts. Please wait {cooldownSeconds} seconds.
                   </p>
                 </motion.div>
@@ -534,68 +1055,97 @@ export default function SignupPage() {
             </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-2.5 md:space-y-3">
-              {/* Username - Updated placeholder to avoid email confusion */}
-              <motion.div
-                initial={{ opacity: 0, x: -5 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <label htmlFor="username" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
-                  <User className="w-2.5 h-2.5 md:w-3 md:h-3" /> Username *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    placeholder="e.g. John, stargirl, celeb_joe"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-400 pr-8 ${
-                      errors.username ? 'border-red-300 bg-red-50' : 
-                      usernameAvailable === true ? 'border-green-300 bg-green-50' :
-                      usernameAvailable === false ? 'border-red-300 bg-red-50' : 
-                      formData.username.length >= 3 ? 'border-orange-200' : 'border-orange-200'
-                    }`}
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    minLength={3}
-                    disabled={cooldownSeconds > 0}
-                  />
+              {/* Username - Only for candidates */}
+              {selectedRole === 'candidate' && (
+                <motion.div
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <label htmlFor="username" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                    <User className="w-2.5 h-2.5 md:w-3 md:h-3" /> Username *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="username"
+                      name="username"
+                      placeholder="e.g. stargirl, celeb_joe"
+                      className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 pr-8 ${
+                        errors.username ? 'border-red-400 bg-red-500/10' : 
+                        usernameAvailable === true && formData.username.length >= 3 ? 'border-yellow-400 bg-yellow-400/10' :
+                        usernameAvailable === false && formData.username.length >= 3 ? 'border-red-400 bg-red-500/10' : 
+                        formData.username.length >= 3 ? 'border-white/20' : 'border-white/20'
+                      }`}
+                      value={formData.username}
+                      onChange={handleChange}
+                      required
+                      minLength={3}
+                      disabled={cooldownSeconds > 0}
+                    />
+                    
+                    {checkingUsername && (
+                      <div className="absolute inset-y-0 right-2 flex items-center">
+                        <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    
+                    {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && (
+                      <div className="absolute inset-y-0 right-2 flex items-center">
+                        <Check className="w-3 h-3 text-yellow-400" />
+                      </div>
+                    )}
+                    
+                    {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && (
+                      <div className="absolute inset-y-0 right-2 flex items-center">
+                        <X className="w-3 h-3 text-red-500" />
+                      </div>
+                    )}
+                  </div>
                   
-                  {checkingUsername && (
-                    <div className="absolute inset-y-0 right-2 flex items-center">
-                      <div className="w-3 h-3 border-2 border-burnt-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
+                  {errors.username && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5" />
+                      {errors.username}
+                    </p>
                   )}
                   
-                  {!checkingUsername && usernameAvailable === true && (
-                    <div className="absolute inset-y-0 right-2 flex items-center">
-                      <Check className="w-3 h-3 text-green-500" />
-                    </div>
+                  {checkingUsername && formData.username.length >= 3 && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-white/40 flex items-center gap-1">
+                      <div className="w-2 h-2 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                      Checking username availability...
+                    </p>
                   )}
                   
-                  {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && (
-                    <div className="absolute inset-y-0 right-2 flex items-center">
-                      <X className="w-3 h-3 text-red-500" />
-                    </div>
+                  {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && !errors.username && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1 animate-pulse">
+                      <Check className="w-2.5 h-2.5" />
+                      ✓ Username is available!
+                    </p>
                   )}
-                </div>
-                {errors.username && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.username}</p>
-                )}
-                {!checkingUsername && usernameAvailable === true && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-green-600">Username available</p>
-                )}
-                {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">Username taken - please choose another</p>
-                )}
-                {formData.username.length > 0 && formData.username.length < 3 && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-orange-500">Minimum 3 characters</p>
-                )}
-                {formData.username.includes(' ') && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-blue-500">Spaces will be replaced with _</p>
-                )}
-              </motion.div>
+                  
+                  {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && !errors.username && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                      <X className="w-2.5 h-2.5" />
+                      ✗ Username is already taken. Please choose a different one.
+                    </p>
+                  )}
+                  
+                  {formData.username.length > 0 && formData.username.length < 3 && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5" />
+                      Minimum 3 characters required
+                    </p>
+                  )}
+                  
+                  {formData.username.length >= 3 && !/^[a-zA-Z0-9_]+$/.test(formData.username) && (
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5" />
+                      Only letters, numbers, and underscores allowed
+                    </p>
+                  )}
+                </motion.div>
+              )}
 
               {/* Full Name */}
               <motion.div
@@ -603,7 +1153,7 @@ export default function SignupPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 }}
               >
-                <label htmlFor="fullName" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
+                <label htmlFor="fullName" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
                   <Award className="w-2.5 h-2.5 md:w-3 md:h-3" /> Full Name *
                 </label>
                 <input
@@ -611,8 +1161,8 @@ export default function SignupPage() {
                   id="fullName"
                   name="fullName"
                   placeholder="Enter your full name"
-                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-400 ${
-                    errors.fullName ? 'border-red-300 bg-red-50' : 'border-orange-200'
+                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                    errors.fullName ? 'border-red-400 bg-red-500/10' : 'border-white/20'
                   }`}
                   value={formData.fullName}
                   onChange={handleChange}
@@ -620,7 +1170,7 @@ export default function SignupPage() {
                   disabled={cooldownSeconds > 0}
                 />
                 {errors.fullName && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.fullName}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.fullName}</p>
                 )}
               </motion.div>
 
@@ -630,7 +1180,7 @@ export default function SignupPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <label htmlFor="email" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
+                <label htmlFor="email" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
                   <Mail className="w-2.5 h-2.5 md:w-3 md:h-3" /> Email *
                 </label>
                 <input
@@ -638,8 +1188,8 @@ export default function SignupPage() {
                   id="email"
                   name="email"
                   placeholder="your@email.com"
-                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-400 ${
-                    errors.email ? 'border-red-300 bg-red-50' : 'border-orange-200'
+                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                    errors.email ? 'border-red-400 bg-red-500/10' : 'border-white/20'
                   }`}
                   value={formData.email}
                   onChange={handleChange}
@@ -647,65 +1197,220 @@ export default function SignupPage() {
                   disabled={cooldownSeconds > 0}
                 />
                 {errors.email && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.email}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.email}</p>
                 )}
               </motion.div>
 
-              {/* Phone and Country */}
-              <div className="grid grid-cols-2 gap-2">
-                <motion.div
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.45 }}
-                >
-                  <label htmlFor="phone" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
-                    <Phone className="w-2.5 h-2.5 md:w-3 md:h-3" /> Phone
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    placeholder="+123 456 7890"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-400 ${
-                      errors.phone ? 'border-red-300 bg-red-50' : 'border-orange-200'
-                    }`}
-                    value={formData.phone}
-                    onChange={handleChange}
-                    disabled={cooldownSeconds > 0}
-                  />
-                  {errors.phone && (
-                    <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.phone}</p>
-                  )}
-                </motion.div>
+              {/* Phone - Required for candidates */}
+              <motion.div
+                initial={{ opacity: 0, x: -5 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <label htmlFor="phone" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                  <Phone className="w-2.5 h-2.5 md:w-3 md:h-3" /> {selectedRole === 'candidate' ? 'WhatsApp Number *' : 'Phone (Optional)'}
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
+                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                    errors.phone ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                  }`}
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required={selectedRole === 'candidate'}
+                  disabled={cooldownSeconds > 0}
+                />
+                {errors.phone && (
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.phone}</p>
+                )}
+              </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <label htmlFor="country" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
-                    <Globe className="w-2.5 h-2.5 md:w-3 md:h-3" /> Country
-                  </label>
-                  <input
-                    type="text"
-                    id="country"
-                    name="country"
-                    placeholder="e.g. United States, Nigeria, UK"
-                    className="w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border border-orange-200 rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-400"
-                    value={formData.country}
-                    onChange={handleChange}
-                    disabled={cooldownSeconds > 0}
-                  />
-                </motion.div>
-              </div>
+              {/* Avatar Upload */}
+              <motion.div
+                initial={{ opacity: 0, x: -5 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <label className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                  <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> Profile Picture
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                    {avatarPreview ? (
+                      <Image
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 md:w-8 md:h-8 text-white/30" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="cursor-pointer">
+                      <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2">
+                        <Upload className="w-3 h-3 md:w-4 md:h-4" />
+                        {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                        disabled={cooldownSeconds > 0}
+                      />
+                    </label>
+                    <p className="text-[7px] md:text-[8px] text-white/30 mt-1">JPG, PNG, GIF up to 5MB</p>
+                    {uploadError && (
+                      <p className="text-[8px] md:text-[10px] text-red-400 mt-1">{uploadError}</p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Country, State, City - Only for candidates */}
+              {selectedRole === 'candidate' && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.55 }}
+                  >
+                    <label htmlFor="country" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                      <Globe className="w-2.5 h-2.5 md:w-3 md:h-3" /> Country *
+                    </label>
+                    <input
+                      type="text"
+                      id="country"
+                      name="country"
+                      placeholder="e.g. Nigeria, United States, UK"
+                      className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                        errors.country ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                      }`}
+                      value={formData.country}
+                      onChange={handleChange}
+                      required={selectedRole === 'candidate'}
+                      disabled={cooldownSeconds > 0}
+                    />
+                    {errors.country && (
+                      <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.country}</p>
+                    )}
+                  </motion.div>
+
+                  {/* State Dropdown - Only for Nigeria */}
+                  {formData.country?.toLowerCase() === 'nigeria' ? (
+                    <SearchableSelect
+                      id="state"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleChange}
+                      options={states}
+                      placeholder="Search for a state..."
+                      label="State"
+                      required={selectedRole === 'candidate' && formData.country?.toLowerCase() === 'nigeria'}
+                      disabled={cooldownSeconds > 0}
+                      loading={loadingStates}
+                      error={errors.state}
+                      icon={MapPin}
+                      onBlur={() => {
+                        if (errors.state) {
+                          setErrors(prev => ({ ...prev, state: '' }));
+                        }
+                      }}
+                    />
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      <label htmlFor="state" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> State/Region *
+                      </label>
+                      <input
+                        type="text"
+                        id="state"
+                        name="state"
+                        placeholder="Enter your state or region"
+                        className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                          errors.state ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                        }`}
+                        value={formData.state}
+                        onChange={handleChange}
+                        required={selectedRole === 'candidate'}
+                        disabled={cooldownSeconds > 0}
+                      />
+                      {errors.state && (
+                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.state}</p>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* City Dropdown - Only for Nigeria with state selected */}
+                  {formData.country?.toLowerCase() === 'nigeria' && formData.state && (
+                    <SearchableSelect
+                      id="city"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleChange}
+                      options={cities}
+                      placeholder="Search for a city/town..."
+                      label="City/Town"
+                      required={selectedRole === 'candidate' && formData.country?.toLowerCase() === 'nigeria'}
+                      disabled={cooldownSeconds > 0}
+                      loading={loadingCities}
+                      error={errors.city}
+                      icon={MapPin}
+                      onBlur={() => {
+                        if (errors.city) {
+                          setErrors(prev => ({ ...prev, city: '' }));
+                        }
+                      }}
+                    />
+                  )}
+
+                  {/* Manual City Input - For non-Nigeria countries */}
+                  {formData.country?.toLowerCase() !== 'nigeria' && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.65 }}
+                    >
+                      <label htmlFor="city" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> City *
+                      </label>
+                      <input
+                        type="text"
+                        id="city"
+                        name="city"
+                        placeholder="Enter your city"
+                        className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                          errors.city ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                        }`}
+                        value={formData.city}
+                        onChange={handleChange}
+                        required={selectedRole === 'candidate'}
+                        disabled={cooldownSeconds > 0}
+                      />
+                      {errors.city && (
+                        <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.city}</p>
+                      )}
+                    </motion.div>
+                  )}
+                </>
+              )}
 
               {/* Password */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.55 }}
+                transition={{ delay: 0.7 }}
               >
-                <label htmlFor="password" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
+                <label htmlFor="password" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
                   <Lock className="w-2.5 h-2.5 md:w-3 md:h-3" /> Password *
                 </label>
                 <div className="relative">
@@ -714,8 +1419,8 @@ export default function SignupPage() {
                     id="password"
                     name="password"
                     placeholder="Create password"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none pr-8 ${
-                      errors.password ? 'border-red-300 bg-red-50' : 'border-orange-200'
+                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none pr-8 ${
+                      errors.password ? 'border-red-400 bg-red-500/10' : 'border-white/20'
                     }`}
                     value={formData.password}
                     onChange={handlePasswordChange}
@@ -724,7 +1429,7 @@ export default function SignupPage() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-burnt-orange-600 transition-colors"
+                    className="absolute inset-y-0 right-2 flex items-center text-white/40 hover:text-white/80 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
                     disabled={cooldownSeconds > 0}
@@ -733,7 +1438,7 @@ export default function SignupPage() {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.password}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.password}</p>
                 )}
 
                 <AnimatePresence>
@@ -745,14 +1450,14 @@ export default function SignupPage() {
                       className="mt-1 space-y-1"
                     >
                       <div className="flex items-center gap-1.5">
-                        <div className="flex-1 h-1 bg-orange-200 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(passwordStrength.score / 4) * 100}%` }}
                             className={`h-full ${getStrengthColor()}`}
                           />
                         </div>
-                        <span className="text-[8px] md:text-[9px] font-medium text-gray-600">
+                        <span className="text-[8px] md:text-[9px] font-medium text-white/60">
                           {getStrengthText()}
                         </span>
                       </div>
@@ -760,35 +1465,35 @@ export default function SignupPage() {
                       <div className="grid grid-cols-2 gap-0.5 text-[7px] md:text-[8px]">
                         <div className="flex items-center gap-1">
                           {passwordStrength.minLength ? (
-                            <Check className="w-2 h-2 text-green-500" />
+                            <Check className="w-2 h-2 text-yellow-400" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-gray-300" />
+                            <div className="w-2 h-2 rounded-full border border-white/20" />
                           )}
-                          <span className="text-gray-600">8+ chars</span>
+                          <span className="text-white/40">8+ chars</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasLower ? (
-                            <Check className="w-2 h-2 text-green-500" />
+                            <Check className="w-2 h-2 text-yellow-400" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-gray-300" />
+                            <div className="w-2 h-2 rounded-full border border-white/20" />
                           )}
-                          <span className="text-gray-600">Lowercase</span>
+                          <span className="text-white/40">Lowercase</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasUpper ? (
-                            <Check className="w-2 h-2 text-green-500" />
+                            <Check className="w-2 h-2 text-yellow-400" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-gray-300" />
+                            <div className="w-2 h-2 rounded-full border border-white/20" />
                           )}
-                          <span className="text-gray-600">Uppercase</span>
+                          <span className="text-white/40">Uppercase</span>
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasNumber ? (
-                            <Check className="w-2 h-2 text-green-500" />
+                            <Check className="w-2 h-2 text-yellow-400" />
                           ) : (
-                            <div className="w-2 h-2 rounded-full border border-gray-300" />
+                            <div className="w-2 h-2 rounded-full border border-white/20" />
                           )}
-                          <span className="text-gray-600">Number</span>
+                          <span className="text-white/40">Number</span>
                         </div>
                       </div>
                     </motion.div>
@@ -800,9 +1505,9 @@ export default function SignupPage() {
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 }}
+                transition={{ delay: 0.75 }}
               >
-                <label htmlFor="confirmPassword" className="block text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 ml-1 flex items-center gap-1">
+                <label htmlFor="confirmPassword" className="block text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1 flex items-center gap-1">
                   <Lock className="w-2.5 h-2.5 md:w-3 md:h-3" /> Confirm Password *
                 </label>
                 <div className="relative">
@@ -811,8 +1516,8 @@ export default function SignupPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     placeholder="Confirm password"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-orange-50/50 border rounded-lg md:rounded-xl text-xs md:text-sm text-gray-800 focus:ring-1 focus:ring-burnt-orange-500 focus:border-transparent transition-all outline-none pr-8 ${
-                      errors.confirmPassword ? 'border-red-300 bg-red-50' : 'border-orange-200'
+                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none pr-8 ${
+                      errors.confirmPassword ? 'border-red-400 bg-red-500/10' : 'border-white/20'
                     }`}
                     value={formData.confirmPassword}
                     onChange={handleChange}
@@ -821,7 +1526,7 @@ export default function SignupPage() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-burnt-orange-600 transition-colors"
+                    className="absolute inset-y-0 right-2 flex items-center text-white/40 hover:text-white/80 transition-colors"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     tabIndex={-1}
                     disabled={cooldownSeconds > 0}
@@ -839,17 +1544,17 @@ export default function SignupPage() {
                       className="mt-0.5"
                     >
                       {formData.password === formData.confirmPassword ? (
-                        <p className="text-[8px] md:text-[9px] text-green-600 flex items-center gap-1">
+                        <p className="text-[8px] md:text-[9px] text-yellow-400 flex items-center gap-1">
                           <Check className="w-2 h-2" /> Passwords match
                         </p>
                       ) : (
-                        <p className="text-[8px] md:text-[9px] text-red-500">Passwords do not match</p>
+                        <p className="text-[8px] md:text-[9px] text-red-400">Passwords do not match</p>
                       )}
                     </motion.div>
                   )}
                 </AnimatePresence>
                 {errors.confirmPassword && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.confirmPassword}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.confirmPassword}</p>
                 )}
               </motion.div>
 
@@ -857,8 +1562,8 @@ export default function SignupPage() {
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.65 }}
-                className="bg-orange-50/50 rounded-lg p-2"
+                transition={{ delay: 0.8 }}
+                className="bg-white/5 rounded-lg p-2 border border-white/10"
               >
                 <label htmlFor="terms" className="flex items-start gap-1.5 cursor-pointer group">
                   <div className="relative flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -873,17 +1578,17 @@ export default function SignupPage() {
                     />
                     <div className={`w-3 h-3 border rounded flex items-center justify-center transition-all ${
                       formData.agreeTerms 
-                        ? 'bg-burnt-orange-500 border-burnt-orange-500' 
-                        : 'border-orange-300 group-hover:border-burnt-orange-500'
+                        ? 'bg-yellow-400 border-yellow-400' 
+                        : 'border-white/30 group-hover:border-yellow-400'
                     }`}>
-                      {formData.agreeTerms && <Check className="w-2 h-2 text-white" />}
+                      {formData.agreeTerms && <Check className="w-2 h-2 text-black" />}
                     </div>
                   </div>
-                  <span className="text-[9px] md:text-[10px] text-gray-700 leading-tight">
+                  <span className="text-[9px] md:text-[10px] text-white/60 leading-tight">
                     I agree to the{' '}
                     <Link 
                       href="/terms" 
-                      className="text-burnt-orange-600 font-semibold hover:text-yellow-600 hover:underline transition-colors"
+                      className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
                       Terms
@@ -891,7 +1596,7 @@ export default function SignupPage() {
                     &{' '}
                     <Link 
                       href="/privacy" 
-                      className="text-burnt-orange-600 font-semibold hover:text-yellow-600 hover:underline transition-colors"
+                      className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
                       Privacy
@@ -899,23 +1604,23 @@ export default function SignupPage() {
                   </span>
                 </label>
                 {errors.agreeTerms && (
-                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-600">{errors.agreeTerms}</p>
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400">{errors.agreeTerms}</p>
                 )}
               </motion.div>
 
-              {/* Submit Button */}
+              {/* Submit Button - Yellow/Gold with Green Hover */}
               <motion.button
                 type="submit"
-                disabled={loading || !formData.agreeTerms || cooldownSeconds > 0 || usernameAvailable !== true}
-                whileHover={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || usernameAvailable !== true) ? 1 : 1.01 }}
-                whileTap={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || usernameAvailable !== true) ? 1 : 0.99 }}
-                className={`w-full py-2 md:py-2.5 rounded-lg md:rounded-xl font-semibold text-white shadow-md transition-all relative overflow-hidden group ${
-                  loading || !formData.agreeTerms || cooldownSeconds > 0 || usernameAvailable !== true
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-burnt-orange-600 to-yellow-500 hover:from-burnt-orange-700 hover:to-yellow-600'
+                disabled={loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)}
+                whileHover={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)) ? 1 : 1.01 }}
+                whileTap={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)) ? 1 : 0.99 }}
+                className={`w-full py-2 md:py-2.5 rounded-lg md:rounded-xl font-semibold text-black shadow-md transition-all relative overflow-hidden group ${
+                  loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)
+                    ? 'bg-white/10 cursor-not-allowed text-white/40'
+                    : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white'
                 }`}
               >
-                {!cooldownSeconds && usernameAvailable === true && (
+                {!cooldownSeconds && (selectedRole !== 'candidate' || usernameAvailable === true) && !loading && formData.agreeTerms && (
                   <motion.div
                     className="absolute inset-0 bg-white/20"
                     animate={{
@@ -934,7 +1639,7 @@ export default function SignupPage() {
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
+                      className="w-3 h-3 border-2 border-black border-t-transparent rounded-full"
                     />
                     <span className="text-xs md:text-sm">Creating...</span>
                   </div>
@@ -942,7 +1647,7 @@ export default function SignupPage() {
                   <span className="text-xs md:text-sm relative z-10">
                     Wait {cooldownSeconds}s
                   </span>
-                ) : usernameAvailable !== true ? (
+                ) : selectedRole === 'candidate' && usernameAvailable !== true ? (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
                     <X className="w-3 h-3" />
                     Choose Available Username
@@ -950,7 +1655,7 @@ export default function SignupPage() {
                 ) : (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
                     <Star className="w-3 h-3 md:w-4 md:h-4" />
-                    Join Celebrity Star
+                    Join WhoWin
                     <Star className="w-3 h-3 md:w-4 md:h-4" />
                   </span>
                 )}
@@ -960,14 +1665,14 @@ export default function SignupPage() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
+                transition={{ delay: 0.85 }}
                 className="text-center"
               >
-                <p className="text-[9px] md:text-[10px] text-gray-500">
+                <p className="text-[9px] md:text-[10px] text-white/40">
                   Already have an account?{' '}
                   <Link
                     href="/auth/login"
-                    className="text-burnt-orange-600 font-semibold hover:text-yellow-600 hover:underline transition-colors"
+                    className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
                   >
                     Sign in
                   </Link>
@@ -978,59 +1683,199 @@ export default function SignupPage() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.75 }}
+                transition={{ delay: 0.9 }}
                 className="flex items-center justify-center gap-1"
               >
-                <Shield className="w-2.5 h-2.5 text-gray-400" />
-                <span className="text-[6px] md:text-[7px] text-gray-400">Secure • Encrypted</span>
+                <Shield className="w-2.5 h-2.5 text-white/20" />
+                <span className="text-[6px] md:text-[7px] text-white/20">Secure • Encrypted</span>
               </motion.div>
             </form>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Centered Success Modal */}
+      {/* Role Selection Modal - Yellow/Gold with Green Hover */}
       <AnimatePresence>
-        {success && (
+        {showRoleModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-500 rounded-2xl p-8 max-w-md w-full shadow-2xl text-center"
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
             >
-              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-white" />
+              <div className="mb-6">
+                <div className="relative w-20 h-20 mx-auto mb-4">
+                  <Image
+                    src="/logo.jpg"
+                    alt="WhoWin Logo"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  Welcome to <span className="text-yellow-400">WhoWin</span>!
+                </h2>
+                <p className="text-white/60 text-sm">How would you like to join?</p>
               </div>
               
-              <h2 className="text-2xl font-bold text-green-800 mb-3">
-                Welcome to Celebrity Star!
+              <div className="space-y-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleRoleSelect('candidate')}
+                  className="w-full p-4 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-green-500/30"
+                >
+                  <Crown className="w-5 h-5" />
+                  <div className="text-left">
+                    <div className="text-sm">Sign up as a</div>
+                    <div className="text-lg font-bold">Contestant</div>
+                  </div>
+                  <div className="ml-auto text-xs opacity-70">Competitive</div>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleRoleSelect('fan')}
+                  className="w-full p-4 rounded-xl bg-white/10 border border-white/20 hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-500 hover:text-white hover:border-green-500 text-white font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-green-500/30"
+                >
+                  <Users className="w-5 h-5" />
+                  <div className="text-left">
+                    <div className="text-sm">Sign up as a</div>
+                    <div className="text-lg font-bold">Fan</div>
+                  </div>
+                  <div className="ml-auto text-xs opacity-70">Support</div>
+                </motion.button>
+              </div>
+
+              <p className="text-white/30 text-xs mt-4">
+                Already have an account?{' '}
+                <Link href="/auth/login" className="text-yellow-400 hover:text-green-400 transition-colors hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Modal */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
+            >
+              <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-black" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-white mb-3">
+                Welcome to WhoWin! 🎉
               </h2>
               
-              <p className="text-green-700 text-base mb-6">
-                Your account has been created successfully
+              <p className="text-yellow-400 text-base mb-6">
+                {selectedRole === 'candidate' 
+                  ? 'Your contestant profile has been created successfully!' 
+                  : 'Your fan account has been created successfully!'}
               </p>
               
               <div className="space-y-3">
-                <div className="bg-white/50 rounded-lg p-3 text-sm text-green-600">
-                  <p>You're now signed in as <span className="font-bold">@{formData.username}</span></p>
+                <div className="bg-white/10 rounded-lg p-3 text-sm text-white/80">
+                  <p>You're now signed in as <span className="font-bold text-yellow-400">@{formData.username || formData.fullName}</span></p>
+                  <p className="text-xs text-white/40 mt-1">
+                    {selectedRole === 'candidate' ? 'Contestant' : 'Fan'} • {formData.email}
+                  </p>
                 </div>
                 
-                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>Taking you to your profile...</span>
+                <div className="flex items-center justify-center gap-2 text-sm text-yellow-400/80">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <span>Taking you to your dashboard...</span>
                 </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Global custom scrollbar styles */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(250, 204, 21, 0.4);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(250, 204, 21, 0.6);
+        }
+        .text-yellow-400 {
+          color: #facc15;
+        }
+        .bg-yellow-400 {
+          background-color: #facc15;
+        }
+        .border-yellow-400 {
+          border-color: #facc15;
+        }
+        .from-yellow-400 {
+          --tw-gradient-from: #facc15;
+        }
+        .to-yellow-500 {
+          --tw-gradient-to: #eab308;
+        }
+        .bg-yellow-400/10 {
+          background-color: rgba(250, 204, 21, 0.1);
+        }
+        .bg-yellow-400/30 {
+          background-color: rgba(250, 204, 21, 0.3);
+        }
+        .ring-yellow-400/50 {
+          --tw-ring-color: rgba(250, 204, 21, 0.5);
+        }
+        .shadow-yellow-400/30 {
+          --tw-shadow-color: rgba(250, 204, 21, 0.3);
+        }
+        .shadow-yellow-400/10 {
+          --tw-shadow-color: rgba(250, 204, 21, 0.1);
+        }
+        .hover\\:from-green-500:hover {
+          --tw-gradient-from: #22c55e;
+        }
+        .hover\\:to-emerald-500:hover {
+          --tw-gradient-to: #10b981;
+        }
+        .hover\\:text-green-400:hover {
+          color: #22c55e;
+        }
+        .hover\\:border-green-500:hover {
+          border-color: #22c55e;
+        }
+        .shadow-green-500/30 {
+          --tw-shadow-color: rgba(34, 197, 94, 0.3);
+        }
+      `}</style>
     </section>
   );
 }

@@ -1,13 +1,40 @@
 // components/GlobalNavigation.js
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Home, Users, Images, Bell, Trophy, Tv, User, Flame, Crown, Star, LogIn, LogOut, Info, Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Home,
+  Users,
+  Images,
+  Bell,
+  Trophy,
+  Tv,
+  User,
+  Flame,
+  Crown,
+  Star,
+  LogIn,
+  LogOut,
+  Info,
+  Menu,
+  X
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createBrowserClient } from '@supabase/ssr';
 
+// ============================================
+// SUPABASE CLIENT - CREATED ONCE OUTSIDE COMPONENT
+// ============================================
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+// ============================================
+// GLOBAL NAVIGATION COMPONENT
+// ============================================
 const GlobalNavigation = () => {
   const [activeMobileTab, setActiveMobileTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,84 +44,129 @@ const GlobalNavigation = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [authLoaded, setAuthLoaded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const pathname = usePathname();
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-
-  // Fetch current user and profile - non-blocking
+  // ============================================
+  // AUTH STATE - CLEAN & RELIABLE
+  // ============================================
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const getUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!isMounted) return;
-        
-        setCurrentUser(user);
-        setIsLoggedIn(!!user);
-
-        if (user) {
-          // Fetch user profile - don't await, let it happen in background
-          supabase
-            .from('profiles')
-            .select('username, avatar_url, full_name')
-            .eq('id', user.id)
-            .maybeSingle()
-            .then(({ data: profile }) => {
-              if (isMounted) setUserProfile(profile);
-            });
-        } else {
+    // Helper: Load user profile
+    const loadUserProfile = async (user) => {
+      if (!user) {
+        if (mounted) {
+          setCurrentUser(null);
           setUserProfile(null);
+          setIsLoggedIn(false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setCurrentUser(user);
+        setIsLoggedIn(true);
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('username, avatar_url, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error('Profile fetch error:', error);
+        setUserProfile(null);
+        return;
+      }
+
+      setUserProfile(profile || null);
+    };
+
+    // Initialize auth
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('Session error:', error);
+        }
+
+        if (!mounted) return;
+
+        await loadUserProfile(session?.user || null);
+
+        if (mounted) {
+          setAuthLoaded(true);
         }
       } catch (error) {
-        console.error('Error fetching user:', error);
-      } finally {
-        if (isMounted) setAuthLoaded(true);
+        console.error('Auth initialization error:', error);
+
+        if (mounted) {
+          setCurrentUser(null);
+          setUserProfile(null);
+          setIsLoggedIn(false);
+          setAuthLoaded(true);
+        }
       }
     };
 
-    getUser();
+    // Initialize current session
+    initializeAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      
+    // Listen for future auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+
+      console.log('🔔 Auth event:', event);
+
       if (event === 'SIGNED_IN' && session?.user) {
-        setIsLoggedIn(true);
-        setCurrentUser(session.user);
-        
-        // Fetch profile after sign in
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, avatar_url, full_name')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        
-        if (isMounted) setUserProfile(profile);
-      } else if (event === 'SIGNED_OUT') {
-        setIsLoggedIn(false);
+        loadUserProfile(session.user);
+        setAuthLoaded(true);
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setUserProfile(null);
+        setIsLoggedIn(false);
+        setShowUserDropdown(false);
+        setIsLoggingOut(false);
+        setAuthLoaded(true);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED' && session?.user) {
+        setCurrentUser(session.user);
+        setIsLoggedIn(true);
+        return;
+      }
+
+      if (event === 'USER_UPDATED' && session?.user) {
+        loadUserProfile(session.user);
+        return;
       }
     });
 
     return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
+      mounted = false;
+      subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []); // <-- EMPTY DEPENDENCY ARRAY - ONLY RUNS ONCE
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Get active tab from pathname - synchronous, no delay
+  // ============================================
+  // NAVIGATION HELPERS
+  // ============================================
   const getActiveTab = () => {
     if (pathname === '/') return 'home';
     if (pathname.startsWith('/candidates')) return 'candidates';
@@ -109,21 +181,29 @@ const GlobalNavigation = () => {
     return 'home';
   };
 
-  // Handle logout
+  // ============================================
+  // HANDLERS
+  // ============================================
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    setShowUserDropdown(false);
+
     try {
-      await supabase.auth.signOut();
-      setIsLoggedIn(false);
-      setCurrentUser(null);
-      setUserProfile(null);
-      setShowUserDropdown(false);
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
       router.push('/');
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Logout error:', error);
+      setIsLoggingOut(false);
     }
   };
 
-  // Handle profile click
   const handleProfileClick = () => {
     setShowUserDropdown(false);
     if (userProfile?.username) {
@@ -136,7 +216,6 @@ const GlobalNavigation = () => {
     }
   };
 
-  // Handle user circle click
   const handleUserCircleClick = () => {
     if (isLoggedIn) {
       setShowUserDropdown(!showUserDropdown);
@@ -145,20 +224,17 @@ const GlobalNavigation = () => {
     }
   };
 
-  // Handle register button click
   const handleRegisterClick = (e) => {
     e.preventDefault();
     router.push('/auth/signup');
   };
 
-  // Handle mobile register button click
   const handleMobileRegisterClick = (e) => {
     e.preventDefault();
     setHoveringRegister(true);
     router.push('/auth/signup');
   };
 
-  // Handle profile tab click (bottom navigation)
   const handleProfileTabClick = (e) => {
     e.preventDefault();
     if (isLoggedIn && userProfile?.username) {
@@ -173,7 +249,9 @@ const GlobalNavigation = () => {
     }
   };
 
-  // Navigation items for mobile menu
+  // ============================================
+  // NAVIGATION ITEMS
+  // ============================================
   const mobileMenuItems = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
@@ -183,25 +261,23 @@ const GlobalNavigation = () => {
     { id: 'about', label: 'About', icon: Info, href: '/about' },
   ];
 
-  const logoUrl = 'https://vfpyefrlecyrdvbmeyty.supabase.co/storage/v1/object/public/brand-assets/G.png';
+  const logoUrl = '/logo.png';
   const activeTab = getActiveTab();
 
-  // Mobile bottom navigation items (simplified)
   const mobileNavItems = [
     { id: 'home', icon: Home, label: 'Home', href: '/' },
     { id: 'updates', icon: Bell, label: 'Updates', href: '/updates' },
     { id: 'vote', icon: Flame, label: 'Vote', isSpecial: true, href: '/vote' },
     { id: 'gallery', icon: Images, label: 'Gallery', href: '/event-gallery' },
-    { 
-      id: 'profile', 
-      icon: User, 
-      label: 'Profile', 
+    {
+      id: 'profile',
+      icon: User,
+      label: 'Profile',
       isProfile: true,
       onClick: handleProfileTabClick
     },
   ];
 
-  // Desktop navigation items
   const desktopNavItems = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
@@ -210,25 +286,28 @@ const GlobalNavigation = () => {
     { id: 'about', label: 'About', icon: Info, href: '/about' },
   ];
 
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <>
       {/* ===== DESKTOP HEADER ===== */}
       <header className="hidden md:block sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            
+
             {/* Logo Section - Left */}
             <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
               <div className="relative group">
                 <div className="h-16 w-auto overflow-hidden flex items-center justify-center">
                   <Image
                     src={logoUrl}
-                    alt="G Logo"
+                    alt="WhoWin Logo"
                     width={64}
                     height={64}
                     className="h-full w-auto object-contain"
-                    unoptimized
                     priority
+                    unoptimized
                   />
                 </div>
               </div>
@@ -249,7 +328,7 @@ const GlobalNavigation = () => {
                     >
                       <div className="flex items-center space-x-2">
                         <item.icon className={`w-4 h-4 transition-colors ${
-                          isActive ? 'text-orange-400' : 'text-white/80 group-hover:text-orange-400'
+                          isActive ? 'text-green-400' : 'text-white/80 group-hover:text-green-400'
                         }`} />
                         <span className={`text-sm font-medium ${
                           isActive ? 'text-white' : 'text-white/90 group-hover:text-white'
@@ -257,7 +336,7 @@ const GlobalNavigation = () => {
                           {item.label}
                         </span>
                       </div>
-                      <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full ${
+                      <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full ${
                         isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       } transition-opacity duration-300`}></div>
                     </Link>
@@ -270,23 +349,22 @@ const GlobalNavigation = () => {
             <div className="flex items-center space-x-3">
               {/* Live TV Icon */}
               <Link href="/live-tv" className="relative group">
-                <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-orange-500/30 transition-all duration-300 hover:-translate-y-0.5">
+                <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5">
                   <Tv className="w-5 h-5 text-white" />
                 </div>
               </Link>
 
               {/* Register Button - Only show for non-auth users */}
               {!authLoaded ? (
-                // Show skeleton while loading auth
                 <div className="w-20 h-9 bg-white/5 rounded-lg animate-pulse"></div>
               ) : !isLoggedIn ? (
-                <button 
+                <button
                   onClick={handleRegisterClick}
                   className="relative group"
                   onMouseEnter={() => setHoveringRegister(true)}
                   onMouseLeave={() => setHoveringRegister(false)}
                 >
-                  <div className="relative px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all duration-300 border border-blue-400/50 flex items-center space-x-1.5 shadow-lg">
+                  <div className="relative px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 transition-all duration-300 border border-green-400/50 flex items-center space-x-1.5 shadow-lg">
                     <LogIn className="w-3.5 h-3.5 text-white" />
                     <span className="text-xs font-semibold text-white">Register</span>
                   </div>
@@ -295,11 +373,11 @@ const GlobalNavigation = () => {
 
               {/* User Auth Button */}
               <div className="relative">
-                <button 
+                <button
                   onClick={handleUserCircleClick}
                   className="relative group"
                 >
-                  <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-orange-500/30 transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5">
                     {isLoggedIn && userProfile?.avatar_url ? (
                       <div className="w-5 h-5 rounded-full overflow-hidden">
                         <Image
@@ -308,13 +386,14 @@ const GlobalNavigation = () => {
                           width={20}
                           height={20}
                           className="object-cover w-full h-full"
+                          unoptimized
                         />
                       </div>
                     ) : (
                       <User className="w-5 h-5 text-white" />
                     )}
                     {isLoggedIn && (
-                      <Crown className="w-3 h-3 absolute -top-1 -right-1 text-orange-400" fill="#f97316" />
+                      <Crown className="w-3 h-3 absolute -top-1 -right-1 text-green-400" fill="#22c55e" />
                     )}
                   </div>
                 </button>
@@ -326,12 +405,12 @@ const GlobalNavigation = () => {
                       <div className="text-white font-medium">{userProfile?.full_name || 'User'}</div>
                       <div className="text-xs text-white/60">@{userProfile?.username || 'username'}</div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={handleProfileClick}
                       className="w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3"
                     >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-yellow-400 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center">
                         <User className="w-4 h-4 text-white" />
                       </div>
                       <div>
@@ -340,15 +419,18 @@ const GlobalNavigation = () => {
                       </div>
                     </button>
 
-                    <button 
+                    <button
                       onClick={handleLogout}
-                      className="w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3 mt-1 border-t border-white/10 pt-3"
+                      disabled={isLoggingOut}
+                      className={`w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3 mt-1 border-t border-white/10 pt-3 transition-colors ${
+                        isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
                         <LogOut className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <div className="font-medium">Logout</div>
+                        <div className="font-medium">{isLoggingOut ? 'Logging out...' : 'Logout'}</div>
                         <div className="text-xs text-white/60">Sign out</div>
                       </div>
                     </button>
@@ -364,44 +446,41 @@ const GlobalNavigation = () => {
       <header className="md:hidden sticky top-0 z-50 bg-black/95 backdrop-blur-sm border-b border-white/10">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            
+
             {/* Mobile Logo */}
             <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
               <div className="h-12 w-auto overflow-hidden flex items-center justify-center">
                 <Image
                   src={logoUrl}
-                  alt="G Logo"
+                  alt="WhoWin Logo"
                   width={48}
                   height={48}
                   className="h-full w-auto object-contain"
-                  unoptimized
                   priority
+                  unoptimized
                 />
               </div>
             </Link>
 
-            {/* Mobile Right Icons - TV, User, and Menu */}
+            {/* Mobile Right Icons */}
             <div className="flex items-center space-x-2">
-              {/* Register Button - Mobile (only if not logged in) */}
               {!authLoaded ? (
                 <div className="w-16 h-7 bg-white/5 rounded animate-pulse"></div>
               ) : !isLoggedIn ? (
-                <button 
+                <button
                   onClick={handleMobileRegisterClick}
-                  className="px-2.5 py-1 rounded-md bg-gradient-to-r from-blue-600 to-cyan-500 border border-blue-400/50 flex items-center space-x-1 shadow"
+                  className="px-2.5 py-1 rounded-md bg-gradient-to-r from-green-600 to-emerald-500 border border-green-400/50 flex items-center space-x-1 shadow"
                 >
                   <LogIn className="w-3 h-3 text-white" />
                   <span className="text-xs font-semibold text-white">Register</span>
                 </button>
               ) : null}
 
-              {/* Live TV Icon */}
               <Link href="/live-tv" className="p-1.5 rounded-lg bg-white/10 border border-white/20">
                 <Tv className="w-4 h-4 text-white" />
               </Link>
 
-              {/* User Icon */}
-              <button 
+              <button
                 onClick={handleUserCircleClick}
                 className="p-1.5 rounded-lg bg-white/10 border border-white/20"
               >
@@ -413,6 +492,7 @@ const GlobalNavigation = () => {
                       width={16}
                       height={16}
                       className="object-cover w-full h-full"
+                      unoptimized
                     />
                   </div>
                 ) : (
@@ -420,8 +500,7 @@ const GlobalNavigation = () => {
                 )}
               </button>
 
-              {/* Hamburger Menu Icon */}
-              <button 
+              <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-1.5 rounded-lg bg-white/10 border border-white/20"
               >
@@ -447,17 +526,17 @@ const GlobalNavigation = () => {
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${
-                      isActive 
-                        ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border-l-4 border-orange-500' 
+                      isActive
+                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-l-4 border-green-500'
                         : 'hover:bg-white/10'
                     }`}
                   >
-                    <item.icon className={`w-5 h-5 ${isActive ? 'text-orange-400' : 'text-white/70'}`} />
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-green-400' : 'text-white/70'}`} />
                     <span className={`text-sm font-medium ${isActive ? 'text-white' : 'text-white/80'}`}>
                       {item.label}
                     </span>
                     {isActive && (
-                      <span className="ml-auto text-xs text-orange-400">●</span>
+                      <span className="ml-auto text-xs text-green-400">●</span>
                     )}
                   </Link>
                 );
@@ -474,7 +553,7 @@ const GlobalNavigation = () => {
             const isActive = activeTab === item.id;
             const isSpecial = item.isSpecial;
             const isProfile = item.isProfile;
-            
+
             if (isSpecial) {
               return (
                 <Link
@@ -487,26 +566,26 @@ const GlobalNavigation = () => {
                     <div className="relative">
                       {isActive && (
                         <>
-                          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full animate-ping opacity-20"></div>
-                          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full animate-ping opacity-20 delay-150"></div>
-                          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full animate-ping opacity-20 delay-300"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full animate-ping opacity-20"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full animate-ping opacity-20 delay-150"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full animate-ping opacity-20 delay-300"></div>
                         </>
                       )}
-                      <div className="relative p-2.5 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 shadow-lg">
+                      <div className="relative p-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 shadow-lg">
                         <Flame className="w-4 h-4 text-white" fill="white" />
                       </div>
                     </div>
                   </div>
-                  <div className={`mt-6 text-[10px] font-medium ${isActive ? 'text-orange-400' : 'text-white/70'}`}>
+                  <div className={`mt-6 text-[10px] font-medium ${isActive ? 'text-green-400' : 'text-white/70'}`}>
                     {item.label}
                   </div>
                   {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full"></div>
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"></div>
                   )}
                 </Link>
               );
             }
-            
+
             if (isProfile) {
               return (
                 <button
@@ -515,7 +594,7 @@ const GlobalNavigation = () => {
                   className="relative flex flex-col items-center justify-center col-span-1"
                 >
                   <div className={`relative p-1.5 rounded-lg transition-all duration-300 ${
-                    isActive ? 'text-orange-400' : 'text-white/70 hover:text-orange-400'
+                    isActive ? 'text-green-400' : 'text-white/70 hover:text-green-400'
                   }`}>
                     {isLoggedIn && userProfile?.avatar_url ? (
                       <div className="w-4 h-4 rounded-full overflow-hidden">
@@ -525,27 +604,28 @@ const GlobalNavigation = () => {
                           width={16}
                           height={16}
                           className="object-cover w-full h-full"
+                          unoptimized
                         />
                       </div>
                     ) : (
                       <item.icon size={16} />
                     )}
                     {isActive && (
-                      <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full animate-pulse"></div>
+                      <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full animate-pulse"></div>
                     )}
                   </div>
                   <div className={`mt-1 text-[10px] font-medium ${
-                    isActive ? 'text-orange-400' : 'text-white/70'
+                    isActive ? 'text-green-400' : 'text-white/70'
                   }`}>
                     {item.label}
                   </div>
                   {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full"></div>
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"></div>
                   )}
                 </button>
               );
             }
-            
+
             return (
               <Link
                 key={item.id}
@@ -554,20 +634,20 @@ const GlobalNavigation = () => {
                 className="relative flex flex-col items-center justify-center col-span-1"
               >
                 <div className={`relative p-1.5 rounded-lg transition-all duration-300 ${
-                  isActive ? 'text-orange-400' : 'text-white/70 hover:text-orange-400'
+                  isActive ? 'text-green-400' : 'text-white/70 hover:text-green-400'
                 }`}>
                   <item.icon size={16} />
                   {isActive && (
-                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full animate-pulse"></div>
+                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full animate-pulse"></div>
                   )}
                 </div>
                 <div className={`mt-1 text-[10px] font-medium ${
-                  isActive ? 'text-orange-400' : 'text-white/70'
+                  isActive ? 'text-green-400' : 'text-white/70'
                 }`}>
                   {item.label}
                 </div>
                 {isActive && (
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full"></div>
+                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"></div>
                 )}
               </Link>
             );
@@ -586,12 +666,12 @@ const GlobalNavigation = () => {
               <div className="text-white font-medium">{userProfile?.full_name || 'User'}</div>
               <div className="text-xs text-white/60">@{userProfile?.username || 'username'}</div>
             </div>
-            
-            <button 
+
+            <button
               onClick={handleProfileClick}
               className="w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-yellow-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -600,15 +680,18 @@ const GlobalNavigation = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={handleLogout}
-              className="w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3 mt-1 border-t border-white/10 pt-3"
+              disabled={isLoggingOut}
+              className={`w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3 mt-1 border-t border-white/10 pt-3 transition-colors ${
+                isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
                 <LogOut className="w-4 h-4 text-white" />
               </div>
               <div>
-                <div className="font-medium">Logout</div>
+                <div className="font-medium">{isLoggingOut ? 'Logging out...' : 'Logout'}</div>
                 <div className="text-xs text-white/60">Sign out</div>
               </div>
             </button>

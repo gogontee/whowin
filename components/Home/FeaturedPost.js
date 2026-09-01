@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Share2, ChevronRight } from 'lucide-react';
+import { Calendar, Share2, Image as ImageIcon, Video, Play, ChevronRight, ChevronLeft } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
+import Image from 'next/image';
 
-// Simple date formatter without date-fns
 const formatTimeAgo = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -35,10 +35,11 @@ const formatTimeAgo = (dateString) => {
 
 export default function FeaturedPost() {
   const router = useRouter();
-  const [news, setNews] = useState([]);
-  const [allFeaturedNews, setAllFeaturedNews] = useState([]);
+  const [featuredContent, setFeaturedContent] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [rotationIndex, setRotationIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -46,215 +47,395 @@ export default function FeaturedPost() {
   );
 
   useEffect(() => {
-    fetchFeaturedNews();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Rotate featured news every hour if there are more than 4
   useEffect(() => {
-    if (allFeaturedNews.length <= 4) return;
+    fetchFeaturedContent();
+  }, []);
 
+  useEffect(() => {
+    if (featuredContent.length <= 1) return;
     const interval = setInterval(() => {
-      setRotationIndex((prev) => (prev + 4) % allFeaturedNews.length);
-    }, 60 * 60 * 1000); // 1 hour
-
+      setCurrentIndex((prev) => (prev + 1) % featuredContent.length);
+    }, 6000);
     return () => clearInterval(interval);
-  }, [allFeaturedNews.length]);
+  }, [featuredContent.length]);
 
-  // Update displayed news when rotation index changes
-  useEffect(() => {
-    if (allFeaturedNews.length <= 4) {
-      setNews(allFeaturedNews);
-    } else {
-      const rotatedNews = [];
-      for (let i = 0; i < 4; i++) {
-        const index = (rotationIndex + i) % allFeaturedNews.length;
-        rotatedNews.push(allFeaturedNews[index]);
-      }
-      setNews(rotatedNews);
-    }
-  }, [allFeaturedNews, rotationIndex]);
-
-  const fetchFeaturedNews = async () => {
+  const fetchFeaturedContent = async () => {
     try {
       const { data, error } = await supabase
-        .from('news')
-        .select('*')
-        .eq('is_featured', true)
-        .order('published_at', { ascending: false });
+        .from('who_win')
+        .select('featured_post')
+        .eq('id', 1)
+        .maybeSingle();
 
       if (error) throw error;
-      
-      setAllFeaturedNews(data || []);
-      // Initially show first 4
-      setNews((data || []).slice(0, 4));
+
+      if (data?.featured_post && Array.isArray(data.featured_post) && data.featured_post.length > 0) {
+        setFeaturedContent(data.featured_post);
+      } else {
+        setFeaturedContent([]);
+      }
     } catch (error) {
-      console.error('Error fetching featured news:', error);
+      console.error('Error fetching featured content:', error);
+      setFeaturedContent([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getCategoryColor = (category) => {
-    const colors = {
-      'EXCLUSIVE': 'bg-purple-500',
-      'NEWS': 'bg-blue-500',
-      'INSIGHT': 'bg-green-500',
-      'INTERVIEW': 'bg-yellow-500',
-      'BEHIND THE SCENES': 'bg-pink-500'
-    };
-    return colors[category] || 'bg-gray-500';
+  const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-  const handleShare = async (newsItem) => {
+  const getCurrentItem = () => {
+    if (featuredContent.length === 0) return null;
+    return featuredContent[currentIndex];
+  };
+
+  const handleShare = async (item) => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: newsItem.title,
-          text: newsItem.excerpt,
-          url: `${window.location.origin}/updates/${newsItem.id}`,
+          title: 'Who Win Show',
+          text: item.caption || 'Check out this highlight from the Who Win show!',
+          url: window.location.origin,
         });
       } catch (error) {
         console.error('Error sharing:', error);
       }
     } else {
-      // Fallback - copy to clipboard
-      navigator.clipboard.writeText(`${window.location.origin}/updates/${newsItem.id}`);
+      navigator.clipboard.writeText(window.location.origin);
       alert('Link copied to clipboard!');
     }
   };
 
-  const handleReadMore = (id) => {
-    router.push(`/updates/${id}`);
+  const handleReadMore = () => {
+    router.push('/event-gallery');
+  };
+
+  const handleSelectItem = (index) => {
+    setCurrentIndex(index);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + featuredContent.length) % featuredContent.length);
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % featuredContent.length);
   };
 
   if (loading) {
     return (
       <section className="container mx-auto px-4 py-8 md:py-12">
-        {/* Section header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="text-orange-400 text-sm font-medium tracking-wider mb-1">FEATURED</div>
-            <h2 className="text-xl md:text-2xl font-bold text-white">Latest Updates</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-white">Featured Content</h2>
           </div>
-          <button className="text-white/70 hover:text-white text-xs font-medium flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>CALENDAR</span>
-          </button>
         </div>
-        
-        {/* Loading skeleton - 4 columns on desktop, 2 on mobile */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-gradient-to-br from-gray-900/50 to-black/50 rounded-2xl overflow-hidden border border-white/10 animate-pulse">
-              <div className="h-48 md:h-56 bg-gray-800"></div>
-              <div className="p-4 md:p-6 space-y-3">
-                <div className="h-4 bg-gray-800 rounded w-1/2"></div>
-                <div className="h-6 bg-gray-800 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-800 rounded w-full"></div>
-                <div className="h-8 bg-gray-800 rounded w-1/3"></div>
-              </div>
-            </div>
-          ))}
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 animate-pulse">
+          <div className="aspect-[16/9] md:aspect-[21/9] bg-gray-800"></div>
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+            <div className="h-6 bg-gray-700 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+          </div>
         </div>
       </section>
     );
   }
 
-  if (news.length === 0) return null;
+  if (featuredContent.length === 0) return null;
 
-  return (
-    <section className="container mx-auto px-4 py-8 md:py-12">
-      {/* Section header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="text-orange-400 text-sm font-medium tracking-wider mb-1">FEATURED</div>
-          <h2 className="text-xl md:text-2xl font-bold text-white">Latest Updates</h2>
-          {allFeaturedNews.length > 4 && (
-            <p className="text-xs text-white/40 mt-1">
-              Rotating {allFeaturedNews.length} featured stories
-            </p>
-          )}
+  const currentItem = getCurrentItem();
+
+  // Desktop Layout
+  if (!isMobile) {
+    return (
+      <section className="container mx-auto px-4 py-8 md:py-12">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="text-orange-400 text-sm font-medium tracking-wider mb-1">FEATURED</div>
+            <h2 className="text-xl md:text-2xl font-bold text-white">Featured Content</h2>
+          </div>
+          <button 
+            onClick={handleReadMore}
+            className="text-white/70 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors"
+          >
+            <Calendar className="w-3 h-3" />
+            <span>VIEW ALL</span>
+          </button>
         </div>
-        <button className="text-white/70 hover:text-white text-xs font-medium flex items-center gap-1">
-          <Calendar className="w-3 h-3" />
-          <span>CALENDAR</span>
-        </button>
-      </div>
-      
-      {/* News grid - 4 columns on desktop, 2 on mobile */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-        {news.map((item) => (
-          <div key={item.id} className="group cursor-pointer" onClick={() => handleReadMore(item.id)}>
-            <div className="bg-gradient-to-br from-gray-900/50 to-black/50 rounded-2xl overflow-hidden border border-white/10 backdrop-blur-sm hover:border-orange-500/30 transition-all duration-300 h-full flex flex-col">
-              
-              {/* News image */}
-              <div className="relative h-40 md:h-48 overflow-hidden flex-shrink-0">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700"
-                  style={{ backgroundImage: `url(${item.image_url})` }}
-                ></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
-                
-                {/* Category badge */}
-                <div className="absolute top-3 left-3">
-                  <span className={`px-2 py-0.5 rounded-full ${getCategoryColor(item.category)} text-white text-[10px] font-medium`}>
-                    {item.category}
-                  </span>
-                </div>
-                
-                {/* Share button */}
-                <div className="absolute top-3 right-3">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(item);
-                    }}
-                    className="p-1.5 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
-                  >
-                    <Share2 className="w-3 h-3 text-white" />
-                  </button>
-                </div>
-              </div>
-              
-              {/* News content - with flex grow to push button to bottom */}
-              <div className="p-3 md:p-4 flex flex-col flex-grow">
-                {/* Title - reduced size on mobile */}
-                <h3 className="text-sm md:text-base font-bold text-white mb-2 group-hover:text-orange-400 transition-colors line-clamp-2">
-                  {item.title}
-                </h3>
-                
-                {/* Excerpt - hidden on mobile, shown on desktop */}
-                <p className="hidden md:block text-white/70 text-xs mb-3 line-clamp-2 flex-grow">
-                  {item.excerpt}
-                </p>
-                
-                {/* Bottom row with date and read more button - opposite ends */}
-                <div className="flex items-center justify-between mt-auto pt-2">
-                  {/* Published time */}
-                  <div className="flex items-center gap-1 text-white/40 text-[10px] md:text-xs">
-                    <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                    <span className="truncate max-w-[80px] md:max-w-none">
-                      {formatTimeAgo(item.published_at)}
-                    </span>
+
+        <div className="flex gap-4">
+          {/* Main Content - Left (70%) */}
+          <div className="flex-1">
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group">
+              <div className="relative aspect-[16/9] overflow-hidden">
+                {currentItem.type === 'image' ? (
+                  <div className="relative w-full h-full">
+                    {imageErrors[currentItem.id] ? (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                        <ImageIcon className="w-16 h-16 text-white/20" />
+                      </div>
+                    ) : (
+                      <img
+                        src={currentItem.media[0]?.url}
+                        alt={currentItem.caption || 'Featured content'}
+                        className="w-full h-full object-cover"
+                        onError={() => handleImageError(currentItem.id)}
+                      />
+                    )}
                   </div>
-                  
-                  {/* Read More Button - smaller on mobile */}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReadMore(item.id);
-                    }}
-                    className="inline-flex items-center gap-0.5 md:gap-1 text-[10px] md:text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors group/btn"
-                  >
-                    <span className="hidden md:inline">READ MORE</span>
-                    <span className="inline md:hidden">READ</span>
-                    <ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3 group-hover/btn:translate-x-0.5 transition-transform" />
-                  </button>
+                ) : (
+                  <div className="relative w-full h-full bg-black">
+                    <video
+                      src={currentItem.media[0]?.url}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      controls={false}
+                      onError={() => handleImageError(currentItem.id)}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                        <Play className="w-6 h-6 text-white" fill="white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+
+                {/* Content overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    {currentItem.type === 'image' ? (
+                      <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                        <ImageIcon className="w-3 h-3" />
+                        PHOTO
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                        <Video className="w-3 h-3" />
+                        VIDEO
+                      </span>
+                    )}
+                    <span className="text-white/50 text-xs">•</span>
+                    <span className="text-white/50 text-xs">Who Win Show</span>
+                  </div>
+                  {currentItem.caption && (
+                    <h3 className="text-lg md:text-xl font-bold text-white line-clamp-2">
+                      {currentItem.caption}
+                    </h3>
+                  )}
                 </div>
+
+                {/* Share button */}
+                <button 
+                  onClick={() => handleShare(currentItem)}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                >
+                  <Share2 className="w-4 h-4 text-white" />
+                </button>
+
+                {/* Navigation arrows */}
+                {featuredContent.length > 1 && (
+                  <>
+                    <button
+                      onClick={handlePrev}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-white" />
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                    >
+                      <ChevronRight className="w-5 h-5 text-white" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
-        ))}
+
+          {/* Sidebar - Right (30%) */}
+          <div className="w-[30%] max-w-[300px]">
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-3 h-full overflow-y-auto max-h-[400px]">
+              <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3 px-2">All Content</h4>
+              <div className="space-y-2">
+                {featuredContent.map((item, index) => {
+                  const isActive = index === currentIndex;
+                  const isVideo = item.type === 'video';
+                  
+                  return (
+                    <button
+                      key={item.id || index}
+                      onClick={() => handleSelectItem(index)}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all text-left ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30' 
+                          : 'hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-gray-800">
+                        {isVideo ? (
+                          <div className="w-full h-full bg-black/80 flex items-center justify-center">
+                            <Play className="w-4 h-4 text-white/40" fill="white" />
+                          </div>
+                        ) : (
+                          <img
+                            src={item.media[0]?.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        {isActive && (
+                          <div className="absolute inset-0 bg-orange-400/20"></div>
+                        )}
+                      </div>
+                      
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs truncate ${isActive ? 'text-white' : 'text-white/60'}`}>
+                          {item.caption || (isVideo ? 'Video' : 'Image')}
+                        </p>
+                        <p className="text-[10px] text-white/30">
+                          {formatTimeAgo(item.created_at)}
+                        </p>
+                      </div>
+                      
+                      {/* Type badge */}
+                      <div className="flex-shrink-0">
+                        {isVideo ? (
+                          <Video className="w-3 h-3 text-green-400" />
+                        ) : (
+                          <ImageIcon className="w-3 h-3 text-orange-400" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Mobile Layout - Carousel
+  return (
+    <section className="container mx-auto px-4 py-8 md:py-12">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="text-orange-400 text-sm font-medium tracking-wider mb-1">FEATURED</div>
+          <h2 className="text-xl md:text-2xl font-bold text-white">Featured Content</h2>
+        </div>
+        <button 
+          onClick={handleReadMore}
+          className="text-white/70 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors"
+        >
+          <Calendar className="w-3 h-3" />
+          <span>VIEW ALL</span>
+        </button>
+      </div>
+
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group">
+        <div className="relative aspect-[16/9] overflow-hidden">
+          {currentItem.type === 'image' ? (
+            <div className="relative w-full h-full">
+              {imageErrors[currentItem.id] ? (
+                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                  <ImageIcon className="w-16 h-16 text-white/20" />
+                </div>
+              ) : (
+                <img
+                  src={currentItem.media[0]?.url}
+                  alt={currentItem.caption || 'Featured content'}
+                  className="w-full h-full object-cover"
+                  onError={() => handleImageError(currentItem.id)}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="relative w-full h-full bg-black">
+              <video
+                src={currentItem.media[0]?.url}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls={false}
+                onError={() => handleImageError(currentItem.id)}
+              />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                  <Play className="w-5 h-5 text-white" fill="white" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              {currentItem.type === 'image' ? (
+                <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                  <ImageIcon className="w-3 h-3" />
+                  PHOTO
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                  <Video className="w-3 h-3" />
+                  VIDEO
+                </span>
+              )}
+              <span className="text-white/50 text-xs">•</span>
+              <span className="text-white/50 text-xs">Who Win Show</span>
+            </div>
+            {currentItem.caption && (
+              <h3 className="text-sm font-bold text-white line-clamp-2">
+                {currentItem.caption}
+              </h3>
+            )}
+          </div>
+
+          <button 
+            onClick={() => handleShare(currentItem)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+          >
+            <Share2 className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* Navigation dots */}
+        {featuredContent.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 z-10">
+            {featuredContent.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === currentIndex 
+                    ? 'w-6 bg-orange-400' 
+                    : 'w-1.5 bg-white/40 hover:bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

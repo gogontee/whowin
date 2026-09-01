@@ -26,7 +26,23 @@ import {
   Check,
   ExternalLink,
   Upload,
-  Download
+  Download,
+  Bold,
+  Italic,
+  Underline,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Heading1,
+  Heading2,
+  Quote,
+  Code,
+  Image as ImageIcon2, // renamed to avoid conflict
+  Undo,
+  Redo
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -42,6 +58,7 @@ export default function NewsManagement() {
   const [editingNews, setEditingNews] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
+  const contentRef = useRef(null);
   const [formData, setFormData] = useState({
     title: '',
     excerpt: '',
@@ -60,6 +77,8 @@ export default function NewsManagement() {
   const [featuredFilter, setFeaturedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -121,19 +140,16 @@ export default function NewsManagement() {
 
     setUploadingImage(true);
     try {
-      // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload the file
       const { error: uploadError } = await supabase.storage
         .from('news')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('news')
         .getPublicUrl(filePath);
@@ -153,13 +169,11 @@ export default function NewsManagement() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
       return;
@@ -176,7 +190,6 @@ export default function NewsManagement() {
     if (!imageUrl) return;
 
     try {
-      // Extract file path from URL
       const urlParts = imageUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
       
@@ -192,7 +205,64 @@ export default function NewsManagement() {
     }
   };
 
-  // Handle add news
+  // ===== RICH TEXT EDITOR FUNCTIONS =====
+  
+  const saveContentState = () => {
+    if (contentRef.current) {
+      const content = contentRef.current.innerHTML;
+      setUndoStack([...undoStack, content]);
+      setRedoStack([]);
+    }
+  };
+
+  const formatText = (command, value = null) => {
+    saveContentState();
+    document.execCommand(command, false, value);
+    contentRef.current.focus();
+  };
+
+  const insertLink = () => {
+    const url = prompt('Enter the URL:');
+    if (url) {
+      saveContentState();
+      document.execCommand('createLink', false, url);
+    }
+  };
+
+  const insertImage = () => {
+    const url = prompt('Enter the image URL:');
+    if (url) {
+      saveContentState();
+      document.execCommand('insertImage', false, url);
+    }
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      const lastState = undoStack.pop();
+      setRedoStack([contentRef.current.innerHTML, ...redoStack]);
+      contentRef.current.innerHTML = lastState;
+      setUndoStack([...undoStack]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length > 0) {
+      const nextState = redoStack.shift();
+      setUndoStack([...undoStack, contentRef.current.innerHTML]);
+      contentRef.current.innerHTML = nextState;
+      setRedoStack([...redoStack]);
+    }
+  };
+
+  const handleContentChange = () => {
+    if (contentRef.current) {
+      setFormData({ ...formData, content: contentRef.current.innerHTML });
+    }
+  };
+
+  // ===== CRUD OPERATIONS =====
+
   const handleAddNews = async () => {
     if (!formData.title || !formData.category) {
       alert('Title and category are required');
@@ -203,6 +273,7 @@ export default function NewsManagement() {
     try {
       const newNews = {
         ...formData,
+        content: formData.content || '',
         published_at: formData.published_at ? new Date(formData.published_at).toISOString() : new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -228,21 +299,19 @@ export default function NewsManagement() {
     }
   };
 
-  // Handle edit news
   const handleEditNews = async () => {
     if (!editingNews) return;
 
     setUpdating(true);
     try {
-      // Check if image has changed
       if (editingNews.image_url && editingNews.image_url !== formData.image_url) {
-        // Delete old image
         await deleteImage(editingNews.image_url);
       }
 
       const updatedNews = {
         ...editingNews,
         ...formData,
+        content: formData.content || '',
         updated_at: new Date().toISOString()
       };
 
@@ -268,16 +337,13 @@ export default function NewsManagement() {
     }
   };
 
-  // Handle delete news
   const handleDeleteNews = async (id) => {
     if (!window.confirm('Are you sure you want to delete this news article?')) return;
 
     setUpdating(true);
     try {
-      // Get the news item to delete its image
       const newsItem = news.find(item => item.id === id);
       
-      // Delete from database
       const { error } = await supabase
         .from('news')
         .delete()
@@ -285,7 +351,6 @@ export default function NewsManagement() {
 
       if (error) throw error;
 
-      // Delete image from storage if exists
       if (newsItem?.image_url) {
         await deleteImage(newsItem.image_url);
       }
@@ -300,7 +365,6 @@ export default function NewsManagement() {
     }
   };
 
-  // Toggle featured status
   const toggleFeatured = async (item) => {
     setUpdating(true);
     try {
@@ -322,7 +386,6 @@ export default function NewsManagement() {
     }
   };
 
-  // Toggle trending status
   const toggleTrending = async (item) => {
     setUpdating(true);
     try {
@@ -344,7 +407,6 @@ export default function NewsManagement() {
     }
   };
 
-  // Reset form
   const resetForm = () => {
     setFormData({
       title: '',
@@ -359,9 +421,13 @@ export default function NewsManagement() {
       is_trending: false,
       published_at: new Date().toISOString().slice(0, 16)
     });
+    setUndoStack([]);
+    setRedoStack([]);
+    if (contentRef.current) {
+      contentRef.current.innerHTML = '';
+    }
   };
 
-  // Open edit modal
   const openEditModal = (item) => {
     setEditingNews(item);
     setFormData({
@@ -378,15 +444,34 @@ export default function NewsManagement() {
       published_at: item.published_at ? new Date(item.published_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
     });
     setShowEditModal(true);
+    // Set content after modal opens
+    setTimeout(() => {
+      if (contentRef.current && item.content) {
+        contentRef.current.innerHTML = item.content;
+      }
+    }, 100);
   };
 
-  // Remove current image
   const handleRemoveImage = () => {
     setFormData({ ...formData, image_url: '' });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  // Rich Text Editor Toolbar Button Component
+  const ToolbarButton = ({ icon: Icon, onClick, label, isActive = false }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-1.5 rounded hover:bg-white/10 transition-colors ${
+        isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
+      }`}
+      title={label}
+    >
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
 
   if (loading) {
     return (
@@ -619,7 +704,7 @@ export default function NewsManagement() {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal with Rich Text Editor */}
       <AnimatePresence>
         {(showAddModal || showEditModal) && (
           <motion.div
@@ -638,7 +723,7 @@ export default function NewsManagement() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">
                 {showAddModal ? 'Add New News Article' : 'Edit News Article'}
@@ -669,23 +754,65 @@ export default function NewsManagement() {
                   />
                 </div>
 
-                {/* Content */}
+                {/* Rich Text Content Editor */}
                 <div>
-                  <label className="block text-xs text-white/60 mb-1">Content</label>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Full article content (HTML supported)"
-                    rows="6"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none font-mono"
+                  <label className="block text-xs text-white/60 mb-1">Content (Rich Text)</label>
+                  
+                  {/* Toolbar */}
+                  <div className="flex flex-wrap items-center gap-1 p-2 bg-white/5 border border-white/10 rounded-t-lg border-b-0">
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={Undo} onClick={handleUndo} label="Undo" />
+                      <ToolbarButton icon={Redo} onClick={handleRedo} label="Redo" />
+                    </div>
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={Heading1} onClick={() => formatText('formatBlock', '<h1>')} label="Heading 1" />
+                      <ToolbarButton icon={Heading2} onClick={() => formatText('formatBlock', '<h2>')} label="Heading 2" />
+                    </div>
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={Bold} onClick={() => formatText('bold')} label="Bold" />
+                      <ToolbarButton icon={Italic} onClick={() => formatText('italic')} label="Italic" />
+                      <ToolbarButton icon={Underline} onClick={() => formatText('underline')} label="Underline" />
+                    </div>
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={AlignLeft} onClick={() => formatText('justifyLeft')} label="Align Left" />
+                      <ToolbarButton icon={AlignCenter} onClick={() => formatText('justifyCenter')} label="Align Center" />
+                      <ToolbarButton icon={AlignRight} onClick={() => formatText('justifyRight')} label="Align Right" />
+                    </div>
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={List} onClick={() => formatText('insertUnorderedList')} label="Bullet List" />
+                      <ToolbarButton icon={ListOrdered} onClick={() => formatText('insertOrderedList')} label="Numbered List" />
+                    </div>
+                    <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-2">
+                      <ToolbarButton icon={Quote} onClick={() => formatText('formatBlock', '<blockquote>')} label="Quote" />
+                      <ToolbarButton icon={Code} onClick={() => formatText('formatBlock', '<pre>')} label="Code Block" />
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <ToolbarButton icon={LinkIcon} onClick={insertLink} label="Insert Link" />
+                      <ToolbarButton icon={ImageIcon2} onClick={insertImage} label="Insert Image" />
+                    </div>
+                  </div>
+
+                  {/* Content Editor */}
+                  <div
+                    ref={contentRef}
+                    contentEditable
+                    onInput={handleContentChange}
+                    className="min-h-[200px] p-3 bg-white/5 border border-white/10 rounded-b-lg text-white text-sm focus:outline-none focus:border-burnt-orange-500 transition-colors overflow-y-auto prose prose-invert max-w-none"
+                    style={{
+                      fontFamily: 'inherit',
+                      lineHeight: '1.6'
+                    }}
                   />
+                  
+                  <p className="text-[10px] text-white/40 mt-1">
+                    Tip: Use the toolbar to format your content. You can also paste rich text.
+                  </p>
                 </div>
 
                 {/* Image Upload */}
                 <div>
                   <label className="block text-xs text-white/60 mb-2">Featured Image</label>
                   
-                  {/* Image Preview */}
                   {formData.image_url ? (
                     <div className="relative w-full h-48 rounded-lg overflow-hidden border border-white/10 mb-3">
                       <Image
@@ -711,7 +838,6 @@ export default function NewsManagement() {
                     </div>
                   )}
 
-                  {/* Upload Button */}
                   <div className="flex items-center gap-2">
                     <input
                       type="file"

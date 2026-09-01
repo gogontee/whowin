@@ -4,17 +4,20 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Search, Users, X, ChevronRight, Eye, Calendar } from 'lucide-react';
+import { Search, Users, X, ChevronRight, Eye, Calendar, AlertCircle } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 
 export default function CandidatesPage() {
   const router = useRouter();
   const [candidates, setCandidates] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('all');
   const [countries, setCountries] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,32 +25,69 @@ export default function CandidatesPage() {
   );
 
   useEffect(() => {
-    fetchTopCandidates();
+    fetchCandidates();
   }, []);
 
   useEffect(() => {
-    // Filter candidates when search query or country changes
-    let filtered = candidates;
+    // Handle search and filtering
+    const query = searchQuery.toLowerCase().trim();
     
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.username?.toLowerCase().includes(query) ||
-        item.full_name?.toLowerCase().includes(query) ||
-        item.country?.toLowerCase().includes(query)
-      );
+    if (query === '') {
+      setIsSearching(false);
+      setSearchResults([]);
+      // Show only verified candidates when not searching
+      const verified = candidates.filter(c => c.verification_level === 'fully_verified');
+      applyFilters(verified);
+      return;
     }
+
+    setIsSearching(true);
     
+    // Search across all profiles (including unverified)
+    const searchResults = allProfiles.filter(profile => {
+      // Skip suspended accounts
+      if (profile.account_status === 'suspended') return false;
+      
+      const fullName = profile.full_name?.toLowerCase() || '';
+      const username = profile.username?.toLowerCase() || '';
+      const country = profile.country?.toLowerCase() || '';
+      
+      return fullName.includes(query) || 
+             username.includes(query) || 
+             country.includes(query);
+    });
+
+    setSearchResults(searchResults);
+    
+    // Apply country filter to search results
+    let filtered = searchResults;
     if (selectedCountry !== 'all') {
       filtered = filtered.filter(item => item.country === selectedCountry);
     }
-    
     setFilteredCandidates(filtered);
-  }, [searchQuery, selectedCountry, candidates]);
+    
+  }, [searchQuery, selectedCountry, candidates, allProfiles]);
 
-  const fetchTopCandidates = async () => {
+  const applyFilters = (data) => {
+    let filtered = data;
+    if (selectedCountry !== 'all') {
+      filtered = filtered.filter(item => item.country === selectedCountry);
+    }
+    setFilteredCandidates(filtered);
+  };
+
+  const fetchCandidates = async () => {
     try {
-      // Get all eligible candidates (active and fully verified)
+      // Get ALL profiles (including unverified) for search
+      const { data: allProfilesData, error: allError } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status')
+        .not('username', 'is', null);
+
+      if (allError) throw allError;
+      setAllProfiles(allProfilesData || []);
+
+      // Get only eligible candidates for display (active and fully verified)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, country, verification_level, account_status')
@@ -64,10 +104,11 @@ export default function CandidatesPage() {
       }
 
       // Get vote statistics for all candidates
+      const profileIds = profiles.map(p => p.id);
       const { data: voteStats, error: statsError } = await supabase
         .from('vote_statistics')
         .select('candidate_id, total_votes')
-        .in('candidate_id', profiles.map(p => p.id));
+        .in('candidate_id', profileIds);
 
       if (statsError) throw statsError;
 
@@ -80,24 +121,26 @@ export default function CandidatesPage() {
         };
       });
 
-      // Sort by total_votes in descending order and get top 10
+      // Sort by total_votes in descending order
       const sortedCandidates = candidatesWithVotes
         .sort((a, b) => b.total_votes - a.total_votes)
         .map((candidate, index) => ({
           ...candidate,
           rank: (index + 1).toString().padStart(3, '0')
-        }))
-        .slice(0, 10); // Get top 10 candidates
+        }));
 
       setCandidates(sortedCandidates);
-      setFilteredCandidates(sortedCandidates);
       
-      // Extract unique countries
-      const uniqueCountries = [...new Set(sortedCandidates.map(c => c.country).filter(Boolean))];
+      // Apply initial filters (show only verified)
+      const verified = sortedCandidates.filter(c => c.verification_level === 'fully_verified');
+      applyFilters(verified);
+      
+      // Extract unique countries from verified candidates
+      const uniqueCountries = [...new Set(verified.map(c => c.country).filter(Boolean))];
       setCountries(uniqueCountries);
       
     } catch (error) {
-      console.error('Error fetching top candidates:', error);
+      console.error('Error fetching candidates:', error);
       setCandidates([]);
       setFilteredCandidates([]);
     } finally {
@@ -124,29 +167,30 @@ export default function CandidatesPage() {
     router.push(`/${username}`);
   };
 
+  const clearSearch = () => {
+    setSearchQuery('');
+    setIsSearching(false);
+    setSearchResults([]);
+    const verified = candidates.filter(c => c.verification_level === 'fully_verified');
+    applyFilters(verified);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-900">
         <div className="container mx-auto px-4 py-8 md:py-12">
-          {/* Header skeleton */}
           <div className="text-center mb-8">
             <div className="h-8 w-64 bg-gray-800/50 rounded-lg animate-pulse mx-auto mb-2"></div>
             <div className="h-4 w-96 bg-gray-800/50 rounded-lg animate-pulse mx-auto"></div>
           </div>
-          
-          {/* Search skeleton */}
           <div className="max-w-xl mx-auto mb-8">
             <div className="h-12 bg-gray-800/50 rounded-xl animate-pulse"></div>
           </div>
-          
-          {/* Filter skeleton */}
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-8 w-20 bg-gray-800/50 rounded-full animate-pulse"></div>
             ))}
           </div>
-          
-          {/* Grid skeleton - 4 columns */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="bg-gray-800/30 rounded-xl overflow-hidden animate-pulse">
@@ -164,16 +208,21 @@ export default function CandidatesPage() {
     );
   }
 
+  const displayCandidates = isSearching ? filteredCandidates : filteredCandidates;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-900">
       <div className="container mx-auto px-4 py-8 md:py-12">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
-            Top 10 Candidates
+            {isSearching ? 'Search Results' : 'Top Candidates'}
           </h1>
           <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
-            Meet the leading contestants with the highest votes
+            {isSearching 
+              ? `Found ${filteredCandidates.length} candidates matching "${searchQuery}"`
+              : 'Meet the leading contestants with the highest votes'
+            }
           </p>
         </div>
 
@@ -183,24 +232,29 @@ export default function CandidatesPage() {
             <Search className="w-4 h-4 text-gray-500 ml-3" />
             <input
               type="text"
-              placeholder="Search candidates..."
+              placeholder="Search candidates by name..."
               className="w-full bg-transparent border-none outline-none px-3 py-2.5 text-sm text-white placeholder-gray-600"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
               <button 
-                onClick={() => setSearchQuery('')}
+                onClick={clearSearch}
                 className="p-2 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X className="w-3 h-3 text-gray-500" />
               </button>
             )}
           </div>
+          {isSearching && (
+            <p className="text-xs text-white/40 mt-1.5 px-1">
+              Showing results including unverified candidates
+            </p>
+          )}
         </div>
 
         {/* Country Filters */}
-        {countries.length > 0 && (
+        {countries.length > 0 && !isSearching && (
           <div className="flex flex-wrap justify-center gap-1.5 mb-8">
             <button
               onClick={() => setSelectedCountry('all')}
@@ -210,10 +264,10 @@ export default function CandidatesPage() {
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
             >
-              All ({candidates.length})
+              All ({candidates.filter(c => c.verification_level === 'fully_verified').length})
             </button>
             {countries.map(country => {
-              const count = candidates.filter(c => c.country === country).length;
+              const count = candidates.filter(c => c.country === country && c.verification_level === 'fully_verified').length;
               return (
                 <button
                   key={country}
@@ -235,19 +289,30 @@ export default function CandidatesPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-white/60 text-sm">
             <Users className="w-4 h-4" />
-            <span>{filteredCandidates.length} of {candidates.length} candidates</span>
+            <span>
+              {isSearching 
+                ? `${filteredCandidates.length} results found`
+                : `${filteredCandidates.filter(c => c.verification_level === 'fully_verified').length} verified candidates`
+              }
+            </span>
           </div>
           {searchQuery && (
-            <div className="text-white/60 text-sm">
-              Searching for "{searchQuery}"
+            <div className="text-white/60 text-sm flex items-center gap-2">
+              <span>Searching for "{searchQuery}"</span>
+              <button 
+                onClick={clearSearch}
+                className="text-white/40 hover:text-white/60 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
         </div>
 
-        {/* Candidates Grid - 4 columns desktop, 2 mobile */}
-        {filteredCandidates.length > 0 ? (
+        {/* Candidates Grid */}
+        {displayCandidates.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {filteredCandidates.map((candidate) => (
+            {displayCandidates.map((candidate) => (
               <div
                 key={candidate.id}
                 onClick={() => handleViewProfile(candidate.username)}
@@ -273,12 +338,14 @@ export default function CandidatesPage() {
                       </div>
                     )}
                     
-                    {/* Rank Badge */}
-                    <div className="absolute top-2 left-2">
-                      <div className="px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-orange-400/30">
-                        <span className="text-[10px] font-bold text-orange-400">#{candidate.rank}</span>
+                    {/* Rank Badge - Only for verified candidates */}
+                    {candidate.verification_level === 'fully_verified' && candidate.rank && (
+                      <div className="absolute top-2 left-2">
+                        <div className="px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-orange-400/30">
+                          <span className="text-[10px] font-bold text-orange-400">#{candidate.rank}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Country Badge */}
                     {candidate.country && (
@@ -296,12 +363,17 @@ export default function CandidatesPage() {
                       {candidate.full_name || formatUsername(candidate.username)}
                     </h3>
                     
+                    {/* Username */}
+                    <p className="text-[10px] text-white/40 truncate mb-1">
+                      @{candidate.username}
+                    </p>
+                    
                     {/* Votes */}
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-[8px] text-white/40">VOTES</div>
                         <div className="text-xs font-bold text-orange-400">
-                          {formatVotes(candidate.total_votes)}
+                          {formatVotes(candidate.total_votes || 0)}
                         </div>
                       </div>
                       
@@ -325,9 +397,14 @@ export default function CandidatesPage() {
         ) : (
           <div className="text-center py-12">
             <Search className="w-12 h-12 mx-auto text-white/20 mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">No candidates found</h3>
+            <h3 className="text-lg font-medium text-white mb-2">
+              {searchQuery ? 'No candidates found' : 'No verified candidates yet'}
+            </h3>
             <p className="text-white/60 text-sm">
-              Try adjusting your search or filter to find what you're looking for.
+              {searchQuery 
+                ? `No results found for "${searchQuery}". Try a different search term.`
+                : 'Check back soon for new candidates.'
+              }
             </p>
           </div>
         )}

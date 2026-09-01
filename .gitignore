@@ -1,8 +1,210 @@
-﻿node_modules/
-.next/
+﻿# ============================================
+# DEPENDENCIES
+# ============================================
+/node_modules
+/.pnp
+.pnp.js
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# ============================================
+# NEXT.JS BUILD OUTPUT
+# ============================================
+/.next
+/out
+/build
+/dist
+/.vercel
+/.output
+/.turbo
+
+# ============================================
+# ENVIRONMENT VARIABLES
+# ============================================
 .env
 .env.local
-.DS_Store
-dist/
-build/
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# ============================================
+# LOGS
+# ============================================
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================
+# RUNTIME DATA
+# ============================================
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# DIRECTORY FOR INSTRUMENTATION
+# ============================================
+lib-cov
+coverage
+*.lcov
+.nyc_output
+
+# ============================================
+# TESTING
+# ============================================
+/cypress/videos/
+/cypress/screenshots/
+/cypress/downloads/
+.nyc_output
+coverage
+*.lcov
+
+# ============================================
+# OS FILES
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============================================
+# IDE FILES
+# ============================================
+.idea
+.vscode/
+*.swp
+*.swo
+*~
+.classpath
+.project
+.settings/
+*.iml
+*.iws
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ============================================
+# NEXT.JS SPECIFIC
+# ============================================
+.next/
+out/
+build/
+dist/
+.vercel
+vercel.json
+*.tsbuildinfo
+.next/cache/
+.next/static/
+.next/server/
+.next/standalone/
+
+# ============================================
+# OPTIONAL PRE-COMMIT HOOKS
+# ============================================
+.husky
+.huskyrc
+.huskyrc.js
+
+# ============================================
+# DEBUGGING
+# ============================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================
+# SENTRY
+# ============================================
+.sentryclirc
+
+# ============================================
+# SUPABASE
+# ============================================
+supabase/.env
+supabase/.env.local
+supabase/seed.sql
+
+# ============================================
+# MISCELLANEOUS
+# ============================================
+*.tgz
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ============================================
+# SECRET FILES
+# ============================================
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# ============================================
+# DATABASE
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# CACHE
+# ============================================
+.parcel-cache
+.cache
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+.next/cache
+node_modules/.cache
+
+# ============================================
+# STORYBOOK
+# ============================================
+storybook-static
+*.stories.*
+*.storybook
+
+# ============================================
+# TAILWIND CSS
+# ============================================
+*.css.map
+
+
+# ============================================
+# EXAMPLE ENVIRONMENT FILE
+# ============================================
+.env.example
+.env.sample

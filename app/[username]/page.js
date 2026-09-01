@@ -1,7 +1,7 @@
-// /app/[username]/page.js
+// app/[username]/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -32,9 +32,12 @@ import ProfileInfo from '../../components/profile/ProfileInfo';
 import ProfileTabs from '../../components/profile/ProfileTabs';
 import PostModal from '../../components/profile/PostModal';
 import VideoModal from '../../components/profile/VideoModal';
+import ShareModal from '../../components/profile/ShareModal';
 import PostDetailModal from '../../components/profile/PostDetailModal';
 import SettingsModal from '../../components/profile/SettingsModal';
 import VoteModal from '../../components/profile/VoteModal';
+import GiftModal from '../../components/profile/GiftModal';
+import Status from '../../components/profile/Status';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -50,6 +53,7 @@ export default function ProfilePage() {
   const [showPostModal, setShowPostModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -58,6 +62,9 @@ export default function ProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [stats, setStats] = useState({
     totalVotes: 0,
     totalViews: 0,
@@ -66,51 +73,107 @@ export default function ProfilePage() {
     rank: 0
   });
 
+  const fetchProfileRef = useRef(false);
+  const authCheckRef = useRef(false);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
+  // =====================
+  // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!
+  // =====================
   useEffect(() => {
-    fetchProfile();
-    checkCurrentUser();
+    if (!fetchProfileRef.current) {
+      fetchProfileRef.current = true;
+      fetchProfile();
+    }
   }, [username]);
 
+  // =====================
+  // STEP 2: Auth check is OPTIONAL - don't block profile view
+  // =====================
   useEffect(() => {
-    if (isOwner && profile && !profile.avatar_url) {
-      setShowPhotoPopup(true);
-    } else {
-      setShowPhotoPopup(false);
+    if (profile && !authCheckRef.current) {
+      authCheckRef.current = true;
+      // Try auth but don't wait for it
+      checkCurrentUser();
     }
-  }, [isOwner, profile]);
+  }, [profile]);
 
+  // =====================
+  // FETCH PROFILE - ALWAYS WORKS
+  // =====================
   const fetchProfile = async () => {
     setLoading(true);
     try {
+      // Fetch profile - this ALWAYS works, no auth needed
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('username', username)
         .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       if (!profileData) {
         setProfile(null);
         setLoading(false);
         return;
       }
       
+      // Ensure required fields exist
+      if (profileData.vote_control === undefined || profileData.vote_control === null) {
+        profileData.vote_control = false;
+      }
+      
+      if (!profileData.image_url || !Array.isArray(profileData.image_url)) {
+        profileData.image_url = [];
+      }
+      
       setProfile(profileData);
 
+      // Fetch videos
+      const { data: videos, error: videosError } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('user_id', profileData.id)
+        .order('created_at', { ascending: false });
+
+      if (videosError) {
+        console.error('Error fetching videos:', videosError);
+      }
+
+      const videoPosts = (videos || []).map(video => ({
+        id: video.id,
+        type: 'video',
+        media: [{
+          url: video.url,
+          embedUrl: video.embed_url || video.url,
+          provider: video.provider || 'youtube'
+        }],
+        caption: video.caption || '',
+        created_at: video.created_at,
+        likes: 0,
+        comments: 0,
+        _fromTable: 'videos'
+      }));
+
       const images = profileData.image_url || [];
-      const videos = profileData.video_url || [];
-      const combinedPosts = [...images, ...videos].sort((a, b) => 
+      const combinedPosts = [...images, ...videoPosts].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
       
       setAllPosts(combinedPosts);
       setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
 
+      // Fetch followers count
       const { count: followersCount } = await supabase
         .from('followers')
         .select('*', { count: 'exact', head: true })
@@ -118,6 +181,7 @@ export default function ProfilePage() {
 
       setFollowers(followersCount || 0);
 
+      // Fetch following count
       const { count: followingCount } = await supabase
         .from('followers')
         .select('*', { count: 'exact', head: true })
@@ -125,7 +189,7 @@ export default function ProfilePage() {
 
       setFollowing(followingCount || 0);
 
-      // Fetch actual vote count from vote_transactions table
+      // Fetch vote data
       const { data: voteData, error: voteError } = await supabase
         .from('vote_transactions')
         .select('votes')
@@ -137,7 +201,6 @@ export default function ProfilePage() {
       }
 
       const totalVotes = voteData?.reduce((sum, tx) => sum + (tx.votes || 0), 0) || 0;
-
       const rank = Math.floor(Math.random() * 100) + 1;
       
       setStats({
@@ -150,35 +213,68 @@ export default function ProfilePage() {
 
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setProfile(null);
+      if (error.name !== 'AbortError') {
+        setProfile(null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // =====================
+  // CHECK AUTH - OPTIONAL, NON-BLOCKING
+  // =====================
   const checkCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-    
-    if (user && profile) {
-      setIsOwner(user.id === profile.id);
+    try {
+      // Try to get user - if it fails, just treat as guest
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      setAuthChecked(true);
+      
+      // If auth fails, treat as guest - PROFILE STILL VISIBLE
+      if (userError || !user) {
+        console.log('Viewing as guest');
+        setIsOwner(false);
+        setCurrentUser(null);
+        setIsFollowing(false);
+        return;
+      }
 
-      const { data: followData } = await supabase
-        .from('followers')
-        .select('*')
-        .eq('follower_id', user.id)
-        .eq('following_id', profile.id)
-        .maybeSingle();
+      setCurrentUser(user);
+      
+      if (user && profile) {
+        const isProfileOwner = user.id === profile.id;
+        setIsOwner(isProfileOwner);
 
-      setIsFollowing(!!followData);
+        if (!isProfileOwner) {
+          const { data: followData } = await supabase
+            .from('followers')
+            .select('*')
+            .eq('follower_id', user.id)
+            .eq('following_id', profile.id)
+            .maybeSingle();
+
+          setIsFollowing(!!followData);
+        } else {
+          setIsFollowing(false);
+        }
+      } else {
+        setIsOwner(false);
+        setIsFollowing(false);
+      }
+    } catch (error) {
+      // Auth failed - just treat as guest
+      console.log('Auth check failed - viewing as guest');
+      setIsOwner(false);
+      setCurrentUser(null);
+      setIsFollowing(false);
+      setAuthChecked(true);
     }
   };
 
-  useEffect(() => {
-    if (profile && currentUser) {
-      checkCurrentUser();
-    }
-  }, [profile, currentUser]);
+  // =====================
+  // REMAINING HANDLERS
+  // =====================
 
   const handleFollow = async () => {
     if (!currentUser) {
@@ -270,19 +366,30 @@ export default function ProfilePage() {
   };
 
   const handleImagePost = async (files, caption) => {
-    if (!files.length || !profile) return;
+    if (!files.length || !profile) {
+      console.error('No files or profile');
+      return;
+    }
+
+    console.log('Uploading images:', files.length);
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${profile.id}/posts/image-${Date.now()}-${Math.random()}.${fileExt}`;
+        const fileName = `${profile.id}/posts/${Date.now()}-${Math.random().toString(36).substr(2, 6)}.${fileExt}`;
 
-        await supabase.storage
+        const { data, error: uploadError } = await supabase.storage
           .from('posts')
           .upload(fileName, file, {
+            cacheControl: '3600',
             upsert: true,
             contentType: file.type,
           });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('posts')
@@ -298,7 +405,9 @@ export default function ProfilePage() {
         type: 'image',
         media: mediaUrls,
         caption: caption || '',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        likes: 0,
+        comments: 0
       };
 
       const currentPosts = profile.image_url || [];
@@ -312,7 +421,12 @@ export default function ProfilePage() {
         })
         .eq('id', profile.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile update error:', error);
+        throw error;
+      }
+
+      console.log('Post added successfully');
 
       setProfile(prev => ({ ...prev, image_url: updatedPosts }));
       setAllPosts(prev => [newPost, ...prev]);
@@ -320,55 +434,7 @@ export default function ProfilePage() {
       setShowPostModal(false);
     } catch (error) {
       console.error('Error uploading post:', error);
-    }
-  };
-
-  const handleVideoPost = async (videoUrl, caption) => {
-    if (!profile) return;
-
-    try {
-      let embedUrl = videoUrl;
-      let provider = 'youtube';
-
-      if (videoUrl.includes('youtu.be') || videoUrl.includes('youtube.com')) {
-        const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0] || 
-                       videoUrl.split('v=')[1]?.split('&')[0];
-        if (videoId) {
-          embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        }
-      }
-
-      const newPost = {
-        id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: 'video',
-        media: [{
-          url: videoUrl,
-          embedUrl: embedUrl,
-          provider: provider
-        }],
-        caption: caption || '',
-        created_at: new Date().toISOString()
-      };
-
-      const currentPosts = profile.video_url || [];
-      const updatedPosts = [newPost, ...currentPosts];
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          video_url: updatedPosts,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', profile.id);
-
-      if (error) throw error;
-
-      setProfile(prev => ({ ...prev, video_url: updatedPosts }));
-      setAllPosts(prev => [newPost, ...prev]);
-      setStats(prev => ({ ...prev, totalPosts: prev.totalPosts + 1 }));
-      setShowVideoModal(false);
-    } catch (error) {
-      console.error('Error adding video post:', error);
+      alert('Failed to upload post. Please try again.');
     }
   };
 
@@ -376,9 +442,24 @@ export default function ProfilePage() {
     if (!profile || !isOwner) return;
 
     try {
-      let updatedPosts;
+      if (post._fromTable === 'videos') {
+        console.log('🗑️ Deleting video:', post.id);
+        
+        const { error } = await supabase
+          .from('videos')
+          .delete()
+          .eq('id', post.id);
+
+        if (error) throw error;
+        
+        setAllPosts(prev => prev.filter(p => p.id !== post.id));
+        setStats(prev => ({ ...prev, totalPosts: prev.totalPosts - 1 }));
+        setSelectedPost(null);
+        return;
+      }
+
       if (post.type === 'image') {
-        updatedPosts = (profile.image_url || []).filter(p => p.id !== post.id);
+        const updatedPosts = (profile.image_url || []).filter(p => p.id !== post.id);
         await supabase
           .from('profiles')
           .update({ 
@@ -388,17 +469,6 @@ export default function ProfilePage() {
           .eq('id', profile.id);
         
         setProfile(prev => ({ ...prev, image_url: updatedPosts }));
-      } else {
-        updatedPosts = (profile.video_url || []).filter(p => p.id !== post.id);
-        await supabase
-          .from('profiles')
-          .update({ 
-            video_url: updatedPosts,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', profile.id);
-        
-        setProfile(prev => ({ ...prev, video_url: updatedPosts }));
       }
 
       setAllPosts(prev => prev.filter(p => p.id !== post.id));
@@ -413,9 +483,24 @@ export default function ProfilePage() {
     if (!profile || !isOwner) return;
 
     try {
-      let updatedPosts;
       const post = allPosts.find(p => p.id === postId);
       
+      if (post?._fromTable === 'videos') {
+        const { error } = await supabase
+          .from('videos')
+          .update({ caption: newCaption })
+          .eq('id', postId);
+
+        if (error) throw error;
+        
+        setAllPosts(prev => prev.map(p => 
+          p.id === postId ? { ...p, caption: newCaption } : p
+        ));
+        setSelectedPost(null);
+        return;
+      }
+
+      let updatedPosts;
       if (post.type === 'image') {
         updatedPosts = (profile.image_url || []).map(p => 
           p.id === postId ? { ...p, caption: newCaption } : p
@@ -429,19 +514,6 @@ export default function ProfilePage() {
           .eq('id', profile.id);
         
         setProfile(prev => ({ ...prev, image_url: updatedPosts }));
-      } else {
-        updatedPosts = (profile.video_url || []).map(p => 
-          p.id === postId ? { ...p, caption: newCaption } : p
-        );
-        await supabase
-          .from('profiles')
-          .update({ 
-            video_url: updatedPosts,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', profile.id);
-        
-        setProfile(prev => ({ ...prev, video_url: updatedPosts }));
       }
 
       setAllPosts(prev => prev.map(p => 
@@ -483,11 +555,9 @@ export default function ProfilePage() {
     }
   };
 
-  // Updated vote handler to work with vote_transactions
   const handleVoteSuccess = async (voteCount, amount) => {
     console.log(`Voted ${voteCount} times for $${amount}`);
     
-    // Refresh the profile stats to get updated vote count
     try {
       const { data: voteData, error: voteError } = await supabase
         .from('vote_transactions')
@@ -522,6 +592,21 @@ export default function ProfilePage() {
     return url;
   };
 
+  const shouldRenderProfileHeader = () => {
+    if (!profile) return false;
+    if (!isOwner) return true;
+    const status = profile.account_status;
+    return status !== 'pending_verification' && status !== 'suspended';
+  };
+
+  const handleOpenVoteModal = () => {
+    setShowVoteModal(true);
+  };
+
+  // =====================
+  // RENDER
+  // =====================
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black flex items-center justify-center">
@@ -529,7 +614,7 @@ export default function ProfilePage() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-12 h-12 border-4 border-burnt-orange-500 border-t-transparent rounded-full mx-auto mb-4"
+            className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full mx-auto mb-4"
           />
           <p className="text-white/70 text-sm">Loading profile...</p>
         </div>
@@ -541,8 +626,8 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <div className="w-24 h-24 bg-burnt-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-12 h-12 text-burnt-orange-500" />
+          <div className="w-24 h-24 bg-[#D4AF37]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-12 h-12 text-[#D4AF37]" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Profile Not Found</h1>
           <p className="text-white/60 text-sm mb-6">
@@ -550,7 +635,7 @@ export default function ProfilePage() {
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
           >
             <ChevronLeft className="w-4 h-4" />
             Go Back Home
@@ -565,6 +650,68 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
+      <div className="max-w-4xl mx-auto px-4 py-4 md:py-6">
+        <ProfileBanner
+          profile={profile}
+          isOwner={isOwner}
+          uploadingPhoto={uploadingPhoto}
+          uploadSuccess={uploadSuccess}
+          showPhotoPopup={showPhotoPopup}
+          onPhotoUpload={handlePhotoUpload}
+          onClosePopup={() => setShowPhotoPopup(false)}
+          onSettingsClick={() => setShowSettings(true)}
+          onVoteClick={handleOpenVoteModal}
+          isVoteModalOpen={showVoteModal}
+          onUpdateProfile={fetchProfile}
+        />
+
+        <ProfileInfo
+          profile={profile}
+          isOwner={isOwner}
+          isFollowing={isFollowing}
+          followers={followers}
+          following={following}
+          stats={stats}
+          onFollow={handleFollow}
+          onMessage={() => {}}
+        />
+
+        {shouldRenderProfileHeader() && (
+          <div className="mt-4">
+            <ProfileHeader
+              stats={stats}
+              isOwner={isOwner}
+              onSettingsClick={() => setShowSettings(true)}
+              profile={profile}
+              onGiftClick={() => setShowGiftModal(true)}
+              onVoteClick={handleOpenVoteModal}
+              onShareClick={() => setShowShareModal(true)}
+            />
+          </div>
+        )}
+
+        <ProfileTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          postCount={allPosts.length}
+          videoCount={allPosts.filter(p => p.type === 'video').length}
+          posts={displayPosts}
+          isOwner={isOwner}
+          onPostClick={setSelectedPost}
+          onAddPhoto={() => setShowPostModal(true)}
+          onAddVideo={() => setShowVideoModal(true)}
+          onSettingsClick={() => setShowSettings(true)}
+          profile={profile}
+        />
+      </div>
+
+      {/* Status Modal - Only for owner */}
+      <Status
+        profile={profile}
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+      />
+
       {/* Modals */}
       <AnimatePresence>
         {showSettings && (
@@ -588,10 +735,58 @@ export default function ProfilePage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showShareModal && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            profile={profile}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGiftModal && (
+          <GiftModal
+            isOpen={showGiftModal}
+            onClose={() => setShowGiftModal(false)}
+            profile={profile}
+            onGiftSuccess={(gift, amount) => {
+              console.log(`🎁 ${gift.emoji} ${gift.name} gift sent for ${amount}`);
+              fetchProfile();
+            }}
+            onGiftError={(error) => {
+              console.error('Gift error:', error);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showVideoModal && (
           <VideoModal
             onClose={() => setShowVideoModal(false)}
-            onAdd={handleVideoPost}
+            profileId={profile?.id}
+            onVideoAdded={(newVideo) => {
+              const newPost = {
+                id: newVideo.id,
+                type: 'video',
+                media: [{
+                  url: newVideo.url,
+                  embedUrl: newVideo.embed_url,
+                  provider: newVideo.provider || 'youtube'
+                }],
+                caption: newVideo.caption || '',
+                created_at: newVideo.created_at,
+                likes: 0,
+                comments: 0,
+                _fromTable: 'videos'
+              };
+              setAllPosts(prev => [newPost, ...prev]);
+              setStats(prev => ({ 
+                ...prev, 
+                totalPosts: prev.totalPosts + 1 
+              }));
+            }}
           />
         )}
       </AnimatePresence>
@@ -624,54 +819,6 @@ export default function ProfilePage() {
           />
         )}
       </AnimatePresence>
-
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-4 md:py-6">
-        <ProfileHeader
-          stats={stats}
-          isOwner={isOwner}
-          onSettingsClick={() => setShowSettings(true)}
-          onSignOut={handleSignOut}
-          onBack={() => router.back()}
-        />
-
-        <ProfileBanner
-          profile={profile}
-          isOwner={isOwner}
-          uploadingPhoto={uploadingPhoto}
-          uploadSuccess={uploadSuccess}
-          showPhotoPopup={showPhotoPopup}
-          onPhotoUpload={handlePhotoUpload}
-          onClosePopup={() => setShowPhotoPopup(false)}
-          onSettingsClick={() => setShowSettings(true)}
-          onVoteClick={() => setShowVoteModal(true)}
-          isVoteModalOpen={showVoteModal} // Add this line
-        />
-
-        <ProfileInfo
-          profile={profile}
-          isOwner={isOwner}
-          isFollowing={isFollowing}
-          followers={followers}
-          following={following}
-          stats={stats}
-          onFollow={handleFollow}
-          onMessage={() => {}}
-        />
-
-        <ProfileTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          postCount={allPosts.length}
-          videoCount={allPosts.filter(p => p.type === 'video').length}
-          savedCount={savedPosts.length}
-          posts={displayPosts}
-          isOwner={isOwner}
-          onPostClick={setSelectedPost}
-          onAddPhoto={() => setShowPostModal(true)}
-          onAddVideo={() => setShowVideoModal(true)}
-        />
-      </div>
     </div>
   );
 }

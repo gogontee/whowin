@@ -155,7 +155,7 @@ const TopCandidates = () => {
         <div className="w-20"></div>
         
         <div className="text-center">
-          <h2 className="text-xl md:text-2xl font-bold text-white">Top 4 Candidates</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-white">Top Candidates</h2>
           
         </div>
         

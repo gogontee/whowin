@@ -4,8 +4,8 @@ import GlobalNavigation from '../components/GlobalNavigation';
 import { Providers } from './providers';
 
 export const metadata = {
-  title: 'CelebrityStar - Vote for Your Favorite Stars',
-  description: 'Vote, rank, and follow your favorite celebrities',
+  title: 'Who Wins Reality Show - Vote for Your Favorite star',
+  description: 'Vote, rank, and follow your favorite candidate',
 };
 
 export default function RootLayout({ children }) {

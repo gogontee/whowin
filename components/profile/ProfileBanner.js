@@ -1,10 +1,10 @@
 // /components/profile/ProfileBanner.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, User, Loader, Check, X, AlertCircle, Heart, MessageCircle, Edit3 } from 'lucide-react';
+import { Camera, User, Loader, Check, X, AlertCircle, Heart, Edit3, Upload, Gift, Award, Shield } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 
 export default function ProfileBanner({ 
@@ -21,34 +21,94 @@ export default function ProfileBanner({
   onUpdateProfile
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showWhatsAppPopup, setShowWhatsAppPopup] = useState(false);
-  const [whatsAppSent, setWhatsAppSent] = useState(false);
-  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerSuccess, setBannerSuccess] = useState(false);
+  const [bannerError, setBannerError] = useState(null);
+  const [voteCount, setVoteCount] = useState(0);
+  const [giftCount, setGiftCount] = useState(0);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const bannerInputRef = useRef(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
+  // Check if stats should be shown
+  const shouldShowStats = () => {
+    // If owner, always show stats
+    if (isOwner) return true;
+    
+    // If not owner, only show stats if vote_control is true
+    const voteControl = profile?.vote_control ?? false;
+    return voteControl === true;
+  };
+
+  // Fetch vote and gift counts
+  const fetchStats = async () => {
+    if (!profile?.id) return;
+    
+    // Only fetch stats if they should be shown
+    if (!shouldShowStats()) {
+      setVoteCount(0);
+      setGiftCount(0);
+      return;
+    }
+    
+    setLoadingStats(true);
+    try {
+      // Fetch vote count - sum of votes from vote_transactions
+      const { data: voteData, error: voteError } = await supabase
+        .from('vote_transactions')
+        .select('votes')
+        .eq('candidate_id', profile.id)
+        .eq('status', 'completed');
+
+      if (voteError) throw voteError;
+
+      // Calculate total votes
+      const totalVotes = voteData?.reduce((sum, item) => sum + (item.votes || 0), 0) || 0;
+      setVoteCount(totalVotes);
+
+      // Fetch gift count - count of rows in gift_transactions
+      const { data: giftData, error: giftError } = await supabase
+        .from('gift_transactions')
+        .select('*')
+        .eq('candidate_id', profile.id)
+        .eq('status', 'completed');
+
+      if (giftError) throw giftError;
+
+      // Calculate total gifts
+      const totalGifts = giftData?.length || 0;
+      setGiftCount(totalGifts);
+
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Fetch stats when profile changes or shouldShowStats changes
+  useEffect(() => {
+    if (profile?.id) {
+      fetchStats();
+    }
+  }, [profile?.id, isOwner, profile?.vote_control]);
+
   // Debug logging
   useEffect(() => {
     console.log('ProfileBanner mounted');
     console.log('isOwner:', isOwner);
     console.log('profile exists:', !!profile);
-  }, [isOwner, profile]);
-
-  // Check if WhatsApp popup should be shown (only for profile owner)
-  useEffect(() => {
-    if (profile && isOwner) {
-      // Show popup if whatsapp_sent is false or doesn't exist
-      const shouldShow = profile.whatsapp_sent === false || profile.whatsapp_sent === null || profile.whatsapp_sent === undefined;
-      setShowWhatsAppPopup(shouldShow);
-      setWhatsAppSent(profile.whatsapp_sent === true);
-    } else {
-      // Hide popup if not owner
-      setShowWhatsAppPopup(false);
-    }
-  }, [profile, isOwner]);
+    console.log('profile.banner_url:', profile?.banner_url);
+    console.log('profile.account_status:', profile?.account_status);
+    console.log('profile.vote_control:', profile?.vote_control);
+    console.log('voteCount:', voteCount);
+    console.log('giftCount:', giftCount);
+    console.log('shouldShowStats:', shouldShowStats());
+  }, [isOwner, profile, voteCount, giftCount]);
 
   // If profile doesn't exist, don't render anything
   if (!profile) {
@@ -56,215 +116,275 @@ export default function ProfileBanner({
     return null;
   }
 
-  const handleWhatsAppClick = async () => {
-    if (whatsAppSent) return;
-    
-    setSendingWhatsApp(true);
-    
-    // Prepare WhatsApp message with profile information including avatar URL
-    const avatarInfo = profile.avatar_url ? `\n\nProfile Photo: ${profile.avatar_url}` : '';
-    
-    const message = encodeURIComponent(
-      `Hello team, I am ${profile.full_name} and my CS username is ${profile.username}. I have just signed up to contest. Kindly walk me through how I could be selected into the next stage of the show.${avatarInfo}`
-    );
-    
-    // WhatsApp URL
-    const whatsappUrl = `https://wa.me/2349161888244?text=${message}`;
-    
+  // Handle banner upload - FIXED VERSION
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setBannerError(null);
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setBannerError('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setBannerError('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingBanner(true);
+    setBannerSuccess(false);
+
     try {
-      // Update profile to mark whatsapp_sent as true
-      const { error } = await supabase
+      // Use username for the file name - simpler path
+      const username = profile.username || profile.id;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${username}.${fileExt}`;
+      // Simple path - just the filename in the bucket root
+      const filePath = fileName;
+
+      console.log('Uploading banner to bucket: banner');
+      console.log('File path:', filePath);
+      console.log('Username:', username);
+
+      // Upload to Supabase Storage - banner bucket
+      const { data, error: uploadError } = await supabase.storage
+        .from('banner')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Banner upload error:', uploadError);
+        setBannerError(`Upload failed: ${uploadError.message}`);
+        setUploadingBanner(false);
+        return;
+      }
+
+      console.log('Upload successful:', data);
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('banner')
+        .getPublicUrl(filePath);
+
+      console.log('Banner public URL:', publicUrl);
+
+      // Update profile with banner URL
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          whatsapp_sent: true,
+          banner_url: publicUrl,
           updated_at: new Date().toISOString()
         })
         .eq('id', profile.id);
 
-      if (error) throw error;
-
-      // Update local state
-      setWhatsAppSent(true);
-      setShowWhatsAppPopup(false);
-      
-      // Refresh profile data if callback provided
-      if (onUpdateProfile) {
-        onUpdateProfile();
+      if (updateError) {
+        console.error('Banner update error:', updateError);
+        setBannerError(`Update failed: ${updateError.message}`);
+        setUploadingBanner(false);
+        return;
       }
+
+      setBannerSuccess(true);
       
-      // Open WhatsApp in new tab
-      window.open(whatsappUrl, '_blank');
-      
+      // Refresh profile data
+      if (onUpdateProfile) {
+        await onUpdateProfile();
+      }
+
+      // Reset success state after 3 seconds
+      setTimeout(() => {
+        setBannerSuccess(false);
+      }, 3000);
+
     } catch (error) {
-      console.error('Error updating whatsapp_sent status:', error);
-      // Still open WhatsApp even if update fails
-      window.open(whatsappUrl, '_blank');
+      console.error('Banner upload error:', error);
+      setBannerError(`Error: ${error.message}`);
     } finally {
-      setSendingWhatsApp(false);
+      setUploadingBanner(false);
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = '';
+      }
     }
   };
 
-  const handleCloseWhatsAppPopup = () => {
-    setShowWhatsAppPopup(false);
+  // Get banner URL with fallback
+  const getBannerUrl = () => {
+    // If profile has a banner_url, use it
+    if (profile.banner_url) {
+      return profile.banner_url;
+    }
+    // Fallback to default banner
+    return 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200';
   };
 
+  const bannerUrl = getBannerUrl();
+
+  // Get status badge info (only for owner)
+  const getStatusBadge = () => {
+    const status = profile.account_status || 'pending_verification';
+    
+    switch (status) {
+      case 'active':
+        return {
+          label: 'Active',
+          icon: <Check className="w-3 h-3" />,
+          className: 'bg-green-500/20 border-green-500/30 text-green-400'
+        };
+      case 'pending_verification':
+        return {
+          label: 'Pending Review',
+          icon: <Loader className="w-3 h-3 animate-spin" />,
+          className: 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+        };
+      case 'suspended':
+        return {
+          label: 'Suspended',
+          icon: <AlertCircle className="w-3 h-3" />,
+          className: 'bg-red-500/20 border-red-500/30 text-red-400'
+        };
+      default:
+        return {
+          label: 'Pending Review',
+          icon: <Loader className="w-3 h-3 animate-spin" />,
+          className: 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+        };
+    }
+  };
+
+  const status = profile.account_status || 'pending_verification';
+  const showStats = shouldShowStats();
+
   return (
-    <div className="relative h-48 md:h-64 rounded-2xl mb-0 md:mb-0">
+    <div className="relative h-48 md:h-64 rounded-2xl mb-0 md:mb-0" style={{ zIndex: 1 }}>
       {/* Banner Image Container */}
       <div className="absolute inset-0 rounded-2xl overflow-hidden">
         <Image
-          src={profile.banner_url || 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200'}
+          src={bannerUrl}
           alt="Profile banner"
           fill
           sizes="(max-width: 768px) 100vw, 1200px"
           className="object-cover"
           priority={true}
+          onError={(e) => {
+            // If image fails to load, fallback to default
+            console.log('Banner image failed to load, using fallback');
+            e.target.src = 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+        
+        {/* Banner Upload Overlay */}
+        {uploadingBanner && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+            <div className="flex flex-col items-center gap-2">
+              <Loader className="w-8 h-8 text-white animate-spin" />
+              <span className="text-white text-sm font-medium">Uploading banner...</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Banner Success Overlay */}
+        {bannerSuccess && (
+          <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center z-20">
+            <div className="flex flex-col items-center gap-2">
+              <Check className="w-10 h-10 text-green-400" />
+              <span className="text-white text-sm font-medium">Banner updated!</span>
+            </div>
+          </div>
+        )}
+
+        {/* Banner Error Overlay */}
+        {bannerError && (
+          <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center z-20">
+            <div className="flex flex-col items-center gap-2 bg-black/50 p-4 rounded-lg">
+              <AlertCircle className="w-8 h-8 text-red-400" />
+              <span className="text-white text-sm font-medium">{bannerError}</span>
+              <button
+                onClick={() => setBannerError(null)}
+                className="px-3 py-1 bg-white/20 text-white rounded-lg text-xs hover:bg-white/30 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* Edit Banner Button (Owner only) - Shows only if user is profile owner */}
+      {/* Status Badge - Only visible to owner */}
       {isOwner && (
-        <button 
-          onClick={onSettingsClick}
-          className="absolute top-2 right-2 p-2 bg-black/50 backdrop-blur-sm rounded-lg hover:bg-black/70 transition-colors z-50 flex items-center gap-1"
-        >
-          <Edit3 className="w-4 h-4 text-white" />
-          <span className="text-xs text-white hidden md:inline">Edit Banner</span>
-        </button>
+        <div className="absolute top-2 left-2 z-30">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border backdrop-blur-sm ${getStatusBadge().className}`}>
+            <Shield className="w-3 h-3" />
+            {getStatusBadge().icon}
+            <span className="text-xs font-medium">{getStatusBadge().label}</span>
+          </div>
+        </div>
       )}
 
-      {/* WhatsApp Popup - Strategic Boost Message - Centered on screen */}
-      <AnimatePresence>
-        {isOwner && showWhatsAppPopup && !whatsAppSent && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={handleCloseWhatsAppPopup}
-          >
-            <motion.div
-              initial={{ y: 20 }}
-              animate={{ y: 0 }}
-              exit={{ y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-2xl p-6 border-2 border-white/20 max-w-md w-full"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
-                    </span>
-                    Boost Your Chance! 🚀
-                  </h3>
-                  <p className="text-white/90 text-sm mb-4">
-                    Get personalized guidance on how to increase your chances of being selected for the next stage of the show!
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleWhatsAppClick}
-                      disabled={sendingWhatsApp}
-                      className="flex-1 px-4 py-2.5 bg-white text-green-600 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {sendingWhatsApp ? (
-                        <Loader className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <MessageCircle className="w-4 h-4" />
-                          <span>Contact Team</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={handleCloseWhatsAppPopup}
-                      className="px-4 py-2.5 bg-white/20 text-white rounded-lg text-sm font-semibold hover:bg-white/30 transition-colors"
-                    >
-                      Later
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={handleCloseWhatsAppPopup}
-                  className="absolute top-3 right-3 text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Edit Banner Button (Owner only) */}
+      {isOwner && (
+        <div className="absolute top-2 right-2 flex items-center gap-2 z-30">
+          <label className="p-2 bg-black/50 backdrop-blur-sm rounded-lg hover:bg-black/70 transition-colors cursor-pointer flex items-center gap-1 group">
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleBannerUpload}
+              className="hidden"
+            />
+            {uploadingBanner ? (
+              <Loader className="w-4 h-4 text-white animate-spin" />
+            ) : (
+              <>
+                <Upload className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                <span className="text-xs text-white hidden md:inline">Change Banner</span>
+              </>
+            )}
+          </label>
+        </div>
+      )}
 
-      {/* Vote Button - Shows for EVERYONE including owner - CONDITIONAL Z-INDEX */}
-      <div className={`absolute bottom-2 right-6 ${isVoteModalOpen ? 'z-0' : 'z-[200]'}`}>
-        <motion.button
-          onClick={onVoteClick}
-          onHoverStart={() => setIsHovered(true)}
-          onHoverEnd={() => setIsHovered(false)}
-          className="relative group block scale-[0.68] origin-bottom-right hover:scale-[0.73] transition-transform duration-200"
-          whileTap={{ scale: 0.65 }}
-          disabled={isVoteModalOpen}
-        >
-          {/* Shockwave Effects */}
-          <motion.div
-            className="absolute inset-0 rounded-full bg-gradient-to-r from-burnt-orange-500 to-yellow-500"
-            animate={!isHovered && !isVoteModalOpen ? {
-              scale: [1, 1.3, 1.5, 1.3, 1],
-              opacity: [0.6, 0.4, 0.2, 0.1, 0],
-            } : {
-              scale: 1,
-              opacity: 0
-            }}
-            transition={!isHovered && !isVoteModalOpen ? {
-              duration: 1.8,
-              repeat: Infinity,
-              ease: "easeOut"
-            } : {
-              duration: 0.2
-            }}
-            style={{ borderRadius: '9999px' }}
-          />
-          
-          <motion.div
-            className="absolute inset-0 rounded-full bg-gradient-to-r from-burnt-orange-400 to-yellow-400"
-            animate={!isHovered && !isVoteModalOpen ? {
-              scale: [1, 1.2, 1.4, 1.2, 1],
-              opacity: [0.4, 0.3, 0.15, 0.05, 0],
-            } : {
-              scale: 1,
-              opacity: 0
-            }}
-            transition={!isHovered && !isVoteModalOpen ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeOut",
-              delay: 0.2
-            } : {
-              duration: 0.2
-            }}
-            style={{ borderRadius: '9999px' }}
-          />
-
-          {/* Button Content */}
-          <div className={`relative flex items-center gap-2 px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-burnt-orange-600 to-yellow-600 rounded-full text-white font-bold shadow-lg group-hover:shadow-xl transition-all border border-white/30 ${isVoteModalOpen ? 'opacity-50' : ''}`}>
-            <Heart className="w-5 h-5 md:w-6 md:h-6 fill-current drop-shadow" />
-            <span className="text-base md:text-lg tracking-wide drop-shadow">VOTE</span>
+      {/* Stats Container - Only show if shouldShowStats returns true */}
+      {showStats && (
+        <div className="absolute bottom-2 right-6 z-20 flex items-center gap-3">
+          {/* Vote Count */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-full border border-white/10">
+            {loadingStats ? (
+              <Loader className="w-4 h-4 text-white animate-spin" />
+            ) : (
+              <>
+                <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                <span className="text-white font-bold text-sm">{voteCount.toLocaleString()}</span>
+                <span className="text-white/60 text-xs hidden sm:inline">votes</span>
+              </>
+            )}
           </div>
-        </motion.button>
-      </div>
 
-      {/* Profile Picture - Flush with banner */}
-      <div className="absolute -bottom-1 left-4 md:-bottom-2 md:left-6 z-40">
+          {/* Gift Count */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-full border border-white/10">
+            {loadingStats ? (
+              <Loader className="w-4 h-4 text-white animate-spin" />
+            ) : (
+              <>
+                <Gift className="w-4 h-4 text-yellow-400" />
+                <span className="text-white font-bold text-sm">{giftCount.toLocaleString()}</span>
+                <span className="text-white/60 text-xs hidden sm:inline">gifts</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Profile Picture */}
+      <div className="absolute -bottom-1 left-4 md:-bottom-2 md:left-6 z-30">
         <div className="relative">
-          {/* Burnt lemon outline - thinner */}
+          {/* Burnt lemon outline */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500 p-1">
             <div className="w-full h-full rounded-full bg-black"></div>
           </div>
@@ -293,7 +413,7 @@ export default function ProfileBanner({
             )}
           </div>
           
-          {/* Edit Photo Button - Only shows if user is profile owner */}
+          {/* Edit Photo Button */}
           {isOwner && !uploadingPhoto && (
             <label className="absolute -bottom-1 -right-1 w-6 h-6 md:w-7 md:h-7 bg-burnt-orange-500 rounded-full flex items-center justify-center hover:bg-burnt-orange-600 transition-colors shadow-lg border-2 border-black z-50 cursor-pointer group">
               <input
@@ -319,7 +439,7 @@ export default function ProfileBanner({
         </div>
       </div>
 
-      {/* Photo Upload Popup - Only shows for owner */}
+      {/* Photo Upload Popup */}
       <AnimatePresence>
         {showPhotoPopup && isOwner && (
           <motion.div
