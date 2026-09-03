@@ -26,7 +26,9 @@ import {
   ToggleRight,
   Gift,
   DollarSign,
-  ExternalLink
+  ExternalLink,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -49,6 +51,8 @@ export default function ProfileManagement() {
   const [giftStats, setGiftStats] = useState({});
   const [selectedProfiles, setSelectedProfiles] = useState([]);
   const [bulkAction, setBulkAction] = useState('');
+  const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
+  const [showBulkVerificationDropdown, setShowBulkVerificationDropdown] = useState(false);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -112,23 +116,19 @@ export default function ProfileManagement() {
       if (data && data.length > 0) {
         const profileIds = data.map(p => p.id);
         
-        // Fetch vote statistics - total votes
         const { data: voteData } = await supabase
           .from('vote_statistics')
           .select('candidate_id, total_votes')
           .in('candidate_id', profileIds);
 
-        // Fetch vote total amounts
         const { data: voteAmountData } = await supabase
           .from('vote_transactions')
           .select('candidate_id, total_amount')
           .eq('status', 'completed')
           .in('candidate_id', profileIds);
 
-        // Combine vote data
         const voteStatsMap = {};
         
-        // Add total votes from vote_statistics
         if (voteData) {
           voteData.forEach(stat => {
             if (!voteStatsMap[stat.candidate_id]) {
@@ -138,7 +138,6 @@ export default function ProfileManagement() {
           });
         }
 
-        // Add total amounts from vote_transactions
         if (voteAmountData) {
           voteAmountData.forEach(vote => {
             if (!voteStatsMap[vote.candidate_id]) {
@@ -150,7 +149,6 @@ export default function ProfileManagement() {
 
         setVoteStats(voteStatsMap);
 
-        // Fetch gift statistics - count and total amount
         const { data: giftData } = await supabase
           .from('gift_transactions')
           .select('candidate_id, amount')
@@ -173,6 +171,72 @@ export default function ProfileManagement() {
       console.error('Error fetching profiles:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Direct status update - click to change
+  const handleStatusClick = async (profileId, currentStatus) => {
+    const options = accountStatusOptions;
+    const currentIndex = options.findIndex(opt => opt.value === currentStatus);
+    const nextIndex = (currentIndex + 1) % options.length;
+    const newStatus = options[nextIndex].value;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          account_status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profileId);
+
+      if (error) throw error;
+
+      setProfiles(profiles.map(p =>
+        p.id === profileId ? { ...p, account_status: newStatus } : p
+      ));
+
+      console.log(`✅ Status changed to: ${newStatus}`);
+
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Direct verification update - click to change
+  const handleVerificationClick = async (profileId, currentLevel) => {
+    const options = verificationLevelOptions;
+    const currentIndex = options.findIndex(opt => opt.value === currentLevel);
+    const nextIndex = (currentIndex + 1) % options.length;
+    const newLevel = options[nextIndex].value;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          verification_level: newLevel,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profileId);
+
+      if (error) throw error;
+
+      setProfiles(profiles.map(p =>
+        p.id === profileId ? { ...p, verification_level: newLevel } : p
+      ));
+
+      console.log(`✅ Verification changed to: ${newLevel}`);
+
+    } catch (error) {
+      console.error('Error updating verification:', error);
+      alert('Failed to update verification. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -212,21 +276,13 @@ export default function ProfileManagement() {
 
       if (error) throw error;
 
-      // Update local state
-      setProfiles(profiles.map(p => 
+      setProfiles(profiles.map(p =>
         p.id === profileId ? { ...p, [controlName]: newValue } : p
       ));
 
-      // If editing this profile, update editForm too
       if (editingId === profileId) {
         setEditForm(prev => ({ ...prev, [controlName]: newValue }));
       }
-
-      const message = controlName === 'social_control' 
-        ? `Social media visibility ${newValue ? 'enabled' : 'disabled'}`
-        : `Vote visibility ${newValue ? 'enabled' : 'disabled'}`;
-      
-      console.log(`✅ ${message} for profile ${profileId}`);
 
     } catch (error) {
       console.error(`Error toggling ${controlName}:`, error);
@@ -238,8 +294,6 @@ export default function ProfileManagement() {
 
   const handleSaveEdit = async (profileId) => {
     setUpdating(true);
-    console.log('Saving profile:', profileId, editForm);
-    
     try {
       if (!editForm.username || !editForm.email) {
         throw new Error('Username and email are required');
@@ -266,22 +320,16 @@ export default function ProfileManagement() {
         })
         .eq('id', profileId);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Save successful');
-
-      setProfiles(profiles.map(p => 
+      setProfiles(profiles.map(p =>
         p.id === profileId ? { ...p, ...editForm } : p
       ));
-      
+
       setEditingId(null);
       setEditForm({});
-      
       alert('Profile updated successfully!');
-      
+
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Failed to update profile: ' + error.message);
@@ -321,7 +369,7 @@ export default function ProfileManagement() {
     setUpdating(true);
     try {
       const updates = {};
-      
+
       if (bulkAction.startsWith('status_')) {
         updates.account_status = bulkAction.replace('status_', '');
       } else if (bulkAction.startsWith('verification_')) {
@@ -344,11 +392,12 @@ export default function ProfileManagement() {
 
         if (error) throw error;
 
-        setProfiles(profiles.map(p => 
+        setProfiles(profiles.map(p =>
           selectedProfiles.includes(p.id) ? { ...p, ...updates } : p
         ));
         setSelectedProfiles([]);
         setBulkAction('');
+        alert(`✅ Bulk action completed for ${selectedProfiles.length} profiles`);
       }
     } catch (error) {
       console.error('Error in bulk action:', error);
@@ -358,10 +407,10 @@ export default function ProfileManagement() {
     }
   };
 
-  // Bulk toggle all controls
-  const handleBulkToggleAll = async (controlName, value) => {
+  // Bulk toggle controls with single switch
+  const handleBulkToggleControl = async (controlName, value) => {
     if (profiles.length === 0) return;
-    
+
     setUpdating(true);
     try {
       const profileIds = profiles.map(p => p.id);
@@ -378,12 +427,11 @@ export default function ProfileManagement() {
       if (error) throw error;
 
       setProfiles(profiles.map(p => ({ ...p, [controlName]: value })));
-      
-      const message = controlName === 'social_control' 
-        ? `Social media visibility ${value ? 'enabled' : 'disabled'} for all ${profiles.length} profiles`
-        : `Vote visibility ${value ? 'enabled' : 'disabled'} for all ${profiles.length} profiles`;
-      
-      alert(`✅ ${message}`);
+
+      const label = controlName === 'social_control' ? 'Social' : 'Vote';
+      const state = value ? 'ON' : 'OFF';
+      alert(`✅ ${label} ${state} for all ${profiles.length} profiles`);
+
     } catch (error) {
       console.error(`Error bulk toggling ${controlName}:`, error);
       alert(`Failed to update ${controlName} for all profiles.`);
@@ -394,15 +442,15 @@ export default function ProfileManagement() {
 
   const exportToCSV = () => {
     const headers = [
-      'Username', 'Full Name', 'Email', 'Phone', 'Country', 'State', 
-      'City', 'Date of Birth', 'Account Status', 'Verification Level', 
+      'Username', 'Full Name', 'Email', 'Phone', 'Country', 'State',
+      'City', 'Date of Birth', 'Account Status', 'Verification Level',
       'Role', 'Bio', 'Total Votes', 'Vote Amount (NGN)', 'Total Gifts', 'Gift Amount (NGN)', 'Social Control', 'Vote Control'
     ];
-    
+
     const csvData = profiles.map(p => {
       const voteStat = voteStats[p.id] || { totalVotes: 0, totalAmount: 0 };
       const giftStat = giftStats[p.id] || { count: 0, totalAmount: 0 };
-      
+
       return [
         p.username,
         p.full_name,
@@ -424,7 +472,7 @@ export default function ProfileManagement() {
         p.vote_control ? 'Enabled' : 'Disabled'
       ];
     });
-    
+
     const csv = [headers, ...csvData].map(row => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -437,35 +485,34 @@ export default function ProfileManagement() {
   const getStatusBadgeColor = (status) => {
     const option = accountStatusOptions.find(opt => opt.value === status);
     switch(option?.color) {
-      case 'green': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'yellow': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'red': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      case 'green': return 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30';
+      case 'yellow': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30';
+      case 'red': return 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30 hover:bg-gray-500/30';
     }
   };
 
   const getVerificationBadgeColor = (level) => {
     const option = verificationLevelOptions.find(opt => opt.value === level);
     switch(option?.color) {
-      case 'blue': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      case 'blue': return 'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30 hover:bg-gray-500/30';
     }
   };
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  // Control Toggle Button Component
   const ControlToggle = ({ profile, controlName, label, icon: Icon, onToggle }) => {
     const isEnabled = profile[controlName] === true;
     const color = isEnabled ? 'text-green-400' : 'text-gray-400';
-    
+
     return (
       <button
         onClick={() => onToggle(profile.id, controlName, isEnabled)}
         disabled={updating}
         className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-          isEnabled 
-            ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+          isEnabled
+            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
             : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
         } hover:opacity-80 disabled:opacity-50`}
         title={isEnabled ? `Click to disable ${label}` : `Click to enable ${label}`}
@@ -484,65 +531,141 @@ export default function ProfileManagement() {
   const getVoteDisplay = (profileId) => {
     const stat = voteStats[profileId];
     if (!stat) return { votes: 0, amount: 0 };
-    return { 
-      votes: stat.totalVotes || 0, 
-      amount: stat.totalAmount || 0 
+    return {
+      votes: stat.totalVotes || 0,
+      amount: stat.totalAmount || 0
     };
   };
 
   const getGiftDisplay = (profileId) => {
     const stat = giftStats[profileId];
     if (!stat) return { count: 0, amount: 0 };
-    return { 
-      count: stat.count || 0, 
-      amount: stat.totalAmount || 0 
+    return {
+      count: stat.count || 0,
+      amount: stat.totalAmount || 0
     };
   };
 
+  // Get all profiles on current page for bulk selection
+  const allCurrentPageIds = profiles.map(p => p.id);
+
   return (
     <div>
-      {/* Bulk Toggle Controls - Top Section */}
+      {/* Bulk Controls - Enhanced */}
       <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4 mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <span className="text-xs sm:text-sm text-white/60 font-medium">Bulk Controls ({profiles.length} profiles)</span>
           <div className="flex flex-wrap items-center gap-2">
+            {/* Status Bulk Control */}
+            <div className="relative">
+              <button
+                onClick={() => setShowBulkStatusDropdown(!showBulkStatusDropdown)}
+                disabled={profiles.length === 0}
+                className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span>Status</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBulkStatusDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {showBulkStatusDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute top-full left-0 mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl z-20 min-w-[160px] overflow-hidden"
+                  >
+                    {accountStatusOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          handleBulkToggleControl('account_status', opt.value);
+                          setShowBulkStatusDropdown(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10 transition-colors flex items-center gap-2"
+                      >
+                        <div className={`w-2 h-2 rounded-full bg-${opt.color}-400`}></div>
+                        Set {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Verification Bulk Control */}
+            <div className="relative">
+              <button
+                onClick={() => setShowBulkVerificationDropdown(!showBulkVerificationDropdown)}
+                disabled={profiles.length === 0}
+                className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span>Verification</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBulkVerificationDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {showBulkVerificationDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute top-full left-0 mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl z-20 min-w-[160px] overflow-hidden"
+                  >
+                    {verificationLevelOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          handleBulkToggleControl('verification_level', opt.value);
+                          setShowBulkVerificationDropdown(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10 transition-colors flex items-center gap-2"
+                      >
+                        <div className={`w-2 h-2 rounded-full bg-${opt.color}-400`}></div>
+                        Set {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Social Toggle - Single Switch */}
             <button
-              onClick={() => handleBulkToggleAll('social_control', true)}
-              disabled={updating || profiles.length === 0}
-              className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              onClick={() => {
+                const allOn = profiles.every(p => p.social_control === true);
+                handleBulkToggleControl('social_control', !allOn);
+              }}
+              disabled={profiles.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                profiles.length > 0 && profiles.every(p => p.social_control === true)
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+              }`}
             >
               <Share2 className="w-3.5 h-3.5" />
-              Social ON
+              <span>Social {profiles.length > 0 && profiles.every(p => p.social_control === true) ? 'ON' : 'OFF'}</span>
             </button>
+
+            {/* Vote Toggle - Single Switch */}
             <button
-              onClick={() => handleBulkToggleAll('social_control', false)}
-              disabled={updating || profiles.length === 0}
-              className="px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 border border-gray-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              Social OFF
-            </button>
-            <button
-              onClick={() => handleBulkToggleAll('vote_control', true)}
-              disabled={updating || profiles.length === 0}
-              className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Vote className="w-3.5 h-3.5" />
-              Votes ON
-            </button>
-            <button
-              onClick={() => handleBulkToggleAll('vote_control', false)}
-              disabled={updating || profiles.length === 0}
-              className="px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 border border-gray-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              onClick={() => {
+                const allOn = profiles.every(p => p.vote_control === true);
+                handleBulkToggleControl('vote_control', !allOn);
+              }}
+              disabled={profiles.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                profiles.length > 0 && profiles.every(p => p.vote_control === true)
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+              }`}
             >
               <Vote className="w-3.5 h-3.5" />
-              Votes OFF
+              <span>Votes {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Filters Section - Responsive */}
+      {/* Filters Section */}
       <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4 mb-4 sm:mb-6">
         <div className="hidden sm:flex sm:items-center sm:gap-3">
           <div className="flex-1 relative">
@@ -748,7 +871,7 @@ export default function ProfileManagement() {
                   {profiles.map((profile) => {
                     const voteData = getVoteDisplay(profile.id);
                     const giftData = getGiftDisplay(profile.id);
-                    
+
                     return (
                       <motion.tr
                         key={profile.id}
@@ -904,9 +1027,9 @@ export default function ProfileManagement() {
                                     label="Social Links"
                                     icon={Share2}
                                     onToggle={(id, name, value) => {
-                                      setEditForm(prev => ({ 
-                                        ...prev, 
-                                        [name]: !value 
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        [name]: !value
                                       }));
                                     }}
                                   />
@@ -919,9 +1042,9 @@ export default function ProfileManagement() {
                                     label="Votes"
                                     icon={Vote}
                                     onToggle={(id, name, value) => {
-                                      setEditForm(prev => ({ 
-                                        ...prev, 
-                                        [name]: !value 
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        [name]: !value
                                       }));
                                     }}
                                   />
@@ -1029,14 +1152,26 @@ export default function ProfileManagement() {
                               </div>
                             </td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeColor(profile.account_status)}`}>
+                              <button
+                                onClick={() => handleStatusClick(profile.id, profile.account_status)}
+                                disabled={updating}
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getStatusBadgeColor(profile.account_status)}`}
+                                title={`Click to change status (currently ${accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'})`}
+                              >
                                 {accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'}
-                              </span>
+                                <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
+                              </button>
                             </td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getVerificationBadgeColor(profile.verification_level)}`}>
+                              <button
+                                onClick={() => handleVerificationClick(profile.id, profile.verification_level)}
+                                disabled={updating}
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getVerificationBadgeColor(profile.verification_level)}`}
+                                title={`Click to change verification (currently ${verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'})`}
+                              >
                                 {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
-                              </span>
+                                <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
+                              </button>
                             </td>
                             <td className="p-3">
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
@@ -1117,12 +1252,12 @@ export default function ProfileManagement() {
             </div>
           </div>
 
-          {/* Tablet View */}
+          {/* Tablet & Mobile Views - Keep existing but update status/verification click handlers */}
           <div className="hidden sm:block lg:hidden">
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
-              
+
               return (
                 <motion.div
                   key={profile.id}
@@ -1131,7 +1266,7 @@ export default function ProfileManagement() {
                   className="bg-white/5 rounded-xl border border-white/10 p-4 mb-3"
                 >
                   {editingId === profile.id ? (
-                    // Tablet Edit Mode
+                    // Edit Mode
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium text-white">Edit Profile</h3>
@@ -1268,7 +1403,7 @@ export default function ProfileManagement() {
                       </button>
                     </div>
                   ) : (
-                    // Tablet View Mode
+                    // View Mode
                     <>
                       <div className="flex items-start gap-3 mb-3">
                         <input
@@ -1302,12 +1437,24 @@ export default function ProfileManagement() {
                           <div className="font-medium text-white text-sm truncate">{profile.full_name}</div>
                           <div className="text-xs text-white/40 truncate">@{profile.username}</div>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getStatusBadgeColor(profile.account_status)}`}>
+                            <button
+                              onClick={() => handleStatusClick(profile.id, profile.account_status)}
+                              disabled={updating}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all ${getStatusBadgeColor(profile.account_status)}`}
+                              title="Click to change status"
+                            >
                               {accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'}
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getVerificationBadgeColor(profile.verification_level)}`}>
+                              <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+                            </button>
+                            <button
+                              onClick={() => handleVerificationClick(profile.id, profile.verification_level)}
+                              disabled={updating}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all ${getVerificationBadgeColor(profile.verification_level)}`}
+                              title="Click to change verification"
+                            >
                               {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
-                            </span>
+                              <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+                            </button>
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
                               {profile.role || 'user'}
                             </span>
@@ -1383,12 +1530,12 @@ export default function ProfileManagement() {
             })}
           </div>
 
-          {/* Mobile Card View */}
+          {/* Mobile Card View - Keep existing but update with clickable status/verification */}
           <div className="sm:hidden space-y-3">
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
-              
+
               return (
                 <motion.div
                   key={profile.id}
@@ -1396,6 +1543,7 @@ export default function ProfileManagement() {
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-white/5 rounded-xl border border-white/10 p-3"
                 >
+                  {/* Mobile View - Keeping it clean and simple */}
                   {editingId === profile.id ? (
                     // Mobile Edit Mode
                     <div className="space-y-2">
@@ -1408,7 +1556,6 @@ export default function ProfileManagement() {
                           <X className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </div>
-                      
                       <div className="space-y-2">
                         <input
                           type="text"
@@ -1438,7 +1585,6 @@ export default function ProfileManagement() {
                           className="w-full px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
                           placeholder="Phone"
                         />
-                        
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             type="text"
@@ -1455,7 +1601,6 @@ export default function ProfileManagement() {
                             placeholder="State"
                           />
                         </div>
-                        
                         <input
                           type="text"
                           value={editForm.city}
@@ -1463,14 +1608,12 @@ export default function ProfileManagement() {
                           className="w-full px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
                           placeholder="City"
                         />
-                        
                         <input
                           type="date"
                           value={editForm.date_of_birth}
                           onChange={(e) => setEditForm({...editForm, date_of_birth: e.target.value})}
                           className="w-full px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
                         />
-                        
                         <textarea
                           value={editForm.bio}
                           onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
@@ -1478,7 +1621,6 @@ export default function ProfileManagement() {
                           placeholder="Bio"
                           rows="2"
                         />
-                        
                         <div className="grid grid-cols-3 gap-2">
                           <select
                             value={editForm.account_status}
@@ -1489,7 +1631,6 @@ export default function ProfileManagement() {
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                           </select>
-                          
                           <select
                             value={editForm.verification_level}
                             onChange={(e) => setEditForm({...editForm, verification_level: e.target.value})}
@@ -1499,7 +1640,6 @@ export default function ProfileManagement() {
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                           </select>
-                          
                           <select
                             value={editForm.role}
                             onChange={(e) => setEditForm({...editForm, role: e.target.value})}
@@ -1510,7 +1650,6 @@ export default function ProfileManagement() {
                             <option value="admin">Admin</option>
                           </select>
                         </div>
-
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-white/40">Social:</span>
@@ -1537,22 +1676,15 @@ export default function ProfileManagement() {
                             />
                           </div>
                         </div>
-                        
                         <button
                           onClick={() => handleSaveEdit(profile.id)}
                           disabled={updating}
                           className="w-full py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1"
                         >
                           {updating ? (
-                            <>
-                              <Loader className="w-3 h-3 animate-spin" />
-                              Saving...
-                            </>
+                            <><Loader className="w-3 h-3 animate-spin" /> Saving...</>
                           ) : (
-                            <>
-                              <Save className="w-3 h-3" />
-                              Save Changes
-                            </>
+                            <><Save className="w-3 h-3" /> Save Changes</>
                           )}
                         </button>
                       </div>
@@ -1573,7 +1705,6 @@ export default function ProfileManagement() {
                           }}
                           className="mt-1 rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
                         />
-                        
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
                           {profile.avatar_url ? (
                             <Image
@@ -1589,12 +1720,10 @@ export default function ProfileManagement() {
                             </div>
                           )}
                         </div>
-                        
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-white text-sm truncate">{profile.full_name}</div>
                           <div className="text-xs text-white/40 truncate">@{profile.username}</div>
                         </div>
-                        
                         <div className="flex gap-1">
                           <Link
                             href={`/${profile.username}`}
@@ -1633,12 +1762,24 @@ export default function ProfileManagement() {
                       </div>
 
                       <div className="flex flex-wrap gap-1 mt-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getStatusBadgeColor(profile.account_status)}`}>
+                        <button
+                          onClick={() => handleStatusClick(profile.id, profile.account_status)}
+                          disabled={updating}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all ${getStatusBadgeColor(profile.account_status)}`}
+                          title="Click to change status"
+                        >
                           {accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'}
-                        </span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getVerificationBadgeColor(profile.verification_level)}`}>
+                          <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+                        </button>
+                        <button
+                          onClick={() => handleVerificationClick(profile.id, profile.verification_level)}
+                          disabled={updating}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all ${getVerificationBadgeColor(profile.verification_level)}`}
+                          title="Click to change verification"
+                        >
                           {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
-                        </span>
+                          <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+                        </button>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
                           {profile.role || 'user'}
                         </span>
