@@ -43,10 +43,13 @@ export default function CandidatesPage() {
 
     setIsSearching(true);
     
-    // Search across all profiles (including unverified)
+    // Search across all profiles (including unverified) - exclude admin and fan roles
     const searchResults = allProfiles.filter(profile => {
       // Skip suspended accounts
       if (profile.account_status === 'suspended') return false;
+      
+      // Exclude admin and fan roles
+      if (profile.role === 'admin' || profile.role === 'fan' || profile.role === 'fans') return false;
       
       const username = profile.username?.toLowerCase() || '';
       const country = profile.country?.toLowerCase() || '';
@@ -76,22 +79,28 @@ export default function CandidatesPage() {
 
   const fetchCandidates = async () => {
     try {
-      // Get ALL profiles (including unverified) for search
+      // Get ALL profiles (including unverified) for search - exclude admin and fan roles
       const { data: allProfilesData, error: allError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control')
-        .not('username', 'is', null);
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, role')
+        .not('username', 'is', null)
+        .not('role', 'eq', 'admin')
+        .not('role', 'eq', 'fan')
+        .not('role', 'eq', 'fans');
 
       if (allError) throw allError;
       setAllProfiles(allProfilesData || []);
 
-      // Get only eligible candidates for display (active and fully verified)
+      // Get only eligible candidates for display (active and fully verified) - exclude admin and fan roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, role')
         .eq('account_status', 'active')
         .eq('verification_level', 'fully_verified')
-        .not('username', 'is', null);
+        .not('username', 'is', null)
+        .not('role', 'eq', 'admin')
+        .not('role', 'eq', 'fan')
+        .not('role', 'eq', 'fans');
 
       if (profilesError) throw profilesError;
       if (!profiles || profiles.length === 0) {
