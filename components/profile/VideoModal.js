@@ -372,7 +372,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             // YouTube URL Input
             <>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                <label className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                   <Link2 className="w-4 h-4 text-[#D4AF37]" />
                   YouTube URL
                 </label>
@@ -416,7 +416,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             // Video Upload Section
             <>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-white/80 mb-2">
                   <Upload className="w-4 h-4 text-[#D4AF37]" />
                   Upload Video
                 </label>
