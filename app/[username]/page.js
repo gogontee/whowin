@@ -22,7 +22,23 @@ import {
   Video,
   Bookmark,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Camera,
+  ArrowRight,
+  Check,
+  X,
+  Sparkles,
+  Award,
+  Users,
+  Crown,
+  Globe,
+  Instagram,
+  Twitter,
+  Youtube,
+  Facebook,
+  Linkedin,
+  Gift,
+  Star
 } from 'lucide-react';
 
 // Import components
@@ -65,6 +81,12 @@ export default function ProfilePage() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  
+  // Onboarding tips state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  
   const [stats, setStats] = useState({
     totalVotes: 0,
     totalViews: 0,
@@ -97,10 +119,28 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile && !authCheckRef.current) {
       authCheckRef.current = true;
-      // Try auth but don't wait for it
       checkCurrentUser();
     }
   }, [profile]);
+
+  // =====================
+  // Check if user has seen onboarding
+  // =====================
+  useEffect(() => {
+    if (isOwner && profile) {
+      // Check if user has already seen onboarding
+      const hasSeen = localStorage.getItem(`whowin_onboarding_${profile.id}`);
+      if (hasSeen) {
+        setHasSeenOnboarding(true);
+        setShowOnboarding(false);
+      } else {
+        // Show onboarding after a small delay
+        setTimeout(() => {
+          setShowOnboarding(true);
+        }, 1500);
+      }
+    }
+  }, [isOwner, profile]);
 
   // =====================
   // FETCH PROFILE - ALWAYS WORKS
@@ -108,7 +148,6 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      // Fetch profile - this ALWAYS works, no auth needed
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -128,7 +167,6 @@ export default function ProfilePage() {
         return;
       }
       
-      // Ensure required fields exist
       if (profileData.vote_control === undefined || profileData.vote_control === null) {
         profileData.vote_control = false;
       }
@@ -139,7 +177,6 @@ export default function ProfilePage() {
       
       setProfile(profileData);
 
-      // Fetch videos
       const { data: videos, error: videosError } = await supabase
         .from('videos')
         .select('*')
@@ -173,7 +210,6 @@ export default function ProfilePage() {
       setAllPosts(combinedPosts);
       setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
 
-      // Fetch followers count
       const { count: followersCount } = await supabase
         .from('followers')
         .select('*', { count: 'exact', head: true })
@@ -181,7 +217,6 @@ export default function ProfilePage() {
 
       setFollowers(followersCount || 0);
 
-      // Fetch following count
       const { count: followingCount } = await supabase
         .from('followers')
         .select('*', { count: 'exact', head: true })
@@ -189,7 +224,6 @@ export default function ProfilePage() {
 
       setFollowing(followingCount || 0);
 
-      // Fetch vote data
       const { data: voteData, error: voteError } = await supabase
         .from('vote_transactions')
         .select('votes')
@@ -226,12 +260,10 @@ export default function ProfilePage() {
   // =====================
   const checkCurrentUser = async () => {
     try {
-      // Try to get user - if it fails, just treat as guest
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       setAuthChecked(true);
       
-      // If auth fails, treat as guest - PROFILE STILL VISIBLE
       if (userError || !user) {
         console.log('Viewing as guest');
         setIsOwner(false);
@@ -263,7 +295,6 @@ export default function ProfilePage() {
         setIsFollowing(false);
       }
     } catch (error) {
-      // Auth failed - just treat as guest
       console.log('Auth check failed - viewing as guest');
       setIsOwner(false);
       setCurrentUser(null);
@@ -604,6 +635,91 @@ export default function ProfilePage() {
   };
 
   // =====================
+  // ONBOARDING HANDLERS
+  // =====================
+
+  const onboardingSteps = [
+    {
+      title: 'Great First Impression! 📸',
+      description: 'Your profile photo is the first thing people see. Make it clear and attractive.',
+      image: '/passport1.jpeg',
+      imageAlt: 'Example profile photo',
+      tips: [
+        'Use a clear, well-lit photo',
+        'Face should be clearly visible',
+        'Smile and look approachable'
+      ]
+    },
+    {
+      title: 'Build Your Gallery 🖼️',
+      description: 'Upload quality images to help voters connect with you.',
+      images: ['/image1.jpeg', '/image2.jpeg', '/image3.jpeg', '/image4.jpeg'],
+      tips: [
+        'Show your personality',
+        'Clear and high-quality images'
+      ]
+    },
+    {
+      title: 'Complete Your Profile ✨',
+      description: 'Click the Settings icon ⚙️ and add your "About Me" section.',
+      action: 'settings',
+      tips: [
+        'Tell your story authentically',
+        'Be genuine and relatable'
+      ]
+    },
+    {
+      title: 'Connect Social Media 🌐',
+      description: 'Add your social links in Settings to grow your following.',
+      socialIcons: [Instagram, Twitter, Youtube, Facebook, Linkedin],
+      tips: [
+        'Link all your active social accounts',
+        'Engage with your followers'
+      ]
+    },
+    {
+      title: "You're Ready to Shine! ⭐",
+      description: "You're all set! We wish you the best of luck in the competition!",
+      isFinal: true,
+      tips: [
+        'Share your journey on socials',
+        'Be yourself and have fun!'
+      ]
+    }
+  ];
+
+  const handleNextOnboarding = () => {
+    if (onboardingStep < onboardingSteps.length - 1) {
+      setOnboardingStep(prev => prev + 1);
+    }
+  };
+
+  const handlePreviousOnboarding = () => {
+    if (onboardingStep > 0) {
+      setOnboardingStep(prev => prev - 1);
+    }
+  };
+
+  const handleCloseOnboarding = () => {
+    setShowOnboarding(false);
+    setHasSeenOnboarding(true);
+    if (profile?.id) {
+      localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
+    }
+  };
+
+  const handleOnboardingAction = (action) => {
+    if (action === 'settings') {
+      setShowOnboarding(false);
+      setHasSeenOnboarding(true);
+      if (profile?.id) {
+        localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
+      }
+      setShowSettings(true);
+    }
+  };
+
+  // =====================
   // RENDER
   // =====================
 
@@ -648,6 +764,9 @@ export default function ProfilePage() {
   const savedPosts = profile.saved_post || [];
   const displayPosts = activeTab === 'saved' ? savedPosts : allPosts;
 
+  const isFinalStep = onboardingStep === onboardingSteps.length - 1;
+  const currentStep = onboardingSteps[onboardingStep];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
       <div className="max-w-4xl mx-auto px-4 py-4 md:py-6">
@@ -656,9 +775,7 @@ export default function ProfilePage() {
           isOwner={isOwner}
           uploadingPhoto={uploadingPhoto}
           uploadSuccess={uploadSuccess}
-          showPhotoPopup={showPhotoPopup}
           onPhotoUpload={handlePhotoUpload}
-          onClosePopup={() => setShowPhotoPopup(false)}
           onSettingsClick={() => setShowSettings(true)}
           onVoteClick={handleOpenVoteModal}
           isVoteModalOpen={showVoteModal}
@@ -817,6 +934,174 @@ export default function ProfilePage() {
             allPosts={allPosts}
             initialIndex={allPosts.findIndex(p => p.id === selectedPost.id)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Onboarding Tips Modal - Clean & Compact */}
+      <AnimatePresence>
+        {showOnboarding && isOwner && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: -10 }}
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400/20 rounded-xl p-5 max-w-sm w-full shadow-2xl shadow-yellow-400/5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Progress bar - thinner */}
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 rounded-t-xl overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500"
+                  initial={{ width: `${((onboardingStep) / (onboardingSteps.length - 1)) * 100}%` }}
+                  animate={{ width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+
+              {/* Close button - smaller */}
+              <button
+                onClick={handleCloseOnboarding}
+                className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Step indicator - compact */}
+              <div className="flex items-center justify-between mb-3 mt-1">
+                <span className="text-[10px] text-white/30">
+                  {onboardingStep + 1}/{onboardingSteps.length}
+                </span>
+                <div className="flex gap-1">
+                  {onboardingSteps.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-1 rounded-full transition-all ${
+                        index === onboardingStep
+                          ? 'w-4 bg-yellow-400'
+                          : index < onboardingStep
+                          ? 'w-1 bg-yellow-400/30'
+                          : 'w-1 bg-white/10'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Content - compact */}
+              <div className="space-y-2.5">
+                {/* Title - smaller */}
+                <h2 className="text-base font-bold text-white">
+                  {currentStep.title}
+                </h2>
+
+                {/* Images - smaller */}
+                {currentStep.image && (
+                  <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden border border-yellow-400/20 shadow-lg shadow-yellow-400/10">
+                    <Image
+                      src={currentStep.image}
+                      alt={currentStep.imageAlt || 'Example'}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                {currentStep.images && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {currentStep.images.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-md overflow-hidden border border-white/5">
+                        <Image
+                          src={img}
+                          alt={`Example ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Social icons - smaller */}
+                {currentStep.socialIcons && (
+                  <div className="flex justify-center gap-2">
+                    {currentStep.socialIcons.map((Icon, idx) => (
+                      <div key={idx} className="w-7 h-7 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
+                        <Icon className="w-3.5 h-3.5 text-white/40" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Description - smaller */}
+                <p className="text-xs text-white/60 leading-relaxed">
+                  {currentStep.description}
+                </p>
+
+                {/* Tips - smaller */}
+                <div className="space-y-1">
+                  {currentStep.tips.map((tip, idx) => (
+                    <div key={idx} className="flex items-start gap-1.5 text-xs text-white/50">
+                      <Check className="w-3 h-3 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <span className="text-[11px]">{tip}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action buttons - compact */}
+                <div className="flex gap-2 pt-1.5">
+                  {isFinalStep ? (
+                    <>
+                      <button
+                        onClick={() => handleOnboardingAction('settings')}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        Setup Now
+                      </button>
+                      <button
+                        onClick={handleCloseOnboarding}
+                        className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        Later
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleNextOnboarding}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                    >
+                      Next
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Previous button - smaller */}
+                {onboardingStep > 0 && !isFinalStep && (
+                  <button
+                    onClick={handlePreviousOnboarding}
+                    className="w-full text-[10px] text-white/30 hover:text-white/50 transition-colors"
+                  >
+                    ← Back
+                  </button>
+                )}
+              </div>
+
+              {/* Decorative sparkles - smaller */}
+              <div className="absolute -top-1 -right-1 opacity-10">
+                <Sparkles className="w-5 h-5 text-yellow-400" />
+              </div>
+              <div className="absolute -bottom-1 -left-1 opacity-10">
+                <Sparkles className="w-5 h-5 text-yellow-400" />
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -31,7 +31,11 @@ import {
   RefreshCw,
   Sparkles,
   Home,
-  AlertTriangle
+  AlertTriangle,
+  Info,
+  ImageIcon,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 // Custom Searchable Select Component
@@ -242,6 +246,14 @@ export default function SignupPage() {
   // Fan registration disabled state
   const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
   
+  // Avatar guidance modal
+  const [showAvatarGuidance, setShowAvatarGuidance] = useState(false);
+  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+  const [exampleImages, setExampleImages] = useState([
+    '/passport1.jpeg',
+    '/passport2.jpg'
+  ]);
+  
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
@@ -289,6 +301,17 @@ export default function SignupPage() {
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
+
+  // Auto-rotate example images
+  useEffect(() => {
+    if (!showAvatarGuidance) return;
+    
+    const interval = setInterval(() => {
+      setCurrentExampleIndex((prev) => (prev + 1) % exampleImages.length);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [showAvatarGuidance, exampleImages.length]);
 
   // Load saved form data from localStorage on mount
   useEffect(() => {
@@ -659,8 +682,13 @@ export default function SignupPage() {
     }
   };
 
-  // Handle avatar upload
-  const handleAvatarUpload = async (e) => {
+  // Handle avatar upload button click - show guidance first
+  const handleAvatarUploadClick = () => {
+    setShowAvatarGuidance(true);
+  };
+
+  // Handle avatar upload from guidance modal
+  const handleAvatarUploadFromGuidance = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -682,6 +710,7 @@ export default function SignupPage() {
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result);
+      setShowAvatarGuidance(false);
     };
     reader.readAsDataURL(file);
     setUploadingAvatar(false);
@@ -759,7 +788,7 @@ export default function SignupPage() {
             lga: selectedRole === 'candidate' ? formData.lga : null,
             role: selectedRole === 'candidate' ? 'user' : 'fan',
             avatar_url: null,
-            accept_terms: formData.agreeTerms // Set accept_terms to TRUE when checkbox is checked
+            accept_terms: formData.agreeTerms
           }
         }
       });
@@ -1318,19 +1347,15 @@ export default function SignupPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <label className="cursor-pointer inline-block">
-                      <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2">
-                        <Upload className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                        {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        className="hidden"
-                        disabled={cooldownSeconds > 0}
-                      />
-                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAvatarUploadClick}
+                      className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2"
+                      disabled={cooldownSeconds > 0}
+                    >
+                      <Upload className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                      {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
+                    </button>
                     <p className="text-[7px] md:text-[8px] text-white/30 mt-1">JPG, PNG, GIF up to 5MB</p>
                     {uploadError && (
                       <p className="text-[8px] md:text-[10px] text-red-400 mt-1 flex items-center gap-1">
@@ -1930,6 +1955,134 @@ export default function SignupPage() {
                 <Link href="/auth/login" className="text-yellow-400 hover:text-green-400 transition-colors hover:underline">
                   Sign in
                 </Link>
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Avatar Guidance Modal */}
+      <AnimatePresence>
+        {showAvatarGuidance && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={() => setShowAvatarGuidance(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ImageIcon className="w-8 h-8 text-yellow-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Profile Picture Tips
+                </h3>
+                <p className="text-white/60 text-sm">
+                  Make a great first impression! Here are some examples of good profile pictures.
+                </p>
+              </div>
+
+              {/* Example Images Carousel */}
+              <div className="relative mb-6">
+                <div className="relative w-48 h-48 mx-auto rounded-full overflow-hidden border-2 border-yellow-400/30 shadow-lg shadow-yellow-400/20">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentExampleIndex}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.5 }}
+                      className="relative w-full h-full"
+                    >
+                      <Image
+                        src={exampleImages[currentExampleIndex]}
+                        alt={`Example profile picture ${currentExampleIndex + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                  
+                  {/* Image counter */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1">
+                    <span className="text-[10px] text-white/80">
+                      {currentExampleIndex + 1} / {exampleImages.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Navigation dots */}
+                <div className="flex justify-center gap-2 mt-3">
+                  {exampleImages.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentExampleIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentExampleIndex
+                          ? 'bg-yellow-400 w-4'
+                          : 'bg-white/20 hover:bg-white/40'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="space-y-2 mb-6">
+                <div className="flex items-start gap-2 text-sm text-white/70">
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Use a clear, well-lit photo</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-white/70">
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Face should be clearly visible</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-white/70">
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Professional or friendly appearance</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-white/70">
+                  <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span>Avoid blurry or low-quality images</span>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-3">
+                <label className="cursor-pointer w-full">
+                  <div className="w-full py-2.5 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl text-center transition-all hover:shadow-lg hover:shadow-yellow-500/30">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUploadFromGuidance}
+                      className="hidden"
+                    />
+                    <span className="flex items-center justify-center gap-2">
+                      <Upload className="w-4 h-4 flex-shrink-0" />
+                      Upload My Photo
+                    </span>
+                  </div>
+                </label>
+                
+                <button
+                  onClick={() => setShowAvatarGuidance(false)}
+                  className="w-full py-2 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm transition-all"
+                >
+                  Skip for now
+                </button>
+              </div>
+
+              <p className="text-[8px] text-white/30 text-center mt-4">
+                You can always update your profile picture later
               </p>
             </motion.div>
           </motion.div>
