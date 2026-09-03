@@ -16,7 +16,8 @@ import {
   Download,
   Gift,
   Vote,
-  X
+  X,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -61,7 +62,12 @@ export default function MyVotersPage() {
   const [copiedRef, setCopiedRef] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');
-  const [filterType, setFilterType] = useState('all'); // 'all', 'votes', 'gifts'
+  const [filterType, setFilterType] = useState('all');
+  
+  // Global who_win settings (apply to ALL users)
+  const [showVoters, setShowVoters] = useState(true);
+  const [showGifters, setShowGifters] = useState(true);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   // Stats based on current filter
   const [stats, setStats] = useState({
@@ -104,6 +110,49 @@ export default function MyVotersPage() {
       if (user?.id !== profileData.id) {
         router.push(`/${username}`);
         return;
+      }
+
+      // Fetch GLOBAL who_win settings (not tied to specific user)
+      let showVotersSetting = true; // Default to true
+      let showGiftersSetting = true; // Default to true
+      
+      try {
+        // Get the first (and only) record from who_win table
+        const { data: whoWinData, error: whoWinError } = await supabase
+          .from('who_win')
+          .select('show_voters, show_gifters')
+          .limit(1)
+          .maybeSingle();
+
+        // If data exists, use it
+        if (whoWinData && !whoWinError) {
+          showVotersSetting = whoWinData.show_voters === true;
+          showGiftersSetting = whoWinData.show_gifters === true;
+        }
+        // If no record exists, keep defaults (both true)
+        
+      } catch (error) {
+        console.log('No who_win record found, using defaults (both true)');
+        // Keep defaults
+      }
+      
+      setShowVoters(showVotersSetting);
+      setShowGifters(showGiftersSetting);
+      setSettingsLoaded(true);
+
+      // Check if both are false - show coming soon for ALL users
+      if (!showVotersSetting && !showGiftersSetting) {
+        setLoading(false);
+        return;
+      }
+
+      // Auto-select appropriate filter based on visibility
+      if (showVotersSetting && showGiftersSetting) {
+        setFilterType('all');
+      } else if (showVotersSetting && !showGiftersSetting) {
+        setFilterType('votes');
+      } else if (!showVotersSetting && showGiftersSetting) {
+        setFilterType('gifts');
       }
 
       await fetchAllTransactions(profileData.id);
@@ -185,8 +234,8 @@ export default function MyVotersPage() {
       setAllVotes(enrichedVotes);
       setAllGifts(enrichedGifts);
       
-      // Calculate initial stats for 'all' filter
-      calculateStats(enrichedVotes, enrichedGifts, 'all');
+      // Calculate initial stats for current filter
+      calculateStats(enrichedVotes, enrichedGifts, filterType);
 
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -364,7 +413,39 @@ export default function MyVotersPage() {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-white/70 text-sm">Loading transactions...</p>
+          <p className="text-white/70 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "Coming Soon" if both features are disabled globally (null or false)
+  if (settingsLoaded && !showVoters && !showGifters) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="w-24 h-24 bg-gradient-to-br from-[#D4AF37]/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Clock className="w-12 h-12 text-[#D4AF37]" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              Coming Soon
+            </h1>
+            <p className="text-white/60 text-base sm:text-lg mb-6">
+              This feature is currently being prepared. Check back later to view your supporters and their contributions.
+            </p>
+            <Link
+              href={`/${username}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black rounded-xl font-medium hover:opacity-90 transition-opacity"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back to Profile
+            </Link>
+          </motion.div>
         </div>
       </div>
     );
@@ -430,40 +511,51 @@ export default function MyVotersPage() {
             </div>
             
             <div className="flex gap-2">
-              {/* Filter Type Buttons */}
+              {/* Filter Type Buttons - Controlled by GLOBAL who_win settings */}
               <div className="flex rounded-xl overflow-hidden border border-white/10">
-                <button
-                  onClick={() => setFilterType('all')}
-                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all ${
-                    filterType === 'all' 
-                      ? 'bg-[#D4AF37] text-black' 
-                      : 'bg-white/5 text-white/40 hover:text-white'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setFilterType('votes')}
-                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1 ${
-                    filterType === 'votes' 
-                      ? 'bg-[#D4AF37] text-black' 
-                      : 'bg-white/5 text-white/40 hover:text-white'
-                  }`}
-                >
-                  <Vote className="w-3 h-3" />
-                  <span className="hidden sm:inline">Votes</span>
-                </button>
-                <button
-                  onClick={() => setFilterType('gifts')}
-                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1 ${
-                    filterType === 'gifts' 
-                      ? 'bg-[#D4AF37] text-black' 
-                      : 'bg-white/5 text-white/40 hover:text-white'
-                  }`}
-                >
-                  <Gift className="w-3 h-3" />
-                  <span className="hidden sm:inline">Gifts</span>
-                </button>
+                {/* All Button - ONLY shown when BOTH are TRUE globally */}
+                {showVoters && showGifters && (
+                  <button
+                    onClick={() => setFilterType('all')}
+                    className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all ${
+                      filterType === 'all' 
+                        ? 'bg-[#D4AF37] text-black' 
+                        : 'bg-white/5 text-white/40 hover:text-white'
+                    }`}
+                  >
+                    All
+                  </button>
+                )}
+                
+                {/* Votes Button - ONLY shown when show_voters is TRUE globally */}
+                {showVoters && (
+                  <button
+                    onClick={() => setFilterType('votes')}
+                    className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1 ${
+                      filterType === 'votes' 
+                        ? 'bg-[#D4AF37] text-black' 
+                        : 'bg-white/5 text-white/40 hover:text-white'
+                    }`}
+                  >
+                    <Vote className="w-3 h-3" />
+                    <span className="hidden sm:inline">Votes</span>
+                  </button>
+                )}
+                
+                {/* Gifts Button - ONLY shown when show_gifters is TRUE globally */}
+                {showGifters && (
+                  <button
+                    onClick={() => setFilterType('gifts')}
+                    className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1 ${
+                      filterType === 'gifts' 
+                        ? 'bg-[#D4AF37] text-black' 
+                        : 'bg-white/5 text-white/40 hover:text-white'
+                    }`}
+                  >
+                    <Gift className="w-3 h-3" />
+                    <span className="hidden sm:inline">Gifts</span>
+                  </button>
+                )}
               </div>
 
               <select
@@ -624,10 +716,10 @@ export default function MyVotersPage() {
           </div>
         )}
 
-        {/* Summary Footer */}
+        {/* Summary Footer - Removed Average stats */}
         {(allVotes.length > 0 || allGifts.length > 0) && (
           <div className="mt-6 p-4 bg-gradient-to-r from-[#D4AF37]/10 to-yellow-500/10 rounded-xl border border-[#D4AF37]/20">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {filterType === 'votes' && (
                 <>
                   <div>
@@ -641,12 +733,6 @@ export default function MyVotersPage() {
                   <div>
                     <div className="text-[10px] sm:text-xs text-white/40">Total Amount</div>
                     <div className="text-base sm:text-lg font-bold text-[#D4AF37]">₦{stats.totalAmount.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] sm:text-xs text-white/40">Avg Votes</div>
-                    <div className="text-base sm:text-lg font-bold text-white">
-                      {stats.uniqueVoters > 0 ? Math.round(stats.totalVotes / stats.uniqueVoters) : 0}
-                    </div>
                   </div>
                 </>
               )}
@@ -664,12 +750,6 @@ export default function MyVotersPage() {
                   <div>
                     <div className="text-[10px] sm:text-xs text-white/40">Gift Amount</div>
                     <div className="text-base sm:text-lg font-bold text-[#D4AF37]">₦{stats.totalGiftAmount.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] sm:text-xs text-white/40">Avg Gift</div>
-                    <div className="text-base sm:text-lg font-bold text-white">
-                      {stats.totalGifts > 0 ? Math.round(stats.totalGiftAmount / stats.totalGifts) : 0}
-                    </div>
                   </div>
                 </>
               )}

@@ -12,9 +12,7 @@ export default function ProfileBanner({
   isOwner, 
   uploadingPhoto, 
   uploadSuccess,
-  showPhotoPopup,
   onPhotoUpload,
-  onClosePopup,
   onSettingsClick,
   onVoteClick,
   isVoteModalOpen,
@@ -97,26 +95,12 @@ export default function ProfileBanner({
     }
   }, [profile?.id, isOwner, profile?.vote_control]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('ProfileBanner mounted');
-    console.log('isOwner:', isOwner);
-    console.log('profile exists:', !!profile);
-    console.log('profile.banner_url:', profile?.banner_url);
-    console.log('profile.account_status:', profile?.account_status);
-    console.log('profile.vote_control:', profile?.vote_control);
-    console.log('voteCount:', voteCount);
-    console.log('giftCount:', giftCount);
-    console.log('shouldShowStats:', shouldShowStats());
-  }, [isOwner, profile, voteCount, giftCount]);
-
   // If profile doesn't exist, don't render anything
   if (!profile) {
-    console.log('ProfileBanner: no profile data');
     return null;
   }
 
-  // Handle banner upload - FIXED VERSION
+  // Handle banner upload
   const handleBannerUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -146,10 +130,6 @@ export default function ProfileBanner({
       // Simple path - just the filename in the bucket root
       const filePath = fileName;
 
-      console.log('Uploading banner to bucket: banner');
-      console.log('File path:', filePath);
-      console.log('Username:', username);
-
       // Upload to Supabase Storage - banner bucket
       const { data, error: uploadError } = await supabase.storage
         .from('banner')
@@ -165,14 +145,10 @@ export default function ProfileBanner({
         return;
       }
 
-      console.log('Upload successful:', data);
-
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('banner')
         .getPublicUrl(filePath);
-
-      console.log('Banner public URL:', publicUrl);
 
       // Update profile with banner URL
       const { error: updateError } = await supabase
@@ -257,7 +233,6 @@ export default function ProfileBanner({
     }
   };
 
-  const status = profile.account_status || 'pending_verification';
   const showStats = shouldShowStats();
 
   return (
@@ -273,7 +248,6 @@ export default function ProfileBanner({
           priority={true}
           onError={(e) => {
             // If image fails to load, fallback to default
-            console.log('Banner image failed to load, using fallback');
             e.target.src = 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1200';
           }}
         />
@@ -438,62 +412,6 @@ export default function ProfileBanner({
           )}
         </div>
       </div>
-
-      {/* Photo Upload Popup */}
-      <AnimatePresence>
-        {showPhotoPopup && isOwner && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute left-24 md:left-32 bottom-2 z-[250]"
-          >
-            <div className="relative bg-gradient-to-r from-burnt-orange-600 to-yellow-500 rounded-xl shadow-2xl p-3 max-w-xs">
-              <div className="absolute -left-2 top-6 w-4 h-4 bg-burnt-orange-600 rotate-45 transform origin-center"></div>
-              
-              <div className="flex items-start gap-2">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                    <Camera className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold text-xs mb-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    Complete Your Profile
-                  </h3>
-                  <p className="text-white/90 text-[10px] mb-2">
-                    Add a profile photo to help others recognize you!
-                  </p>
-                  <div className="flex gap-2">
-                    <label className="px-2 py-1 bg-white text-burnt-orange-600 rounded-lg text-[10px] font-semibold hover:bg-white/90 transition-colors cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onPhotoUpload}
-                        className="hidden"
-                      />
-                      Upload
-                    </label>
-                    <button
-                      onClick={onClosePopup}
-                      className="px-2 py-1 bg-white/20 text-white rounded-lg text-[10px] font-semibold hover:bg-white/30 transition-colors"
-                    >
-                      Later
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={onClosePopup}
-                  className="text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

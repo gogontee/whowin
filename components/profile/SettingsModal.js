@@ -20,7 +20,8 @@ import {
   Twitter,
   Facebook,
   Youtube,
-  Music
+  Music,
+  MessageCircle
 } from 'lucide-react';
 
 export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supabase }) {
@@ -111,14 +112,13 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
     setError(null);
 
     try {
-      // Build update object with only fields that exist
       const updateData = {
         full_name: formData.full_name,
         bio: formData.bio,
         location: formData.location,
         country: formData.country,
         state: formData.state,
-        city: formData.city,
+        city: formData.city,  
         phone: formData.phone,
         instagram: formData.instagram,
         tiktok: formData.tiktok,
@@ -130,14 +130,11 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
         updated_at: new Date().toISOString()
       };
 
-      // Handle date_of_birth - convert empty string to null
       if (formData.date_of_birth && formData.date_of_birth.trim() !== '') {
         updateData.date_of_birth = formData.date_of_birth;
       } else {
-        updateData.date_of_birth = null; // Send null instead of empty string
+        updateData.date_of_birth = null;
       }
-
-      console.log('Updating profile with:', updateData);
 
       const { error } = await supabase
         .from('profiles')
@@ -277,7 +274,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                 </div>
 
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Bio</label>
+                  <label className="block text-xs text-white/40 mb-1">About You</label>
                   <textarea
                     name="bio"
                     value={formData.bio || ''}
@@ -353,8 +350,8 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                   </div>
                   <div>
                     <label className="block text-xs text-white/40 mb-1">
-                      <Phone className="w-3 h-3 inline mr-1" />
-                      Phone
+                      <MessageCircle className="w-3 h-3 inline mr-1 text-green-400" />
+                      WhatsApp Number
                     </label>
                     <input
                       type="tel"
@@ -362,8 +359,11 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.phone || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="+1234567890"
+                      placeholder="+234 800 000 0000"
                     />
+                    <p className="text-[10px] text-white/30 mt-1">
+                      Must be an active WhatsApp number
+                    </p>
                   </div>
                 </div>
               </div>
@@ -387,7 +387,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.instagram || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="username"
+                      placeholder="@ella_james"
                     />
                   </div>
                   <div>
@@ -401,7 +401,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.tiktok || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="username"
+                      placeholder="@ella_james"
                     />
                   </div>
                   <div>
@@ -415,7 +415,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.facebook || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="username"
+                      placeholder="@ella_james"
                     />
                   </div>
                   <div>
@@ -429,7 +429,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.youtube || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="channel"
+                      placeholder="@ella_james"
                     />
                   </div>
                   <div className="col-span-2">
@@ -443,7 +443,7 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       value={formData.twitter || ''}
                       onChange={handleChange}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                      placeholder="username"
+                      placeholder="@ella_james"
                     />
                   </div>
                 </div>
