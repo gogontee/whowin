@@ -26,7 +26,10 @@ import {
   Heart,
   Crown,
   Star,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@supabase/ssr';
@@ -78,6 +81,12 @@ export default function GiftTransactions() {
   const [maxAmount, setMaxAmount] = useState('');
   const [giftTypeFilter, setGiftTypeFilter] = useState('');
   const [showStats, setShowStats] = useState(true);
+  
+  // Show gifters toggle
+  const [showGifters, setShowGifters] = useState(true);
+  const [isTogglingGifters, setIsTogglingGifters] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingToggleState, setPendingToggleState] = useState(null);
 
   const ITEMS_PER_PAGE = 10;
   const tableRef = useRef(null);
@@ -90,11 +99,78 @@ export default function GiftTransactions() {
 
   useEffect(() => {
     fetchTransactions();
+    fetchGifterSettings();
   }, [currentPage]);
 
   useEffect(() => {
     applyFilters();
   }, [searchTerm, searchType, transactions, dateFilter, minAmount, maxAmount, giftTypeFilter]);
+
+  const fetchGifterSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('who_win')
+        .select('show_gifters')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setShowGifters(data.show_gifters === true);
+      }
+    } catch (error) {
+      console.error('Error fetching gifter settings:', error);
+    }
+  };
+
+  const toggleShowGifters = async (newState) => {
+    setIsTogglingGifters(true);
+    try {
+      const { data: existing, error: checkError } = await supabase
+        .from('who_win')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      let result;
+      if (existing) {
+        result = await supabase
+          .from('who_win')
+          .update({ show_gifters: newState })
+          .eq('id', existing.id);
+      } else {
+        result = await supabase
+          .from('who_win')
+          .insert({ show_gifters: newState });
+      }
+
+      if (result.error) throw result.error;
+
+      setShowGifters(newState);
+      setShowConfirmModal(false);
+      setPendingToggleState(null);
+
+    } catch (error) {
+      console.error('Error toggling gifter visibility:', error);
+      alert('Failed to update gifter visibility settings. Please try again.');
+    } finally {
+      setIsTogglingGifters(false);
+    }
+  };
+
+  const handleGifterToggle = (newState) => {
+    setPendingToggleState(newState);
+    setShowConfirmModal(true);
+  };
+
+  const confirmToggle = () => {
+    if (pendingToggleState !== null) {
+      toggleShowGifters(pendingToggleState);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -297,9 +373,8 @@ export default function GiftTransactions() {
     const totalGifts = data.length;
     const totalAmount = data.reduce((sum, t) => sum + (t.amount || 0), 0);
     const uniqueSenders = new Set(data.map(t => t.user_id || t.guest_email).filter(Boolean)).size;
-    const avgAmount = data.length > 0 ? Math.round(totalAmount / data.length) : 0;
     const topGift = data.reduce((max, t) => (t.amount || 0) > (max.amount || 0) ? t : max, { amount: 0 });
-    return { totalGifts, totalAmount, uniqueSenders, avgAmount, topGift };
+    return { totalGifts, totalAmount, uniqueSenders, topGift };
   };
 
   const displayData = filteredTransactions.length > 0 ? filteredTransactions : transactions;
@@ -376,18 +451,6 @@ export default function GiftTransactions() {
                   </div>
                 </div>
 
-                <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg">
-                    <TrendingUp className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-white/40 uppercase tracking-wider">Avg Amount</div>
-                    <div className="text-lg font-bold text-purple-400">₦{stats.avgAmount.toLocaleString()}</div>
-                  </div>
-                </div>
-
                 {stats.topGift?.amount > 0 && (
                   <>
                     <div className="w-px h-10 bg-white/10 hidden sm:block" />
@@ -408,6 +471,28 @@ export default function GiftTransactions() {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Show Gifters Toggle */}
+                <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
+                  <button
+                    onClick={() => handleGifterToggle(!showGifters)}
+                    disabled={isTogglingGifters}
+                    className="flex items-center gap-2 text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {showGifters ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-green-400" />
+                        <span>Showing Gifters</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-red-400" />
+                        <span>Gifters Hidden</span>
+                      </>
+                    )}
+                    {isTogglingGifters && <Loader className="w-3 h-3 animate-spin ml-1" />}
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setShowStats(!showStats)}
                   className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white/60"
@@ -773,6 +858,74 @@ export default function GiftTransactions() {
           )}
         </>
       )}
+
+      {/* ===== CONFIRMATION MODAL - Clean & Compact ===== */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => {
+              setShowConfirmModal(false);
+              setPendingToggleState(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: -10 }}
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/20 rounded-xl p-5 max-w-sm w-full shadow-2xl shadow-yellow-400/5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center mb-4">
+                <div className="w-12 h-12 bg-yellow-400/15 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                </div>
+                <h3 className="text-base font-bold text-white mb-1.5">
+                  {pendingToggleState ? 'Show Gifters?' : 'Hide Gifters?'}
+                </h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  {pendingToggleState 
+                    ? 'Allow housemates to see who is sending gifts?'
+                    : 'Hide gifters from housemates?'
+                  }
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingToggleState(null);
+                  }}
+                  className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-xs font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmToggle}
+                  disabled={isTogglingGifters}
+                  className="flex-1 px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  {isTogglingGifters ? (
+                    <>
+                      <Loader className="w-3.5 h-3.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      {pendingToggleState ? 'Yes, Show' : 'Yes, Hide'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
