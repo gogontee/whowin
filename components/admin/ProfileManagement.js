@@ -28,7 +28,8 @@ import {
   DollarSign,
   ExternalLink,
   Check,
-  ChevronDown
+  ChevronDown,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -110,7 +111,17 @@ export default function ProfileManagement() {
 
       if (error) throw error;
 
-      setProfiles(data || []);
+      // Sort profiles: admins first, then others
+      const sortedData = (data || []).sort((a, b) => {
+        // If a is admin and b is not, a comes first
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        // If b is admin and a is not, b comes first
+        if (b.role === 'admin' && a.role !== 'admin') return 1;
+        // If both are admin or both are not, sort by created_at
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      setProfiles(sortedData);
       setTotalCount(count || 0);
 
       if (data && data.length > 0) {
@@ -871,13 +882,16 @@ export default function ProfileManagement() {
                   {profiles.map((profile) => {
                     const voteData = getVoteDisplay(profile.id);
                     const giftData = getGiftDisplay(profile.id);
+                    const isAdmin = profile.role === 'admin';
 
                     return (
                       <motion.tr
                         key={profile.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="border-b border-white/10 hover:bg-white/5 transition-colors"
+                        className={`border-b border-white/10 hover:bg-white/5 transition-colors ${
+                          isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
+                        }`}
                       >
                         {editingId === profile.id ? (
                           // Edit Mode
@@ -1090,23 +1104,37 @@ export default function ProfileManagement() {
                             </td>
                             <td className="p-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
-                                  {profile.avatar_url ? (
-                                    <Image
-                                      src={profile.avatar_url}
-                                      alt={profile.username}
-                                      width={32}
-                                      height={32}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <User className="w-4 h-4 text-white" />
+                                <div className="relative">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
+                                    {profile.avatar_url ? (
+                                      <Image
+                                        src={profile.avatar_url}
+                                        alt={profile.username}
+                                        width={32}
+                                        height={32}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <User className="w-4 h-4 text-white" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  {isAdmin && (
+                                    <div className="absolute -top-1 -right-1">
+                                      <Shield className="w-3.5 h-3.5 text-yellow-400" />
                                     </div>
                                   )}
                                 </div>
                                 <div>
-                                  <div className="font-medium text-white text-sm">{profile.full_name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-white text-sm">{profile.full_name}</span>
+                                    {isAdmin && (
+                                      <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                        Admin
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="text-xs text-white/40">@{profile.username}</div>
                                   {profile.bio && (
                                     <div className="text-xs text-white/60 mt-1 line-clamp-2">{profile.bio}</div>
@@ -1174,7 +1202,11 @@ export default function ProfileManagement() {
                               </button>
                             </td>
                             <td className="p-3">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                                isAdmin 
+                                  ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                                  : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                              }`}>
                                 {profile.role || 'user'}
                               </span>
                             </td>
@@ -1257,13 +1289,16 @@ export default function ProfileManagement() {
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
+              const isAdmin = profile.role === 'admin';
 
               return (
                 <motion.div
                   key={profile.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/5 rounded-xl border border-white/10 p-4 mb-3"
+                  className={`bg-white/5 rounded-xl border border-white/10 p-4 mb-3 ${
+                    isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
+                  }`}
                 >
                   {editingId === profile.id ? (
                     // Edit Mode
@@ -1418,23 +1453,37 @@ export default function ProfileManagement() {
                           }}
                           className="mt-1 rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
                         />
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
-                          {profile.avatar_url ? (
-                            <Image
-                              src={profile.avatar_url}
-                              alt={profile.username}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-white" />
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
+                            {profile.avatar_url ? (
+                              <Image
+                                src={profile.avatar_url}
+                                alt={profile.username}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          {isAdmin && (
+                            <div className="absolute -top-1 -right-1">
+                              <Shield className="w-4 h-4 text-yellow-400" />
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-white text-sm truncate">{profile.full_name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white text-sm truncate">{profile.full_name}</span>
+                            {isAdmin && (
+                              <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                Admin
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-white/40 truncate">@{profile.username}</div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             <button
@@ -1455,7 +1504,11 @@ export default function ProfileManagement() {
                               {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
                               <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
                             </button>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                              isAdmin 
+                                ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                                : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                            }`}>
                               {profile.role || 'user'}
                             </span>
                           </div>
@@ -1535,13 +1588,16 @@ export default function ProfileManagement() {
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
+              const isAdmin = profile.role === 'admin';
 
               return (
                 <motion.div
                   key={profile.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/5 rounded-xl border border-white/10 p-3"
+                  className={`bg-white/5 rounded-xl border border-white/10 p-3 ${
+                    isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
+                  }`}
                 >
                   {/* Mobile View - Keeping it clean and simple */}
                   {editingId === profile.id ? (
@@ -1705,23 +1761,37 @@ export default function ProfileManagement() {
                           }}
                           className="mt-1 rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
                         />
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
-                          {profile.avatar_url ? (
-                            <Image
-                              src={profile.avatar_url}
-                              alt={profile.username}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-white" />
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
+                            {profile.avatar_url ? (
+                              <Image
+                                src={profile.avatar_url}
+                                alt={profile.username}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          {isAdmin && (
+                            <div className="absolute -top-1 -right-1">
+                              <Shield className="w-4 h-4 text-yellow-400" />
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-white text-sm truncate">{profile.full_name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white text-sm truncate">{profile.full_name}</span>
+                            {isAdmin && (
+                              <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                Admin
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-white/40 truncate">@{profile.username}</div>
                         </div>
                         <div className="flex gap-1">
@@ -1780,7 +1850,11 @@ export default function ProfileManagement() {
                           {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
                           <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
                         </button>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                          isAdmin 
+                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                            : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                        }`}>
                           {profile.role || 'user'}
                         </span>
                       </div>
