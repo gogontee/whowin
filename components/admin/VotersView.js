@@ -22,7 +22,10 @@ import {
   Vote,
   Zap,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Eye,
+  EyeOff,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@supabase/ssr';
@@ -32,7 +35,7 @@ export default function VotersView() {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState('all'); // 'all', 'voter', 'candidate', 'email', 'reference'
+  const [searchType, setSearchType] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [votersMap, setVotersMap] = useState({});
@@ -42,6 +45,12 @@ export default function VotersView() {
   const [minVotes, setMinVotes] = useState('');
   const [maxVotes, setMaxVotes] = useState('');
   const [showStats, setShowStats] = useState(true);
+  
+  // Show voters toggle
+  const [showVoters, setShowVoters] = useState(true);
+  const [isTogglingVoters, setIsTogglingVoters] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingToggleState, setPendingToggleState] = useState(null);
 
   const ITEMS_PER_PAGE = 10;
   const tableRef = useRef(null);
@@ -54,12 +63,82 @@ export default function VotersView() {
 
   useEffect(() => {
     fetchTransactions();
+    fetchVoterSettings();
   }, [currentPage]);
 
   // Filter transactions when searchTerm, searchType, or transactions change
   useEffect(() => {
     applyFilters();
   }, [searchTerm, searchType, transactions, dateFilter, minVotes, maxVotes]);
+
+  const fetchVoterSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('who_win')
+        .select('show_voters')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setShowVoters(data.show_voters === true);
+      }
+    } catch (error) {
+      console.error('Error fetching voter settings:', error);
+    }
+  };
+
+  const toggleShowVoters = async (newState) => {
+    setIsTogglingVoters(true);
+    try {
+      // Check if record exists
+      const { data: existing, error: checkError } = await supabase
+        .from('who_win')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      let result;
+      if (existing) {
+        // Update existing record
+        result = await supabase
+          .from('who_win')
+          .update({ show_voters: newState })
+          .eq('id', existing.id);
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('who_win')
+          .insert({ show_voters: newState });
+      }
+
+      if (result.error) throw result.error;
+
+      setShowVoters(newState);
+      setShowConfirmModal(false);
+      setPendingToggleState(null);
+
+    } catch (error) {
+      console.error('Error toggling voter visibility:', error);
+      alert('Failed to update voter visibility settings. Please try again.');
+    } finally {
+      setIsTogglingVoters(false);
+    }
+  };
+
+  const handleVoterToggle = (newState) => {
+    setPendingToggleState(newState);
+    setShowConfirmModal(true);
+  };
+
+  const confirmToggle = () => {
+    if (pendingToggleState !== null) {
+      toggleShowVoters(pendingToggleState);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -250,8 +329,7 @@ export default function VotersView() {
     const totalVotes = data.reduce((sum, t) => sum + (t.votes || 0), 0);
     const totalAmount = data.reduce((sum, t) => sum + (t.total_amount || 0), 0);
     const uniqueVoters = new Set(data.map(t => t.user_id || t.guest_email).filter(Boolean)).size;
-    const avgVotes = data.length > 0 ? Math.round(totalVotes / data.length) : 0;
-    return { totalVotes, totalAmount, uniqueVoters, avgVotes };
+    return { totalVotes, totalAmount, uniqueVoters };
   };
 
   const displayData = filteredTransactions.length > 0 ? filteredTransactions : transactions;
@@ -313,21 +391,31 @@ export default function VotersView() {
                     <div className="text-lg font-bold text-yellow-400">₦{stats.totalAmount.toLocaleString()}</div>
                   </div>
                 </div>
-
-                <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg">
-                    <TrendingUp className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-white/40 uppercase tracking-wider">Avg Votes</div>
-                    <div className="text-lg font-bold text-purple-400">{stats.avgVotes}</div>
-                  </div>
-                </div>
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Show Voters Toggle */}
+                <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
+                  <button
+                    onClick={() => handleVoterToggle(!showVoters)}
+                    disabled={isTogglingVoters}
+                    className="flex items-center gap-2 text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {showVoters ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-green-400" />
+                        <span>Showing Voters</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-red-400" />
+                        <span>Voters Hidden</span>
+                      </>
+                    )}
+                    {isTogglingVoters && <Loader className="w-3 h-3 animate-spin ml-1" />}
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setShowStats(!showStats)}
                   className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white/60"
@@ -691,6 +779,71 @@ export default function VotersView() {
           )}
         </>
       )}
+
+      {/* ===== CONFIRMATION MODAL ===== */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-6 max-w-md w-full shadow-2xl shadow-yellow-400/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-yellow-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {pendingToggleState ? 'Show Voters?' : 'Hide Voters?'}
+                </h3>
+                <p className="text-white/60 text-sm">
+                  {pendingToggleState 
+                    ? 'Are you sure you want housemates to see who is voting for them? This will make voter information visible to all.'
+                    : 'Are you sure you want to hide voters from housemates? This will make voter information private.'
+                  }
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingToggleState(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmToggle}
+                  disabled={isTogglingVoters}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  {isTogglingVoters ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      {pendingToggleState ? 'Yes, Show' : 'Yes, Hide'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
