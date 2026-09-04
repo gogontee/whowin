@@ -1112,7 +1112,7 @@ export default function SignupPage() {
                 >
                   <label htmlFor="username" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                     <User className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                    <span>Username</span> 
+                    <span>Nickname</span> 
                     <span className="text-[#C58B2A]">*</span>
                   </label>
                   <div className="relative w-full">
