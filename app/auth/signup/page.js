@@ -110,16 +110,16 @@ const SearchableSelect = ({
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      <label htmlFor={id} className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+      <label htmlFor={id} className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
         {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />} 
         <span>{label}</span> 
-        {required && <span className="text-yellow-400">*</span>}
+        {required && <span className="text-[#C58B2A]">*</span>}
       </label>
       
       <div className="relative w-full">
         <div className={`relative w-full bg-white/5 border rounded-lg md:rounded-xl transition-all ${
           error ? 'border-red-400 bg-red-500/10' : 
-          isOpen ? 'border-yellow-400 ring-1 ring-yellow-400/50' : 'border-white/20 hover:border-white/40'
+          value ? 'border-green-400 bg-green-500/10' : isOpen ? 'border-[#C58B2A] ring-1 ring-[#C58B2A]/50' : 'border-white/20 hover:border-white/40'
         }`}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 text-white/30 flex-shrink-0" />
           <input
@@ -134,7 +134,7 @@ const SearchableSelect = ({
             placeholder={placeholder}
             required={required}
             disabled={disabled || loading}
-            className="w-full pl-7 pr-8 py-1.5 md:py-2 bg-transparent text-xs md:text-sm text-white placeholder-white/30 focus:outline-none"
+            className="w-full pl-7 pr-8 py-2 md:py-2.5 bg-transparent text-sm md:text-base text-white placeholder-white/30 focus:outline-none"
             autoComplete="off"
           />
           <button
@@ -149,7 +149,7 @@ const SearchableSelect = ({
 
         {loading && (
           <div className="absolute right-8 top-1/2 -translate-y-1/2">
-            <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+            <div className="w-3 h-3 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
           </div>
         )}
       </div>
@@ -177,7 +177,7 @@ const SearchableSelect = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white/5 rounded-lg text-xs text-white placeholder-white/30 border border-white/10 focus:border-yellow-400 focus:outline-none transition-colors"
+                className="w-full pl-8 pr-3 py-2 bg-white/5 rounded-lg text-sm text-white placeholder-white/30 border border-white/10 focus:border-[#C58B2A] focus:outline-none transition-colors"
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
               />
@@ -190,8 +190,8 @@ const SearchableSelect = ({
                     key={index}
                     type="button"
                     onClick={() => handleSelect(option)}
-                    className={`w-full px-4 py-2 text-left text-xs md:text-sm text-white hover:text-yellow-400 hover:bg-green-500/10 transition-all duration-150 ${
-                      option === value ? 'bg-yellow-400/10 text-yellow-400' : ''
+                    className={`w-full px-4 py-2 text-left text-xs md:text-sm text-white hover:text-[#C58B2A] hover:bg-green-500/10 transition-all duration-150 ${
+                      option === value ? 'bg-[#C58B2A]/10 text-[#C58B2A]' : ''
                     }`}
                   >
                     {option}
@@ -207,7 +207,7 @@ const SearchableSelect = ({
             {searchTerm && !filteredOptions.includes(searchTerm) && (
               <div className="px-4 py-2 border-t border-white/5 bg-white/5">
                 <p className="text-[8px] md:text-[9px] text-white/30 flex items-center gap-1">
-                  <span className="text-yellow-400/60">Tip:</span> Type a custom value and press Enter or click outside to save
+                  <span className="text-[#C58B2A]/70">Tip:</span> Type a custom value and press Enter or click outside to save
                 </p>
               </div>
             )}
@@ -922,8 +922,8 @@ export default function SignupPage() {
     const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
     const checks = [hasLower, hasUpper, hasNumber, minLength].filter(Boolean).length;
     
-    if (checks <= 2) return "bg-yellow-400";
-    if (checks <= 3) return "bg-yellow-500";
+    if (checks <= 2) return "bg-[#C58B2A]";
+    if (checks <= 3) return "bg-[#A96F1F]";
     return "bg-green-500";
   };
 
@@ -972,7 +972,7 @@ export default function SignupPage() {
         >
           <Sparkles 
             size={star.size} 
-            className="text-yellow-400/20"
+            className="text-[#C58B2A]/20"
           />
         </motion.div>
       ))}
@@ -1034,7 +1034,7 @@ export default function SignupPage() {
                   onClick={() => handleRoleSwitch('candidate')}
                   className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
                     selectedRole === 'candidate'
-                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
+                      ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
                       : 'text-white/60 hover:text-white'
                   }`}
                 >
@@ -1046,30 +1046,30 @@ export default function SignupPage() {
                   onClick={() => handleRoleSwitch('fan')}
                   className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 opacity-50 cursor-not-allowed ${
                     selectedRole === 'fan'
-                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black'
+                      ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
                       : 'text-white/60 hover:text-white'
                   }`}
                   title="Fan registration is currently disabled"
                 >
                   <Users className="w-3 h-3 flex-shrink-0" />
                   <span>Fan</span>
-                  <span className="text-[6px] bg-yellow-400/20 text-yellow-400 px-1 rounded">Soon</span>
+                  <span className="text-[6px] bg-[#C58B2A]/20 text-[#C58B2A] px-1 rounded">Soon</span>
                 </button>
             </div>
           </div>
 
           {/* Form Content */}
-          <div className="p-4 md:p-6 space-y-3 md:space-y-4">
+          <div className="p-5 md:p-8 space-y-4 md:space-y-5">
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
               className="text-center"
             >
-              <h2 className="text-lg md:text-xl font-bold text-yellow-400">
+              <h2 className="text-xl md:text-2xl font-bold text-[#C58B2A]">
                 {selectedRole === 'candidate' ? 'Create Your Profile' : 'Join as a Fan'}
               </h2>
-              <p className="text-[10px] md:text-xs text-white/50">
+              <p className="text-xs md:text-sm text-white/60">
                 {selectedRole === 'candidate' 
                   ? 'Carefully fill the form below to create your profile page.'
                   : 'Support your favorite contestants'}
@@ -1079,7 +1079,7 @@ export default function SignupPage() {
             {/* Auto-save indicator */}
             {formInitialized && !success && (
               <div className="flex items-center justify-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/50 animate-pulse flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#C58B2A]/50 animate-pulse flex-shrink-0"></div>
                 <span className="text-[8px] text-white/20">Auto-saving...</span>
               </div>
             )}
@@ -1091,9 +1091,9 @@ export default function SignupPage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-2 text-center"
+                  className="bg-[#C58B2A]/10 border border-[#C58B2A]/20 rounded-lg p-2 text-center"
                 >
-                  <p className="text-yellow-400 text-xs flex items-center justify-center gap-1">
+                  <p className="text-[#C58B2A] text-xs flex items-center justify-center gap-1">
                     <AlertCircle className="w-3 h-3 flex-shrink-0" />
                     Too many signup attempts. Please wait {cooldownSeconds} seconds.
                   </p>
@@ -1101,7 +1101,7 @@ export default function SignupPage() {
               )}
             </AnimatePresence>
 
-            <form onSubmit={handleSubmit} className="space-y-2.5 md:space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
               {/* Username - Only for candidates */}
               {selectedRole === 'candidate' && (
                 <motion.div
@@ -1110,10 +1110,10 @@ export default function SignupPage() {
                   transition={{ delay: 0.3 }}
                   className="w-full"
                 >
-                  <label htmlFor="username" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <label htmlFor="username" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                     <User className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                     <span>Username</span> 
-                    <span className="text-yellow-400">*</span>
+                    <span className="text-[#C58B2A]">*</span>
                   </label>
                   <div className="relative w-full">
                     <input
@@ -1121,9 +1121,9 @@ export default function SignupPage() {
                       id="username"
                       name="username"
                       placeholder="e.g. stargirl, celeb_joe"
-                      className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 pr-8 ${
+                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 pr-8 ${
                         errors.username ? 'border-red-400 bg-red-500/10' : 
-                        usernameAvailable === true && formData.username.length >= 3 ? 'border-yellow-400 bg-yellow-400/10' :
+                        usernameAvailable === true && formData.username.length >= 3 ? 'border-green-400 bg-green-500/10' :
                         usernameAvailable === false && formData.username.length >= 3 ? 'border-red-400 bg-red-500/10' : 
                         formData.username.length >= 3 ? 'border-white/20' : 'border-white/20'
                       }`}
@@ -1136,13 +1136,13 @@ export default function SignupPage() {
                     
                     {checkingUsername && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                        <div className="w-3 h-3 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                       </div>
                     )}
                     
                     {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <Check className="w-3 h-3 text-yellow-400 flex-shrink-0" />
+                        <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
                       </div>
                     )}
                     
@@ -1162,13 +1162,13 @@ export default function SignupPage() {
                   
                   {checkingUsername && formData.username.length >= 3 && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-white/40 flex items-center gap-1">
-                      <div className="w-2 h-2 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                      <div className="w-2 h-2 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                       Checking username availability...
                     </p>
                   )}
                   
                   {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && !errors.username && (
-                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1 animate-pulse">
+                    <p className="mt-0.5 text-[9px] md:text-xs text-green-400 flex items-center gap-1 animate-pulse">
                       <Check className="w-2.5 h-2.5 flex-shrink-0" />
                       ✓ Username is available!
                     </p>
@@ -1182,14 +1182,14 @@ export default function SignupPage() {
                   )}
                   
                   {formData.username.length > 0 && formData.username.length < 3 && (
-                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-[#C58B2A] flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       Minimum 3 characters required
                     </p>
                   )}
                   
                   {formData.username.length >= 3 && !/^[a-zA-Z0-9_]+$/.test(formData.username) && (
-                    <p className="mt-0.5 text-[8px] md:text-[10px] text-yellow-400 flex items-center gap-1">
+                    <p className="mt-0.5 text-[8px] md:text-[10px] text-[#C58B2A] flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       Only letters, numbers, and underscores allowed
                     </p>
@@ -1204,18 +1204,18 @@ export default function SignupPage() {
                 transition={{ delay: 0.35 }}
                 className="w-full"
               >
-                <label htmlFor="fullName" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <label htmlFor="fullName" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                   <Award className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                   <span>Full Name</span> 
-                  <span className="text-yellow-400">*</span>
+                  <span className="text-[#C58B2A]">*</span>
                 </label>
                 <input
                   type="text"
                   id="fullName"
                   name="fullName"
                   placeholder="Enter your full name"
-                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                    errors.fullName ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                    errors.fullName ? 'border-red-400 bg-red-500/10' : formData.fullName ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.fullName}
                   onChange={handleChange}
@@ -1237,18 +1237,18 @@ export default function SignupPage() {
                 transition={{ delay: 0.4 }}
                 className="w-full"
               >
-                <label htmlFor="email" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                  <label htmlFor="email" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                   <Mail className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                   <span>Email</span> 
-                  <span className="text-yellow-400">*</span>
+                  <span className="text-[#C58B2A]">*</span>
                 </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   placeholder="your@email.com"
-                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                    errors.email ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                    errors.email ? 'border-red-400 bg-red-500/10' : formData.email ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.email}
                   onChange={handleChange}
@@ -1270,10 +1270,10 @@ export default function SignupPage() {
                 transition={{ delay: 0.45 }}
                 className="w-full"
               >
-                <label htmlFor="phone" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                <label htmlFor="phone" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                   <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                   <span>{selectedRole === 'candidate' ? 'Whatsapp Number' : 'Phone (Optional)'}</span>
-                  {selectedRole === 'candidate' && <span className="text-yellow-400">*</span>}
+                  {selectedRole === 'candidate' && <span className="text-[#C58B2A]">*</span>}
                 </label>
                 <div className="relative">
                   <input
@@ -1281,8 +1281,8 @@ export default function SignupPage() {
                     id="phone"
                     name="phone"
                     placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                      errors.phone ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                      errors.phone ? 'border-red-400 bg-red-500/10' : formData.phone ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.phone}
                     onChange={handleChange}
@@ -1291,21 +1291,6 @@ export default function SignupPage() {
                     required={selectedRole === 'candidate'}
                     disabled={cooldownSeconds > 0}
                   />
-                  <AnimatePresence>
-                    {showWhatsappNotice && selectedRole === 'candidate' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-yellow-400/30 bg-gray-900/95 px-3 py-2 text-[10px] text-yellow-100 shadow-lg"
-                      >
-                        <span className="flex items-start gap-1.5">
-                          <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0 text-yellow-400" />
-                          <span>This must be an active Whatsapp number. Otherwise, you may be disqualified.</span>
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
                 {errors.phone && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1369,18 +1354,18 @@ export default function SignupPage() {
                     transition={{ delay: 0.55 }}
                     className="w-full"
                   >
-                    <label htmlFor="country" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                    <label htmlFor="country" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                       <Globe className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                       <span>Country</span> 
-                      <span className="text-yellow-400">*</span>
+                      <span className="text-[#C58B2A]">*</span>
                     </label>
                     <input
                       type="text"
                       id="country"
                       name="country"
                       placeholder="e.g. Nigeria, United States, UK"
-                      className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                        errors.country ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                        errors.country ? 'border-red-400 bg-red-500/10' : formData.country ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                       }`}
                       value={formData.country}
                       onChange={handleChange}
@@ -1423,18 +1408,18 @@ export default function SignupPage() {
                       transition={{ delay: 0.6 }}
                       className="w-full"
                     >
-                      <label htmlFor="state" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                      <label htmlFor="state" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                         <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                         <span>State/Region</span> 
-                        <span className="text-yellow-400">*</span>
+                        <span className="text-[#C58B2A]">*</span>
                       </label>
                       <input
                         type="text"
                         id="state"
                         name="state"
                         placeholder="Enter your state or region"
-                        className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                          errors.state ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                          errors.state ? 'border-red-400 bg-red-500/10' : formData.state ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.state}
                         onChange={handleChange}
@@ -1459,7 +1444,7 @@ export default function SignupPage() {
                       onChange={handleChange}
                       options={cities}
                       placeholder="Search for a city/town..."
-                      label="City/Town"
+                      label="City You Currently Stay"
                       required={selectedRole === 'candidate' && formData.country?.toLowerCase() === 'nigeria'}
                       disabled={cooldownSeconds > 0}
                       loading={loadingCities}
@@ -1483,16 +1468,16 @@ export default function SignupPage() {
                     >
                       <label htmlFor="city" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
                         <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                        <span>City</span> 
-                        <span className="text-yellow-400">*</span>
+                        <span>City You Currently Stay</span>
+                        <span className="text-[#C58B2A]">*</span>
                       </label>
                       <input
                         type="text"
                         id="city"
                         name="city"
-                        placeholder="Enter your city"
-                        className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                          errors.city ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                        placeholder="Enter the city you currently stay in"
+                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                          errors.city ? 'border-red-400 bg-red-500/10' : formData.city ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.city}
                         onChange={handleChange}
@@ -1517,10 +1502,10 @@ export default function SignupPage() {
                 transition={{ delay: 0.7 }}
                 className="w-full"
               >
-                <label htmlFor="password" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                <label htmlFor="password" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                   <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                   <span>Password</span> 
-                  <span className="text-yellow-400">*</span>
+                  <span className="text-[#C58B2A]">*</span>
                 </label>
                 <div className="relative w-full">
                   <input
@@ -1528,8 +1513,8 @@ export default function SignupPage() {
                     id="password"
                     name="password"
                     placeholder="Create password"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none pr-8 ${
-                      errors.password ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none pr-8 ${
+                      errors.password ? 'border-red-400 bg-red-500/10' : formData.password ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.password}
                     onChange={handlePasswordChange}
@@ -1577,7 +1562,7 @@ export default function SignupPage() {
                       <div className="grid grid-cols-2 gap-0.5 text-[7px] md:text-[8px]">
                         <div className="flex items-center gap-1">
                           {passwordStrength.minLength ? (
-                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
+                            <Check className="w-2 h-2 text-green-400 flex-shrink-0" />
                           ) : (
                             <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
@@ -1585,7 +1570,7 @@ export default function SignupPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasLower ? (
-                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
+                            <Check className="w-2 h-2 text-green-400 flex-shrink-0" />
                           ) : (
                             <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
@@ -1593,7 +1578,7 @@ export default function SignupPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasUpper ? (
-                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
+                            <Check className="w-2 h-2 text-green-400 flex-shrink-0" />
                           ) : (
                             <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
@@ -1601,7 +1586,7 @@ export default function SignupPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           {passwordStrength.hasNumber ? (
-                            <Check className="w-2 h-2 text-yellow-400 flex-shrink-0" />
+                            <Check className="w-2 h-2 text-green-400 flex-shrink-0" />
                           ) : (
                             <div className="w-2 h-2 rounded-full border border-white/20 flex-shrink-0" />
                           )}
@@ -1620,10 +1605,10 @@ export default function SignupPage() {
                 transition={{ delay: 0.75 }}
                 className="w-full"
               >
-                <label htmlFor="confirmPassword" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
+                <label htmlFor="confirmPassword" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
                   <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
                   <span>Confirm Password</span> 
-                  <span className="text-yellow-400">*</span>
+                  <span className="text-[#C58B2A]">*</span>
                 </label>
                 <div className="relative w-full">
                   <input
@@ -1631,8 +1616,8 @@ export default function SignupPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     placeholder="Confirm password"
-                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none pr-8 ${
-                      errors.confirmPassword ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none pr-8 ${
+                      errors.confirmPassword ? 'border-red-400 bg-red-500/10' : formData.confirmPassword ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.confirmPassword}
                     onChange={handleChange}
@@ -1659,7 +1644,7 @@ export default function SignupPage() {
                       className="mt-0.5"
                     >
                       {formData.password === formData.confirmPassword ? (
-                        <p className="text-[8px] md:text-[9px] text-yellow-400 flex items-center gap-1">
+                        <p className="text-[8px] md:text-[9px] text-[#C58B2A] flex items-center gap-1">
                           <Check className="w-2 h-2 flex-shrink-0" /> Passwords match
                         </p>
                       ) : (
@@ -1698,8 +1683,8 @@ export default function SignupPage() {
                     />
                     <div className={`w-3 h-3 border rounded flex items-center justify-center transition-all flex-shrink-0 ${
                       formData.agreeTerms 
-                        ? 'bg-yellow-400 border-yellow-400' 
-                        : 'border-white/30 group-hover:border-yellow-400'
+                        ? 'bg-green-400 border-green-400'
+                        : 'border-white/30 group-hover:border-[#C58B2A]'
                     }`}>
                       {formData.agreeTerms && <Check className="w-2 h-2 text-black flex-shrink-0" />}
                     </div>
@@ -1708,7 +1693,7 @@ export default function SignupPage() {
                     I agree to the{' '}
                     <Link 
                       href="/terms" 
-                      className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
+                      className="text-[#C58B2A] font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
                       Terms
@@ -1716,7 +1701,7 @@ export default function SignupPage() {
                     &{' '}
                     <Link 
                       href="/privacy" 
-                      className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
+                      className="text-[#C58B2A] font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
                       Privacy
@@ -1740,7 +1725,7 @@ export default function SignupPage() {
                 className={`w-full py-2 md:py-2.5 rounded-lg md:rounded-xl font-semibold text-black shadow-md transition-all relative overflow-hidden group ${
                   loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)
                     ? 'bg-white/10 cursor-not-allowed text-white/40'
-                    : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white'
+                    : 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 hover:text-white'
                 }`}
               >
                 {!cooldownSeconds && (selectedRole !== 'candidate' || usernameAvailable === true) && !loading && formData.agreeTerms && (
@@ -1778,7 +1763,7 @@ export default function SignupPage() {
                 ) : (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
                     <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                    Join WhoWin
+                    Submit
                     <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                   </span>
                 )}
@@ -1795,7 +1780,7 @@ export default function SignupPage() {
                   Already have an account?{' '}
                   <Link
                     href="/auth/login"
-                    className="text-yellow-400 font-semibold hover:text-green-400 hover:underline transition-colors"
+                    className="text-[#C58B2A] font-semibold hover:text-green-400 hover:underline transition-colors"
                   >
                     Sign in
                   </Link>
@@ -1817,6 +1802,60 @@ export default function SignupPage() {
         </motion.div>
       </motion.div>
 
+      {/* Whatsapp number warning */}
+      <AnimatePresence>
+        {showWhatsappNotice && selectedRole === 'candidate' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowWhatsappNotice(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="whatsapp-warning-title"
+              className="relative w-full max-w-sm rounded-2xl border border-[#C58B2A]/40 bg-gray-900 p-5 shadow-2xl shadow-black/50"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="Close Whatsapp warning"
+                onClick={() => setShowWhatsappNotice(false)}
+                className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex items-start gap-3 pr-5">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#C58B2A]/15">
+                  <AlertTriangle className="h-5 w-5 text-[#C58B2A]" />
+                </div>
+                <div>
+                  <h2 id="whatsapp-warning-title" className="text-base font-semibold text-white">
+                    Active Whatsapp Number Required
+                  </h2>
+                  <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+                    This must be an active Whatsapp number. Otherwise, you will be disqualified.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWhatsappNotice(false)}
+                className="mt-4 w-full rounded-lg bg-[#C58B2A] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#A96F1F]"
+              >
+                I Understand
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Fan Disabled Modal */}
       <AnimatePresence>
         {showFanDisabledModal && (
@@ -1831,11 +1870,11 @@ export default function SignupPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
+              className="bg-gradient-to-br from-gray-900 to-black border border-[#C58B2A]/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-[#C58B2A]/10 text-center"
             >
               <div className="mb-6">
-                <div className="w-20 h-20 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertTriangle className="w-10 h-10 text-yellow-400" />
+                <div className="w-20 h-20 bg-[#C58B2A]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-10 h-10 text-[#C58B2A]" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-3">
                   Fan Portal Coming Soon! 🎉
@@ -1851,7 +1890,7 @@ export default function SignupPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleFanModalAction('contest')}
-                  className="w-full p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-green-500/30"
+                  className="w-full p-3 rounded-xl bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-green-500/30"
                 >
                   <Crown className="w-4 h-4 flex-shrink-0" />
                   Register as Contestant
@@ -1870,7 +1909,7 @@ export default function SignupPage() {
 
               <p className="text-white/30 text-xs mt-4">
                 Already have an account?{' '}
-                <Link href="/auth/login" className="text-yellow-400 hover:text-green-400 transition-colors hover:underline">
+                <Link href="/auth/login" className="text-[#C58B2A] hover:text-green-400 transition-colors hover:underline">
                   Sign in
                 </Link>
               </p>
@@ -1894,7 +1933,7 @@ export default function SignupPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-5 md:p-6 max-w-sm max-h-[90vh] w-full overflow-y-auto shadow-2xl shadow-yellow-400/10"
+              className="bg-gradient-to-br from-gray-900 to-black border border-[#C58B2A]/30 rounded-2xl p-5 md:p-6 max-w-sm max-h-[90vh] w-full overflow-y-auto shadow-2xl shadow-[#C58B2A]/10"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center mb-4">
@@ -1908,7 +1947,7 @@ export default function SignupPage() {
 
               {/* Example Images Carousel */}
               <div className="relative mb-4">
-                <div className="relative w-40 h-40 mx-auto rounded-full overflow-hidden border-2 border-yellow-400/30 shadow-lg shadow-yellow-400/20">
+                <div className="relative w-40 h-40 mx-auto rounded-full overflow-hidden border-2 border-[#C58B2A]/30 shadow-lg shadow-[#C58B2A]/20">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={currentExampleIndex}
@@ -1943,7 +1982,7 @@ export default function SignupPage() {
                       onClick={() => setCurrentExampleIndex(index)}
                       className={`w-2 h-2 rounded-full transition-all ${
                         index === currentExampleIndex
-                          ? 'bg-yellow-400 w-4'
+                          ? 'bg-[#C58B2A] w-4'
                           : 'bg-white/20 hover:bg-white/40'
                       }`}
                     />
@@ -1974,7 +2013,7 @@ export default function SignupPage() {
               {/* Action buttons */}
               <div className="flex flex-col gap-2">
                 <label className="cursor-pointer w-full">
-                  <div className="w-full py-2.5 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl text-center transition-all hover:shadow-lg hover:shadow-yellow-500/30">
+                  <div className="w-full py-2.5 px-4 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl text-center transition-all hover:shadow-lg hover:shadow-[#C58B2A]/30">
                     <input
                       type="file"
                       accept="image/*"
@@ -2018,9 +2057,9 @@ export default function SignupPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
+              className="bg-gradient-to-br from-gray-900 to-black border border-[#C58B2A]/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-[#C58B2A]/10 text-center"
             >
-              <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] rounded-full flex items-center justify-center mx-auto mb-6">
                 <Check className="w-10 h-10 text-black" />
               </div>
               
@@ -2028,7 +2067,7 @@ export default function SignupPage() {
                 Welcome to WhoWin! 🎉
               </h2>
               
-              <p className="text-yellow-400 text-base mb-6">
+              <p className="text-[#C58B2A] text-base mb-6">
                 {selectedRole === 'candidate' 
                   ? 'Your contestant profile has been created successfully!' 
                   : 'Your fan account has been created successfully!'}
@@ -2036,14 +2075,14 @@ export default function SignupPage() {
               
               <div className="space-y-3">
                 <div className="bg-white/10 rounded-lg p-3 text-sm text-white/80">
-                  <p>You're now signed in as <span className="font-bold text-yellow-400">@{formData.username || formData.fullName}</span></p>
+                  <p>You're now signed in as <span className="font-bold text-[#C58B2A]">@{formData.username || formData.fullName}</span></p>
                   <p className="text-xs text-white/40 mt-1">
                     {selectedRole === 'candidate' ? 'Contestant' : 'Fan'} • {formData.email}
                   </p>
                 </div>
                 
-                <div className="flex items-center justify-center gap-2 text-sm text-yellow-400/80">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"></div>
+                <div className="flex items-center justify-center gap-2 text-sm text-[#C58B2A]/80">
+                  <div className="w-2 h-2 bg-[#C58B2A] rounded-full animate-pulse flex-shrink-0"></div>
                   <span>Taking you to your dashboard...</span>
                 </div>
               </div>
