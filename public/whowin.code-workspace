@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "whowin",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.css": "tailwindcss"
+		}
+	}
+}
