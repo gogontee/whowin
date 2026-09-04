@@ -22,13 +22,16 @@ const TopCandidates = () => {
 
   const fetchTopCandidates = async () => {
     try {
-      // Get all eligible candidates (active and fully verified)
+      // Get all eligible candidates (active and fully verified) - exclude admin and fan roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, country, verification_level, account_status, vote_control')
+        .select('id, username, avatar_url, country, verification_level, account_status, vote_control, role')
         .eq('account_status', 'active')
         .eq('verification_level', 'fully_verified')
-        .not('username', 'is', null);
+        .not('username', 'is', null)
+        .not('role', 'eq', 'admin')
+        .not('role', 'eq', 'fan')
+        .not('role', 'eq', 'fans');
 
       if (profilesError) throw profilesError;
       if (!profiles || profiles.length === 0) {
