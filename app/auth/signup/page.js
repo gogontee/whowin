@@ -1121,7 +1121,7 @@ export default function SignupPage() {
                       id="username"
                       name="username"
                       placeholder="e.g. stargirl, celeb_joe"
-                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 pr-8 ${
+                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 pr-8 ${
                         errors.username ? 'border-red-400 bg-red-500/10' : 
                         usernameAvailable === true && formData.username.length >= 3 ? 'border-green-400 bg-green-500/10' :
                         usernameAvailable === false && formData.username.length >= 3 ? 'border-red-400 bg-red-500/10' : 
@@ -1214,7 +1214,7 @@ export default function SignupPage() {
                   id="fullName"
                   name="fullName"
                   placeholder="Enter your full name"
-                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                     errors.fullName ? 'border-red-400 bg-red-500/10' : formData.fullName ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.fullName}
@@ -1247,7 +1247,7 @@ export default function SignupPage() {
                   id="email"
                   name="email"
                   placeholder="your@email.com"
-                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                  className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                     errors.email ? 'border-red-400 bg-red-500/10' : formData.email ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.email}
@@ -1281,7 +1281,7 @@ export default function SignupPage() {
                     id="phone"
                     name="phone"
                     placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
-                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                       errors.phone ? 'border-red-400 bg-red-500/10' : formData.phone ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.phone}
@@ -1364,7 +1364,7 @@ export default function SignupPage() {
                       id="country"
                       name="country"
                       placeholder="e.g. Nigeria, United States, UK"
-                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                      className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                         errors.country ? 'border-red-400 bg-red-500/10' : formData.country ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                       }`}
                       value={formData.country}
@@ -1418,7 +1418,7 @@ export default function SignupPage() {
                         id="state"
                         name="state"
                         placeholder="Enter your state or region"
-                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                           errors.state ? 'border-red-400 bg-red-500/10' : formData.state ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.state}
@@ -1476,7 +1476,7 @@ export default function SignupPage() {
                         id="city"
                         name="city"
                         placeholder="Enter the city you currently stay in"
-                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none placeholder:text-white/30 ${
+                        className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                           errors.city ? 'border-red-400 bg-red-500/10' : formData.city ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.city}
@@ -1513,7 +1513,7 @@ export default function SignupPage() {
                     id="password"
                     name="password"
                     placeholder="Create password"
-                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none pr-8 ${
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none pr-8 ${
                       errors.password ? 'border-red-400 bg-red-500/10' : formData.password ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.password}
@@ -1616,7 +1616,7 @@ export default function SignupPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     placeholder="Confirm password"
-                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#FFD700] focus:border-[#FFD700] transition-all outline-none pr-8 ${
+                    className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none pr-8 ${
                       errors.confirmPassword ? 'border-red-400 bg-red-500/10' : formData.confirmPassword ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.confirmPassword}
