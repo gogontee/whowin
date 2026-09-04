@@ -88,6 +88,7 @@ export default function ProfilePage() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [galleryImageIndex, setGalleryImageIndex] = useState(0);
+  const [onboardingNeeds, setOnboardingNeeds] = useState({ images: false, video: false });
   
   const [stats, setStats] = useState({
     totalVotes: 0,
@@ -126,23 +127,42 @@ export default function ProfilePage() {
   }, [profile]);
 
   // =====================
-  // Check if user has seen onboarding
+  // Check onboarding history and remind owners about missing audition content once per session.
   // =====================
   useEffect(() => {
-    if (isOwner && profile) {
-      // Check if user has already seen onboarding
-      const hasSeen = localStorage.getItem(`whowin_onboarding_${profile.id}`);
-      if (hasSeen) {
-        setHasSeenOnboarding(true);
-        setShowOnboarding(false);
-      } else {
-        // Show onboarding after a small delay
-        setTimeout(() => {
-          setShowOnboarding(true);
-        }, 1500);
-      }
+    if (!isOwner || !profile || loading) return undefined;
+
+    const hasTwoImages = Array.isArray(profile.image_url) && profile.image_url.length >= 2;
+    const hasVideoUrl = Array.isArray(profile.video_url)
+      ? profile.video_url.length > 0
+      : typeof profile.video_url === 'string'
+      ? profile.video_url.trim().length > 0
+      : Boolean(profile.video_url);
+    const hasAuditionVideo = hasVideoUrl || allPosts.some(post => post.type === 'video');
+    const needs = {
+      images: !hasTwoImages,
+      video: !hasAuditionVideo
+    };
+    const hasSeen = localStorage.getItem(`whowin_onboarding_${profile.id}`);
+    const sessionReminderKey = `whowin_onboarding_reminder_${profile.id}`;
+    const reminderShownThisSession = sessionStorage.getItem(sessionReminderKey);
+    const shouldShow = !hasSeen || (needs.images || needs.video) && !reminderShownThisSession;
+
+    setHasSeenOnboarding(Boolean(hasSeen));
+    setOnboardingNeeds(needs);
+
+    if (!shouldShow) {
+      setShowOnboarding(false);
+      return undefined;
     }
-  }, [isOwner, profile]);
+
+    const timer = setTimeout(() => {
+      sessionStorage.setItem(sessionReminderKey, 'true');
+      setShowOnboarding(true);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [isOwner, profile, loading, allPosts]);
 
   // =====================
   // FETCH PROFILE - ALWAYS WORKS
@@ -643,11 +663,22 @@ export default function ProfilePage() {
   const onboardingSteps = [
     {
       title: 'Registration Instructions ✨',
-      description: 'To perfect your registration, these are the things you must do next.',
-      tips: [
-        'Complete each step carefully',
-        'Show the best version of you'
-      ]
+      description: onboardingNeeds.images && onboardingNeeds.video
+        ? 'Adding your audition video and two clear images to your profile page is required.'
+        : onboardingNeeds.images
+        ? 'Adding two clear images to your profile page is required.'
+        : onboardingNeeds.video
+        ? 'Adding your audition video to your profile page is required.'
+        : 'To perfect your registration, these are the things you must do next.',
+      tips: onboardingNeeds.images || onboardingNeeds.video
+        ? [
+            onboardingNeeds.images && 'Upload two clear images to your profile page',
+            onboardingNeeds.video && 'Upload your audition video to your profile page'
+          ].filter(Boolean)
+        : [
+            'Complete each step carefully',
+            'Show the best version of you'
+          ]
     },
     {
       title: 'Great First Impression! 📸',
@@ -666,7 +697,7 @@ export default function ProfilePage() {
       tips: []
     },
     {
-      title: 'Create Your Video Monologue 🎬',
+      title: 'Create Your Audition Video 🎬',
       description: 'Make a video of yourself not more than 50 seconds on how you can make people have fun watching you on TV or phone screens.',
       action: 'video',
       tips: [
