@@ -37,6 +37,7 @@ import {
   Youtube,
   Facebook,
   Linkedin,
+  Send,
   Gift,
   Star
 } from 'lucide-react';
@@ -641,41 +642,36 @@ export default function ProfilePage() {
 
   const onboardingSteps = [
     {
-      title: 'Perfect Your Registration ✨',
+      title: 'Registration Instructions ✨',
       description: 'To perfect your registration, these are the things you must do next.',
       tips: [
         'Complete each step carefully',
-        'Show voters the best version of you'
+        'Show the best version of you'
       ]
     },
     {
       title: 'Great First Impression! 📸',
-      description: 'Your profile photo is the first thing people see. Make it clear and attractive.',
+      description: 'Your profile photo is the first thing we notice. Make it clear and attractive.',
       image: '/passport1.jpeg',
       imageAlt: 'Example profile photo',
       tips: [
         'Use a clear, well-lit photo',
-        'Face should be clearly visible',
-        'Smile and look approachable'
+        'Face should be clearly visible'
       ]
     },
     {
       title: 'Build Your Gallery 🖼️',
-      description: 'Upload quality images to help voters connect with you.',
+      description: 'Kindly upload 2 full clear pictures of yours. (Only studio standard pictures are acceptable).',
       images: ['/image1.jpeg', '/image2.jpeg'],
-      tips: [
-        'Show your personality',
-        'Clear and high-quality images'
-      ]
+      tips: []
     },
     {
       title: 'Create Your Video Monologue 🎬',
-      description: 'Make a less than 60 second video monologue that instantly captures your audience.',
+      description: 'Make a video of yourself not more than 50 seconds on how you can make people have fun watching you on TV or phone screens.',
       action: 'video',
       tips: [
-        'Dance, act, sing, or create any content that captures attention',
-        'Click Upload Video on your profile page to add it',
-        'This step is crucial to your registration'
+        'In the video, you can just talk, dance, act, or do it any way you feel like',
+        'Click Upload Video on your profile page to add it'
       ]
     },
     {
@@ -683,26 +679,25 @@ export default function ProfilePage() {
       description: 'Click the Settings icon ⚙️ and add your "About Me" section.',
       action: 'settings',
       tips: [
-        'Tell your story authentically',
-        'Be genuine and relatable'
+        'Tell us more about yourself'
       ]
     },
     {
       title: 'Connect Social Media 🌐',
-      description: 'Add your social links in Settings to grow your following.',
-      socialIcons: [Instagram, Twitter, Youtube, Facebook, Linkedin],
+      description: 'Add your social media links in Settings.',
+      socialIcons: [Send, Instagram, Twitter, Youtube, Facebook, Linkedin],
       tips: [
-        'Link all your active social accounts',
-        'Engage with your followers'
+        'Link all your active social media accounts',
+        'Adding your Telegram link is also important.'
       ]
     },
     {
       title: "You're Ready to Shine! ⭐",
-      description: "You're all set! We wish you the best of luck in the competition!",
+      description: "Make sure you follow all instructions!",
       isFinal: true,
       tips: [
-        'Share your journey on socials',
-        'Be yourself and have fun!'
+        'Be yourself and have fun!',
+        'Wishing you the best of luck!'
       ]
     }
   ];
@@ -869,7 +864,7 @@ export default function ProfilePage() {
               onClick={handleOpenOnboarding}
               className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/70 hover:text-white transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+              <Sparkles className="w-3.5 h-3.5 text-[#C58B2A]" />
               Tips
             </button>
           )}
@@ -1005,13 +1000,13 @@ export default function ProfilePage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: -10 }}
               transition={{ type: "spring", damping: 30, stiffness: 350 }}
-              className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400/20 rounded-xl p-5 max-w-sm w-full shadow-2xl shadow-yellow-400/5"
+              className="relative bg-gradient-to-br from-gray-900 to-black border border-[#C58B2A]/20 rounded-xl p-5 max-w-sm w-full shadow-2xl shadow-[#C58B2A]/5"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Progress bar - thinner */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 rounded-t-xl overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500"
+                  className="h-full bg-gradient-to-r from-[#C58B2A] to-[#A96F1F]"
                   initial={{ width: `${((onboardingStep) / (onboardingSteps.length - 1)) * 100}%` }}
                   animate={{ width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%` }}
                   transition={{ duration: 0.5 }}
@@ -1037,9 +1032,9 @@ export default function ProfilePage() {
                       key={index}
                       className={`h-1 rounded-full transition-all ${
                         index === onboardingStep
-                          ? 'w-4 bg-yellow-400'
+                          ? 'w-4 bg-[#C58B2A]'
                           : index < onboardingStep
-                          ? 'w-1 bg-yellow-400/30'
+                          ? 'w-1 bg-[#C58B2A]/30'
                           : 'w-1 bg-white/10'
                       }`}
                     />
@@ -1056,7 +1051,7 @@ export default function ProfilePage() {
 
                 {/* Images - smaller */}
                 {currentStep.image && (
-                  <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden border border-yellow-400/20 shadow-lg shadow-yellow-400/10">
+                    <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden border border-[#C58B2A]/20 shadow-lg shadow-[#C58B2A]/10">
                     <Image
                       src={currentStep.image}
                       alt={currentStep.imageAlt || 'Example'}
@@ -1095,7 +1090,7 @@ export default function ProfilePage() {
                           aria-label={`Show gallery example ${index + 1}`}
                           onClick={() => setGalleryImageIndex(index)}
                           className={`h-1.5 rounded-full transition-all ${
-                            index === galleryImageIndex ? 'w-4 bg-yellow-400' : 'w-1.5 bg-white/20'
+                            index === galleryImageIndex ? 'w-4 bg-[#C58B2A]' : 'w-1.5 bg-white/20'
                           }`}
                         />
                       ))}
@@ -1115,16 +1110,16 @@ export default function ProfilePage() {
                 )}
 
                 {/* Description - smaller */}
-                <p className="text-xs font-medium text-white/60 leading-relaxed">
+                <p className="text-sm font-medium text-white/70 leading-relaxed">
                   {currentStep.description}
                 </p>
 
                 {/* Tips - smaller */}
                 <div className="space-y-1">
                   {currentStep.tips.map((tip, idx) => (
-                    <div key={idx} className="flex items-start gap-1.5 text-xs font-medium text-white/50">
-                      <Check className="w-3 h-3 text-yellow-400 flex-shrink-0 mt-0.5" />
-                      <span className="text-[11px]">{tip}</span>
+                    <div key={idx} className="flex items-start gap-1.5 text-sm font-medium text-white/60">
+                      <Check className="w-3 h-3 text-[#C58B2A] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs">{tip}</span>
                     </div>
                   ))}
                 </div>
@@ -1135,7 +1130,7 @@ export default function ProfilePage() {
                     <>
                       <button
                         onClick={() => handleOnboardingAction('settings')}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
                       >
                         <Settings className="w-3.5 h-3.5" />
                         Setup Now
@@ -1151,7 +1146,7 @@ export default function ProfilePage() {
                     <>
                       <button
                         onClick={() => handleOnboardingAction(currentStep.action)}
-                        className="w-full px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                        className="w-full px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
                       >
                         {currentStep.action === 'video' ? 'Upload Video' : 'Open Settings'}
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -1167,7 +1162,7 @@ export default function ProfilePage() {
                   ) : (
                     <button
                       onClick={handleNextOnboarding}
-                      className="w-full px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      className="w-full px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
                     >
                       Next
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1188,10 +1183,10 @@ export default function ProfilePage() {
 
               {/* Decorative sparkles - smaller */}
               <div className="absolute -top-1 -right-1 opacity-10">
-                <Sparkles className="w-5 h-5 text-yellow-400" />
+                <Sparkles className="w-5 h-5 text-[#C58B2A]" />
               </div>
               <div className="absolute -bottom-1 -left-1 opacity-10">
-                <Sparkles className="w-5 h-5 text-yellow-400" />
+                <Sparkles className="w-5 h-5 text-[#C58B2A]" />
               </div>
             </motion.div>
           </motion.div>
