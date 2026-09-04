@@ -33,7 +33,6 @@ import {
   Home,
   AlertTriangle,
   Info,
-  ImageIcon,
   CheckCircle,
   XCircle
 } from 'lucide-react';
@@ -239,12 +238,12 @@ const SearchableSelect = ({
 export default function SignupPage() {
   const router = useRouter();
   
-  const [showRoleModal, setShowRoleModal] = useState(true);
-  const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('candidate');
   const [switchingRole, setSwitchingRole] = useState(false);
   
   // Fan registration disabled state
   const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
+  const [showWhatsappNotice, setShowWhatsappNotice] = useState(false);
   
   // Avatar guidance modal
   const [showAvatarGuidance, setShowAvatarGuidance] = useState(false);
@@ -322,7 +321,6 @@ export default function SignupPage() {
         setFormData(prev => ({ ...prev, ...parsed }));
         if (parsed.selectedRole) {
           setSelectedRole(parsed.selectedRole);
-          setShowRoleModal(false);
         }
         if (parsed.avatarPreview) {
           setAvatarPreview(parsed.avatarPreview);
@@ -517,27 +515,6 @@ export default function SignupPage() {
     };
   }, [formData.username, supabase]);
 
-  // Handle role selection
-  const handleRoleSelect = (role) => {
-    // If fan is selected, show disabled modal
-    if (role === 'fan') {
-      setShowFanDisabledModal(true);
-      return;
-    }
-    
-    setSelectedRole(role);
-    setShowRoleModal(false);
-    setFormData(prev => ({
-      ...prev,
-      username: role === 'candidate' ? prev.username : '',
-      phone: role === 'candidate' ? prev.phone : '',
-      country: role === 'candidate' ? prev.country : '',
-      state: role === 'candidate' ? prev.state : '',
-      city: role === 'candidate' ? prev.city : '',
-      lga: role === 'candidate' ? prev.lga : '',
-    }));
-  };
-
   // Handle fan disabled modal actions
   const handleFanModalAction = (action) => {
     setShowFanDisabledModal(false);
@@ -546,7 +523,6 @@ export default function SignupPage() {
     } else if (action === 'contest') {
       // Switch to candidate registration
       setSelectedRole('candidate');
-      setShowRoleModal(false);
       setFormData(prev => ({
         ...prev,
         username: prev.username || '',
@@ -611,7 +587,7 @@ export default function SignupPage() {
     
     if (selectedRole === 'candidate') {
       if (!formData.phone) {
-        newErrors.phone = 'WhatsApp number is required';
+        newErrors.phone = 'Whatsapp number is required';
       } else if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(formData.phone)) {
         newErrors.phone = 'Please enter a valid phone number';
       }
@@ -1052,8 +1028,7 @@ export default function SignupPage() {
             </motion.div>
             
             {/* Role Switch Buttons */}
-            {!showRoleModal && (
-              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10 flex-shrink-0">
+            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => handleRoleSwitch('candidate')}
@@ -1080,8 +1055,7 @@ export default function SignupPage() {
                   <span>Fan</span>
                   <span className="text-[6px] bg-yellow-400/20 text-yellow-400 px-1 rounded">Soon</span>
                 </button>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Form Content */}
@@ -1093,11 +1067,11 @@ export default function SignupPage() {
               className="text-center"
             >
               <h2 className="text-lg md:text-xl font-bold text-yellow-400">
-                {selectedRole === 'candidate' ? 'Become a Contestant' : 'Join as a Fan'}
+                {selectedRole === 'candidate' ? 'Create Your Profile' : 'Join as a Fan'}
               </h2>
               <p className="text-[10px] md:text-xs text-white/50">
                 {selectedRole === 'candidate' 
-                  ? 'Create your contestant profile to participate in WhoWin' 
+                  ? 'Carefully fill the form below to create your profile page.'
                   : 'Support your favorite contestants'}
               </p>
             </motion.div>
@@ -1298,22 +1272,41 @@ export default function SignupPage() {
               >
                 <label htmlFor="phone" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
                   <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                  <span>{selectedRole === 'candidate' ? 'WhatsApp Number' : 'Phone (Optional)'}</span>
+                  <span>{selectedRole === 'candidate' ? 'Whatsapp Number' : 'Phone (Optional)'}</span>
                   {selectedRole === 'candidate' && <span className="text-yellow-400">*</span>}
                 </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
-                  className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
-                    errors.phone ? 'border-red-400 bg-red-500/10' : 'border-white/20'
-                  }`}
-                  value={formData.phone}
-                  onChange={handleChange}
-                  required={selectedRole === 'candidate'}
-                  disabled={cooldownSeconds > 0}
-                />
+                <div className="relative">
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
+                    className={`w-full px-2.5 py-1.5 md:px-3 md:py-2 bg-white/5 border rounded-lg md:rounded-xl text-xs md:text-sm text-white focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 transition-all outline-none placeholder:text-white/30 ${
+                      errors.phone ? 'border-red-400 bg-red-500/10' : 'border-white/20'
+                    }`}
+                    value={formData.phone}
+                    onChange={handleChange}
+                    onFocus={() => setShowWhatsappNotice(true)}
+                    onClick={() => setShowWhatsappNotice(true)}
+                    required={selectedRole === 'candidate'}
+                    disabled={cooldownSeconds > 0}
+                  />
+                  <AnimatePresence>
+                    {showWhatsappNotice && selectedRole === 'candidate' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-yellow-400/30 bg-gray-900/95 px-3 py-2 text-[10px] text-yellow-100 shadow-lg"
+                      >
+                        <span className="flex items-start gap-1.5">
+                          <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0 text-yellow-400" />
+                          <span>This must be an active Whatsapp number. Otherwise, you may be disqualified.</span>
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
                 {errors.phone && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                     <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
@@ -1824,81 +1817,6 @@ export default function SignupPage() {
         </motion.div>
       </motion.div>
 
-      {/* Role Selection Modal */}
-      <AnimatePresence>
-        {showRoleModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: -20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10 text-center"
-            >
-              <div className="mb-6">
-                <div className="relative w-20 h-20 mx-auto mb-4">
-                  <Image
-                    src="/logo.png"
-                    alt="WhoWin Logo"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">
-                  Welcome to <span className="text-yellow-400">WhoWin</span>!
-                </h2>
-                <p className="text-white/60 text-sm">How would you like to join?</p>
-              </div>
-              
-              <div className="space-y-3">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleRoleSelect('candidate')}
-                  className="w-full p-4 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 hover:text-white text-black font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-green-500/30"
-                >
-                  <Crown className="w-5 h-5 flex-shrink-0" />
-                  <div className="text-left">
-                    <div className="text-sm">Sign up as a</div>
-                    <div className="text-lg font-bold">Contestant</div>
-                  </div>
-                  <div className="ml-auto text-xs opacity-70 flex-shrink-0">Competitive</div>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleRoleSelect('fan')}
-                  className="w-full p-4 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 text-white font-semibold flex items-center gap-3 transition-all relative"
-                >
-                  <Users className="w-5 h-5 flex-shrink-0" />
-                  <div className="text-left">
-                    <div className="text-sm">Sign up as a</div>
-                    <div className="text-lg font-bold">Fan</div>
-                  </div>
-                  <div className="ml-auto text-xs opacity-70 flex-shrink-0">Support</div>
-                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-[8px] px-2 py-0.5 rounded-full font-bold">
-                    Soon
-                  </span>
-                </motion.button>
-              </div>
-
-              <p className="text-white/30 text-xs mt-4">
-                Already have an account?{' '}
-                <Link href="/auth/login" className="text-yellow-400 hover:text-green-400 transition-colors hover:underline">
-                  Sign in
-                </Link>
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Fan Disabled Modal */}
       <AnimatePresence>
         {showFanDisabledModal && (
@@ -1976,24 +1894,21 @@ export default function SignupPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl shadow-yellow-400/10"
+              className="bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-5 md:p-6 max-w-sm max-h-[90vh] w-full overflow-y-auto shadow-2xl shadow-yellow-400/10"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="w-8 h-8 text-yellow-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold text-white mb-1.5">
                   Profile Picture Tips
                 </h3>
-                <p className="text-white/60 text-sm">
+                <p className="text-white/60 text-xs">
                   Make a great first impression! Here are some examples of good profile pictures.
                 </p>
               </div>
 
               {/* Example Images Carousel */}
-              <div className="relative mb-6">
-                <div className="relative w-48 h-48 mx-auto rounded-full overflow-hidden border-2 border-yellow-400/30 shadow-lg shadow-yellow-400/20">
+              <div className="relative mb-4">
+                <div className="relative w-40 h-40 mx-auto rounded-full overflow-hidden border-2 border-yellow-400/30 shadow-lg shadow-yellow-400/20">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={currentExampleIndex}
@@ -2037,27 +1952,27 @@ export default function SignupPage() {
               </div>
 
               {/* Tips */}
-              <div className="space-y-2 mb-6">
-                <div className="flex items-start gap-2 text-sm text-white/70">
+              <div className="space-y-1.5 mb-4">
+                <div className="flex items-start gap-2 text-xs text-white/70">
                   <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                   <span>Use a clear, well-lit photo</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-white/70">
+                <div className="flex items-start gap-2 text-xs text-white/70">
                   <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                   <span>Face should be clearly visible</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-white/70">
+                <div className="flex items-start gap-2 text-xs text-white/70">
                   <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                   <span>Professional or friendly appearance</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-white/70">
+                <div className="flex items-start gap-2 text-xs text-white/70">
                   <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                   <span>Avoid blurry or low-quality images</span>
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <label className="cursor-pointer w-full">
                   <div className="w-full py-2.5 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl text-center transition-all hover:shadow-lg hover:shadow-yellow-500/30">
                     <input
