@@ -86,6 +86,7 @@ export default function ProfilePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [galleryImageIndex, setGalleryImageIndex] = useState(0);
   
   const [stats, setStats] = useState({
     totalVotes: 0,
@@ -640,6 +641,14 @@ export default function ProfilePage() {
 
   const onboardingSteps = [
     {
+      title: 'Perfect Your Registration ✨',
+      description: 'To perfect your registration, these are the things you must do next.',
+      tips: [
+        'Complete each step carefully',
+        'Show voters the best version of you'
+      ]
+    },
+    {
       title: 'Great First Impression! 📸',
       description: 'Your profile photo is the first thing people see. Make it clear and attractive.',
       image: '/passport1.jpeg',
@@ -653,10 +662,20 @@ export default function ProfilePage() {
     {
       title: 'Build Your Gallery 🖼️',
       description: 'Upload quality images to help voters connect with you.',
-      images: ['/image1.jpeg', '/image2.jpeg', '/image3.jpeg', '/image4.jpeg'],
+      images: ['/image1.jpeg', '/image2.jpeg'],
       tips: [
         'Show your personality',
         'Clear and high-quality images'
+      ]
+    },
+    {
+      title: 'Create Your Video Monologue 🎬',
+      description: 'Make a less than 60 second video monologue that instantly captures your audience.',
+      action: 'video',
+      tips: [
+        'Dance, act, sing, or create any content that captures attention',
+        'Click Upload Video on your profile page to add it',
+        'This step is crucial to your registration'
       ]
     },
     {
@@ -688,6 +707,17 @@ export default function ProfilePage() {
     }
   ];
 
+  useEffect(() => {
+    const galleryImages = onboardingSteps[onboardingStep]?.images;
+    if (!showOnboarding || !galleryImages) return;
+
+    const interval = setInterval(() => {
+      setGalleryImageIndex(prev => (prev + 1) % galleryImages.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [showOnboarding, onboardingStep]);
+
   const handleNextOnboarding = () => {
     if (onboardingStep < onboardingSteps.length - 1) {
       setOnboardingStep(prev => prev + 1);
@@ -709,14 +739,24 @@ export default function ProfilePage() {
   };
 
   const handleOnboardingAction = (action) => {
-    if (action === 'settings') {
+    if (action === 'settings' || action === 'video') {
       setShowOnboarding(false);
       setHasSeenOnboarding(true);
       if (profile?.id) {
         localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
       }
-      setShowSettings(true);
+      if (action === 'settings') {
+        setShowSettings(true);
+      } else {
+        setShowVideoModal(true);
+      }
     }
+  };
+
+  const handleOpenOnboarding = () => {
+    setOnboardingStep(0);
+    setGalleryImageIndex(0);
+    setShowOnboarding(true);
   };
 
   // =====================
@@ -807,19 +847,33 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <ProfileTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          postCount={allPosts.length}
-          videoCount={allPosts.filter(p => p.type === 'video').length}
-          posts={displayPosts}
-          isOwner={isOwner}
-          onPostClick={setSelectedPost}
-          onAddPhoto={() => setShowPostModal(true)}
-          onAddVideo={() => setShowVideoModal(true)}
-          onSettingsClick={() => setShowSettings(true)}
-          profile={profile}
-        />
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              postCount={allPosts.length}
+              videoCount={allPosts.filter(p => p.type === 'video').length}
+              posts={displayPosts}
+              isOwner={isOwner}
+              onPostClick={setSelectedPost}
+              onAddPhoto={() => setShowPostModal(true)}
+              onAddVideo={() => setShowVideoModal(true)}
+              onSettingsClick={() => setShowSettings(true)}
+              profile={profile}
+            />
+          </div>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={handleOpenOnboarding}
+              className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/70 hover:text-white transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+              Tips
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Status Modal - Only for owner */}
@@ -1013,17 +1067,39 @@ export default function ProfilePage() {
                 )}
 
                 {currentStep.images && (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {currentStep.images.map((img, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-md overflow-hidden border border-white/5">
-                        <Image
-                          src={img}
-                          alt={`Example ${idx + 1}`}
-                          fill
-                          className="object-cover"
+                  <div className="space-y-2">
+                    <div className="relative w-32 h-32 mx-auto rounded-md overflow-hidden border border-white/5">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={galleryImageIndex}
+                          initial={{ opacity: 0, x: 12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -12 }}
+                          transition={{ duration: 0.25 }}
+                          className="absolute inset-0"
+                        >
+                          <Image
+                            src={currentStep.images[galleryImageIndex]}
+                            alt={`Example ${galleryImageIndex + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex justify-center gap-1.5">
+                      {currentStep.images.map((_, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          aria-label={`Show gallery example ${index + 1}`}
+                          onClick={() => setGalleryImageIndex(index)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            index === galleryImageIndex ? 'w-4 bg-yellow-400' : 'w-1.5 bg-white/20'
+                          }`}
                         />
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1039,14 +1115,14 @@ export default function ProfilePage() {
                 )}
 
                 {/* Description - smaller */}
-                <p className="text-xs text-white/60 leading-relaxed">
+                <p className="text-xs font-medium text-white/60 leading-relaxed">
                   {currentStep.description}
                 </p>
 
                 {/* Tips - smaller */}
                 <div className="space-y-1">
                   {currentStep.tips.map((tip, idx) => (
-                    <div key={idx} className="flex items-start gap-1.5 text-xs text-white/50">
+                    <div key={idx} className="flex items-start gap-1.5 text-xs font-medium text-white/50">
                       <Check className="w-3 h-3 text-yellow-400 flex-shrink-0 mt-0.5" />
                       <span className="text-[11px]">{tip}</span>
                     </div>
@@ -1055,7 +1131,7 @@ export default function ProfilePage() {
 
                 {/* Action buttons - compact */}
                 <div className="flex gap-2 pt-1.5">
-                  {isFinalStep ? (
+                    {isFinalStep ? (
                     <>
                       <button
                         onClick={() => handleOnboardingAction('settings')}
@@ -1069,6 +1145,23 @@ export default function ProfilePage() {
                         className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
                       >
                         Later
+                      </button>
+                    </>
+                  ) : currentStep.action ? (
+                    <>
+                      <button
+                        onClick={() => handleOnboardingAction(currentStep.action)}
+                        className="w-full px-3 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        {currentStep.action === 'video' ? 'Upload Video' : 'Open Settings'}
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={handleNextOnboarding}
+                        className="w-full px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        Next
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </>
                   ) : (
