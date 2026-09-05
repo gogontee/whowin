@@ -29,8 +29,8 @@ export default function ProfileHeader({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
-  // Gold color: #D4AF37
-  const goldColor = '#D4AF37';
+  // Shared bronze-gold brand color.
+  const goldColor = '#C58B2A';
 
   // Check if vote count should be visible
   useEffect(() => {
@@ -261,7 +261,7 @@ export default function ProfileHeader({
         }}
       >
         <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: goldColor }} />
-        <span className="text-[10px] sm:text-sm font-semibold text-[#D4AF37] whitespace-nowrap">
+        <span className="text-[10px] sm:text-sm font-semibold text-[#C58B2A] whitespace-nowrap">
           Send Gift
         </span>
       </button>
@@ -283,7 +283,7 @@ export default function ProfileHeader({
           <span className="text-[10px] sm:text-sm font-medium text-white whitespace-nowrap">
             My Supporters
           </span>
-          <span className="text-[10px] sm:text-sm font-bold text-[#D4AF37]">
+          <span className="text-[10px] sm:text-sm font-bold text-[#C58B2A]">
             {loadingSupporters ? '...' : supportersCount}
           </span>
         </Link>
@@ -302,7 +302,7 @@ export default function ProfileHeader({
           <span className="text-[10px] sm:text-sm font-medium text-white whitespace-nowrap">
             Votes
           </span>
-          <span className="text-[10px] sm:text-sm font-bold text-[#D4AF37] transition-all duration-300">
+          <span className="text-[10px] sm:text-sm font-bold text-[#C58B2A] transition-all duration-300">
             {loadingVotes ? '...' : liveVotes?.toLocaleString() || 0}
           </span>
         </div>
@@ -318,7 +318,7 @@ export default function ProfileHeader({
         }}
       >
         <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: goldColor }} />
-        <span className="text-[10px] sm:text-sm font-semibold text-[#D4AF37] whitespace-nowrap">
+        <span className="text-[10px] sm:text-sm font-semibold text-[#C58B2A] whitespace-nowrap">
           Share
         </span>
       </button>
@@ -330,7 +330,7 @@ export default function ProfileHeader({
           className="p-2 hover:bg-white/10 rounded-xl transition-colors"
           aria-label="Settings"
         >
-          <Settings className="w-5 h-5 text-white hover:text-[#D4AF37] transition-colors" />
+          <Settings className="w-5 h-5 text-white hover:text-[#C58B2A] transition-colors" />
         </button>
       )}
     </div>

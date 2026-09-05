@@ -61,7 +61,7 @@ export default function ProfileTabs({
           {activeTab === 'posts' && (
             <motion.div
               layoutId="activeTab"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-yellow-500"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F]"
             />
           )}
         </button>
@@ -77,7 +77,7 @@ export default function ProfileTabs({
           {activeTab === 'videos' && (
             <motion.div
               layoutId="activeTab"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-yellow-500"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F]"
             />
           )}
         </button>
@@ -93,7 +93,7 @@ export default function ProfileTabs({
           {activeTab === 'about' && (
             <motion.div
               layoutId="activeTab"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#D4AF37] to-yellow-500"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F]"
             />
           )}
         </button>
@@ -121,7 +121,7 @@ export default function ProfileTabs({
           {showSocialIcons && (
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-[#D4AF37]" />
+                <Globe className="w-4 h-4 text-[#C58B2A]" />
                 Connect With Me
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -217,10 +217,10 @@ export default function ProfileTabs({
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-3 py-2.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all group border border-white/5 hover:border-[#D4AF37]/30 mt-2"
+                    className="flex items-center gap-3 px-3 py-2.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all group border border-white/5 hover:border-[#C58B2A]/30 mt-2"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center flex-shrink-0">
-                    <LinkIcon className="w-4 h-4 text-[#D4AF37]" />
+                  <div className="w-8 h-8 rounded-full bg-[#C58B2A]/20 flex items-center justify-center flex-shrink-0">
+                    <LinkIcon className="w-4 h-4 text-[#C58B2A]" />
                   </div>
                   <span className="text-white/80 text-sm group-hover:text-white transition-colors truncate">
                     {profile.website.replace(/^https?:\/\//, '').substring(0, 30)}
@@ -344,7 +344,7 @@ function EmptyState({ activeTab, isOwner, onAddPhoto, onAddVideo, onSettingsClic
         <div className="flex flex-wrap gap-3 justify-center mt-4">
           <button
             onClick={onAddPhoto}
-            className="px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
           >
             <Plus className="w-3 h-3" />
             Add Photo
@@ -374,7 +374,7 @@ function AddPostButtons({ onAddPhoto, onAddVideo, onSettingsClick }) {
     <div className="flex flex-wrap justify-center gap-3 mt-6">
       <button
         onClick={onAddPhoto}
-        className="px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+        className="px-4 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
       >
         <Plus className="w-3 h-3" />
         Add Photo

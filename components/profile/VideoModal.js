@@ -3,20 +3,19 @@
 
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Video, Link2, Youtube, Loader, Check, AlertCircle, Upload, Film, Clock, HardDrive, Play, FileVideo } from 'lucide-react';
+import { X, Video, Loader, Check, AlertCircle, Upload, Film, Clock, HardDrive, FileVideo } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 
 export default function VideoModal({ onClose, profileId, onVideoAdded }) {
-  const [videoUrl, setVideoUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [uploadMethod, setUploadMethod] = useState('url'); // 'url' or 'upload'
   const [selectedFile, setSelectedFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileError, setFileError] = useState('');
+  const [validationMessage, setValidationMessage] = useState('');
   const fileInputRef = useRef(null);
 
   const supabase = createBrowserClient(
@@ -24,47 +23,15 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
-  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   const MAX_DURATION = 60; // 60 seconds
-
-  const validateVideoUrl = (url) => {
-    const youtubePatterns = [
-      /(?:youtube\.com\/watch\?v=)([\w-]+)/,
-      /(?:youtu\.be\/)([\w-]+)/,
-      /(?:youtube\.com\/embed\/)([\w-]+)/,
-      /(?:youtube\.com\/shorts\/)([\w-]+)/
-    ];
-
-    for (const pattern of youtubePatterns) {
-      if (pattern.test(url)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const extractVideoId = (url) => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=)([\w-]+)/,
-      /(?:youtu\.be\/)([\w-]+)/,
-      /(?:youtube\.com\/embed\/)([\w-]+)/,
-      /(?:youtube\.com\/shorts\/)([\w-]+)/
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) {
-        return match[1];
-      }
-    }
-    return null;
-  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setFileError('');
+    setValidationMessage('');
     setSelectedFile(null);
     setVideoPreview(null);
 
@@ -76,7 +43,8 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
 
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
-      setFileError(`Video size exceeds 100MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+      setValidationMessage('Videos exceeding 50MB are not allowed. Please reduce the video size and try again.');
+      e.target.value = '';
       return;
     }
 
@@ -85,9 +53,10 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       if (video.duration > MAX_DURATION) {
-        setFileError(`Video duration (${Math.round(video.duration)}s) exceeds 60 second limit`);
+        setValidationMessage('Video length should be less than 60 seconds. Please reduce it to less than 60 seconds and try again.');
         setSelectedFile(null);
         setVideoPreview(null);
+        e.target.value = '';
         return;
       }
       
@@ -155,63 +124,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     setSuccess(false);
     setUploadProgress(0);
 
-    if (uploadMethod === 'url') {
-      // URL submission
-      if (!videoUrl) {
-        setError('Please enter a video URL');
-        return;
-      }
-
-      if (!validateVideoUrl(videoUrl)) {
-        setError('Please enter a valid YouTube URL (youtu.be or youtube.com)');
-        return;
-      }
-
-      if (!profileId) {
-        setError('User not authenticated. Please log in.');
-        return;
-      }
-
-      setAdding(true);
-
-      try {
-        const videoId = extractVideoId(videoUrl);
-        const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : videoUrl;
-
-        const { data, error } = await supabase
-          .from('videos')
-          .insert({
-            user_id: profileId,
-            url: videoUrl,
-            embed_url: embedUrl,
-            caption: caption || '',
-            provider: 'youtube'
-          })
-          .select();
-
-        if (error) throw error;
-
-        setSuccess(true);
-        setVideoUrl('');
-        setCaption('');
-
-        if (onVideoAdded && data && data[0]) {
-          onVideoAdded(data[0]);
-        }
-
-        setTimeout(() => {
-          setAdding(false);
-          onClose();
-        }, 1500);
-
-      } catch (error) {
-        console.error('Error adding video:', error);
-        setError(error.message || 'Failed to add video. Please try again.');
-        setAdding(false);
-      }
-
-    } else {
-      // Upload submission
+    // Device upload submission
       if (!selectedFile) {
         setError('Please select a video file to upload');
         return;
@@ -267,7 +180,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
         setAdding(false);
         setUploadProgress(0);
       }
-    }
   };
 
   const handleClose = () => {
@@ -319,7 +231,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
           {success && (
             <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 text-green-400 text-sm flex items-center gap-2">
               <Check className="w-4 h-4 flex-shrink-0" />
-              Video {uploadMethod === 'url' ? 'added' : 'uploaded'} successfully!
+              Video uploaded successfully!
             </div>
           )}
 
@@ -330,91 +242,8 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             </div>
           )}
 
-          {/* Upload Method Toggle */}
-          <div className="flex gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-            <button
-              type="button"
-              onClick={() => {
-                setUploadMethod('url');
-                setError('');
-                setFileError('');
-                setSelectedFile(null);
-                setVideoPreview(null);
-              }}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                uploadMethod === 'url'
-                  ? 'bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              <Link2 className="w-3.5 h-3.5" />
-              YouTube URL
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setUploadMethod('upload');
-                setError('');
-                setVideoUrl('');
-              }}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                uploadMethod === 'upload'
-                  ? 'bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Upload Video
-            </button>
-          </div>
-
-          {uploadMethod === 'url' ? (
-            // YouTube URL Input
-            <>
-              <div>
-                <label className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
-                  <Link2 className="w-4 h-4 text-[#D4AF37]" />
-                  YouTube URL
-                </label>
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => {
-                    setVideoUrl(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="https://youtu.be/... or https://youtube.com/watch?v=..."
-                  className={`w-full px-4 py-3 bg-white/5 border rounded-lg text-sm text-white placeholder-white/30 focus:border-[#D4AF37] focus:outline-none transition-colors ${
-                    error ? 'border-red-500' : 'border-white/10'
-                  }`}
-                  required
-                  disabled={adding || success}
-                />
-                <div className="flex items-center gap-2 mt-2">
-                  <Youtube className="w-4 h-4 text-red-500" />
-                  <p className="text-[10px] text-white/30">
-                    Supported: YouTube links (youtu.be, youtube.com/watch, youtube.com/shorts)
-                  </p>
-                </div>
-              </div>
-
-              {videoUrl && !error && validateVideoUrl(videoUrl) && (
-                <div className="rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                  <div className="aspect-video relative">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${extractVideoId(videoUrl)}`}
-                      title="Video preview"
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            // Video Upload Section
-            <>
+          {/* Video Upload Section */}
+          <>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-white/80 mb-2">
                   <Upload className="w-4 h-4 text-[#D4AF37]" />
@@ -458,7 +287,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
                           </span>
                           <span className="flex items-center gap-1">
                             <HardDrive className="w-3 h-3" />
-                            100MB max
+                            50MB max
                           </span>
                         </div>
                       </div>
@@ -502,8 +331,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
                   </div>
                 </div>
               )}
-            </>
-          )}
+          </>
 
           {/* Caption - Common for both methods */}
           <div>
@@ -526,9 +354,9 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
 
           <button
             type="submit"
-            disabled={adding || success || (uploadMethod === 'upload' && !selectedFile)}
+            disabled={adding || success || !selectedFile}
             className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-              adding || success || (uploadMethod === 'upload' && !selectedFile)
+              adding || success || !selectedFile
                 ? 'bg-white/10 text-white/40 cursor-not-allowed'
                 : 'bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-black hover:opacity-90'
             }`}
@@ -536,33 +364,65 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             {adding ? (
               <>
                 <Loader className="w-4 h-4 animate-spin" />
-                {uploadMethod === 'upload' ? 'Uploading...' : 'Adding Video...'}
+                Uploading...
               </>
             ) : success ? (
               <>
                 <Check className="w-4 h-4" />
                 Added!
               </>
-            ) : uploadMethod === 'upload' ? (
+            ) : (
               <>
                 <Upload className="w-4 h-4" />
                 Upload Video
-              </>
-            ) : (
-              <>
-                <Video className="w-4 h-4" />
-                Add Video
               </>
             )}
           </button>
 
           <div className="text-center text-[10px] text-white/20">
-            {uploadMethod === 'url' 
-              ? 'Supports YouTube videos only • Videos will appear in your profile'
-              : 'Upload short videos (max 60s, 100MB) • Videos will appear in your profile'
-            }
+            Upload short videos (max 60s, 50MB) • Videos will appear in your profile
           </div>
         </form>
+
+        {validationMessage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1010] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() => setValidationMessage('')}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              role="alertdialog"
+              aria-modal="true"
+              className="relative w-full max-w-sm rounded-2xl border border-red-400/30 bg-gray-900 p-5 shadow-2xl shadow-black/50"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="Close video validation message"
+                onClick={() => setValidationMessage('')}
+                className="absolute right-3 top-3 text-white/50 transition-colors hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex items-start gap-3 pr-5">
+                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                <p className="text-sm leading-relaxed text-white/80">{validationMessage}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setValidationMessage('')}
+                className="mt-4 w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+              >
+                Choose Another Video
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
       </motion.div>
     </motion.div>
   );

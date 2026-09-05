@@ -216,7 +216,7 @@ export default function ProfileBanner({
         return {
           label: 'Pending Review',
           icon: <Loader className="w-3 h-3 animate-spin" />,
-          className: 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+          className: 'bg-[#C58B2A]/20 border-[#C58B2A]/30 text-[#C58B2A]'
         };
       case 'suspended':
         return {
@@ -228,7 +228,7 @@ export default function ProfileBanner({
         return {
           label: 'Pending Review',
           icon: <Loader className="w-3 h-3 animate-spin" />,
-          className: 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+          className: 'bg-[#C58B2A]/20 border-[#C58B2A]/30 text-[#C58B2A]'
         };
     }
   };
@@ -346,7 +346,7 @@ export default function ProfileBanner({
               <Loader className="w-4 h-4 text-white animate-spin" />
             ) : (
               <>
-                <Gift className="w-4 h-4 text-yellow-400" />
+                <Gift className="w-4 h-4 text-[#C58B2A]" />
                 <span className="text-white font-bold text-sm">{giftCount.toLocaleString()}</span>
                 <span className="text-white/60 text-xs hidden sm:inline">gifts</span>
               </>
@@ -359,12 +359,12 @@ export default function ProfileBanner({
       <div className="absolute -bottom-1 left-4 md:-bottom-2 md:left-6 z-30">
         <div className="relative">
           {/* Burnt lemon outline */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500 p-1">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] p-1">
             <div className="w-full h-full rounded-full bg-black"></div>
           </div>
           
           {/* Profile image container */}
-          <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-full border-4 border-black overflow-hidden bg-gradient-to-br from-burnt-orange-500 to-yellow-500">
+          <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-full border-4 border-black overflow-hidden bg-gradient-to-br from-[#C58B2A] to-[#A96F1F]">
             {profile.avatar_url ? (
               <Image
                 src={profile.avatar_url}
@@ -374,7 +374,7 @@ export default function ProfileBanner({
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-burnt-orange-500 to-yellow-500">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#C58B2A] to-[#A96F1F]">
                 <User className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
             )}

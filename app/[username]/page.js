@@ -792,7 +792,7 @@ export default function ProfilePage() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full mx-auto mb-4"
+            className="w-12 h-12 border-4 border-[#C58B2A] border-t-transparent rounded-full mx-auto mb-4"
           />
           <p className="text-white/70 text-sm">Loading profile...</p>
         </div>
@@ -804,8 +804,8 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <div className="w-24 h-24 bg-[#D4AF37]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-12 h-12 text-[#D4AF37]" />
+          <div className="w-24 h-24 bg-[#C58B2A]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-12 h-12 text-[#C58B2A]" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Profile Not Found</h1>
           <p className="text-white/60 text-sm mb-6">
@@ -813,7 +813,7 @@ export default function ProfilePage() {
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-yellow-500 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
           >
             <ChevronLeft className="w-4 h-4" />
             Go Back Home
