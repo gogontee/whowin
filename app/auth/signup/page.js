@@ -244,6 +244,12 @@ export default function SignupPage() {
   // Fan registration disabled state
   const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
   const [showWhatsappNotice, setShowWhatsappNotice] = useState(false);
+  const [whatsappNoticeDismissed, setWhatsappNoticeDismissed] = useState(false);
+
+  const dismissWhatsappNotice = () => {
+    setWhatsappNoticeDismissed(true);
+    setShowWhatsappNotice(false);
+  };
   
   // Avatar guidance modal
   const [showAvatarGuidance, setShowAvatarGuidance] = useState(false);
@@ -1286,8 +1292,12 @@ export default function SignupPage() {
                     }`}
                     value={formData.phone}
                     onChange={handleChange}
-                    onFocus={() => setShowWhatsappNotice(true)}
-                    onClick={() => setShowWhatsappNotice(true)}
+                    onFocus={() => {
+                      if (!whatsappNoticeDismissed) setShowWhatsappNotice(true);
+                    }}
+                    onClick={() => {
+                      if (!whatsappNoticeDismissed) setShowWhatsappNotice(true);
+                    }}
                     required={selectedRole === 'candidate'}
                     disabled={cooldownSeconds > 0}
                   />
@@ -1808,14 +1818,14 @@ export default function SignupPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, transition: { duration: 0.25, ease: 'easeOut' } }}
             className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowWhatsappNotice(false)}
+            onClick={dismissWhatsappNotice}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.25, ease: 'easeOut' } }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               role="dialog"
               aria-modal="true"
@@ -1826,7 +1836,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 aria-label="Close Whatsapp warning"
-                onClick={() => setShowWhatsappNotice(false)}
+                onClick={dismissWhatsappNotice}
                 className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -1846,7 +1856,7 @@ export default function SignupPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowWhatsappNotice(false)}
+                onClick={dismissWhatsappNotice}
                 className="mt-4 w-full rounded-lg bg-[#C58B2A] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#A96F1F]"
               >
                 I Understand
