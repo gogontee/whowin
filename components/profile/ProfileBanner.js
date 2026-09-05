@@ -34,12 +34,7 @@ export default function ProfileBanner({
 
   // Check if stats should be shown
   const shouldShowStats = () => {
-    // If owner, always show stats
-    if (isOwner) return true;
-    
-    // If not owner, only show stats if vote_control is true
-    const voteControl = profile?.vote_control ?? false;
-    return voteControl === true;
+    return profile?.vote_visibility === 'on';
   };
 
   // Fetch vote and gift counts
@@ -93,7 +88,7 @@ export default function ProfileBanner({
     if (profile?.id) {
       fetchStats();
     }
-  }, [profile?.id, isOwner, profile?.vote_control]);
+  }, [profile?.id, profile?.vote_visibility]);
 
   // If profile doesn't exist, don't render anything
   if (!profile) {

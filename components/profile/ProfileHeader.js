@@ -34,16 +34,8 @@ export default function ProfileHeader({
 
   // Check if vote count should be visible
   useEffect(() => {
-    if (profile?.vote_control === true) {
-      setShowVoteCount(true);
-      return;
-    }
-    if (isOwner) {
-      setShowVoteCount(true);
-    } else {
-      setShowVoteCount(false);
-    }
-  }, [isOwner, profile?.vote_control]);
+    setShowVoteCount(profile?.vote_visibility === 'on');
+  }, [profile?.vote_visibility]);
 
   // Fetch live vote count directly from database
   useEffect(() => {
@@ -289,7 +281,7 @@ export default function ProfileHeader({
         </Link>
       )}
 
-      {/* Vote Count Button - Show based on vote_control */}
+      {/* Vote Count Button - Only visible when vote_visibility is on */}
       {showVoteCount && (
         <div
           className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl flex-1 sm:flex-none min-w-[100px] sm:min-w-[120px] justify-center"
