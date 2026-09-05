@@ -701,7 +701,7 @@ export default function ProfileManagement() {
                 handleBulkToggleControl('vote_control', !allOn);
               }}
               disabled={profiles.length === 0}
-              title="Vote counts on candidates page will be invisible to visitors if turned off."
+              title="Candidates vote counts will be invisible to visitors if turned off."
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 profiles.length > 0 && profiles.every(p => p.vote_control === true)
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -709,14 +709,14 @@ export default function ProfileManagement() {
               }`}
             >
               <Vote className="w-3.5 h-3.5" />
-              <span>Vote For Visitors {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
+              <span>Show Vote to Visitors {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
             </button>
 
             {/* Global Vote Visibility Toggle */}
             <button
               onClick={handleVoteVisibilityToggle}
               disabled={updating}
-              title="Vote counts on candidates page will be invisible to everyone if turned off."
+              title="Candidates vote counts will be invisible to everyone if turned off."
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 voteVisibilityOn
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -724,7 +724,7 @@ export default function ProfileManagement() {
               }`}
             >
               {voteVisibilityOn ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              <span>Vote For Everyone {voteVisibilityOn ? 'ON' : 'OFF'}</span>
+              <span>Show Vote to Everyone {voteVisibilityOn ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
