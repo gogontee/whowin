@@ -649,7 +649,7 @@ export default function NewsManagement() {
                   <td className="p-3">
                     <div className="flex items-center gap-1">
                       <Link
-                        href={`/news/${item.id}`}
+                        href={`/updates/[id]`.replace('[id]', item.id)}
                         target="_blank"
                         className="p-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
