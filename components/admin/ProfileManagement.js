@@ -701,7 +701,7 @@ export default function ProfileManagement() {
                 handleBulkToggleControl('vote_control', !allOn);
               }}
               disabled={profiles.length === 0}
-              title="When ON, visitors cannot see candidates' vote counts, but candidates can still see their own counts."
+              title="Vote counts on candidates page will be invisible to visitors if turned off."
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 profiles.length > 0 && profiles.every(p => p.vote_control === true)
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -716,7 +716,7 @@ export default function ProfileManagement() {
             <button
               onClick={handleVoteVisibilityToggle}
               disabled={updating}
-              title="When ON, neither visitors nor candidates can see vote counts."
+              title="Vote counts on candidates page will be invisible to everyone if turned off."
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 voteVisibilityOn
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30'
