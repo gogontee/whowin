@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { Share2 } from 'lucide-react';
 
 const Hero = () => {
   const router = useRouter();
@@ -122,13 +121,12 @@ const Hero = () => {
     return () => clearInterval(interval);
   }, [slides.length]);
 
-  // Handle challenge - navigate to challenge page
-  const handleChallenge = () => {
+  // Open the authenticated user's profile page
+  const handleProfile = () => {
     if (userProfile?.username) {
-      router.push(`/challenge/${userProfile.username}`);
+      router.push(`/${userProfile.username}`);
     } else {
-      // Fallback - if no username, go to generic challenge page
-      router.push('/challenge');
+      router.push('/auth/login');
     }
   };
 
@@ -197,18 +195,17 @@ const Hero = () => {
         <div className="hidden md:block absolute bottom-4 left-4 z-20">
           {user ? (
             <button 
-              onClick={handleChallenge}
-              className="bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm flex items-center gap-2"
+              onClick={handleProfile}
+              className="metallic-green font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm"
             >
-              <Share2 className="w-4 h-4" />
-              Challenge Your Friend Into the Contest
+              My profile Page
             </button>
           ) : (
             <button 
               onClick={handleRegister}
-              className="bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm"
+              className="metallic-green font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm"
             >
-              REGISTER NOW
+              <span className="text-white font-extrabold">Click here to Register</span>
             </button>
           )}
         </div>
@@ -218,18 +215,17 @@ const Hero = () => {
       <div className="md:hidden w-full px-4 mt-3">
         {user ? (
           <button 
-            onClick={handleChallenge}
-            className="w-full bg-gradient-to-r from-amber-500 via-green-400 to-amber-500 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm flex items-center justify-center gap-2"
+            onClick={handleProfile}
+            className="w-full metallic-green font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
           >
-            <Share2 className="w-4 h-4" />
-            Challenge Your Friend Into the Contest
+            My profile Page
           </button>
         ) : (
           <button 
             onClick={handleRegister}
-            className="w-full bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
+            className="w-full metallic-green font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
           >
-            REGISTER NOW
+            <span className="text-white font-extrabold">Click here to Register</span>
           </button>
         )}
       </div>

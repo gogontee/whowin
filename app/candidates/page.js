@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Search, Users, X, ChevronRight, Eye, Calendar, AlertCircle } from 'lucide-react';
+import { Search, X, ChevronRight, Eye, Calendar, AlertCircle } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 
 export default function CandidatesPage() {
@@ -52,9 +52,11 @@ export default function CandidatesPage() {
       if (profile.role === 'admin' || profile.role === 'fan' || profile.role === 'fans') return false;
       
       const username = profile.username?.toLowerCase() || '';
+            const fullName = profile.full_name?.toLowerCase() || '';
       const country = profile.country?.toLowerCase() || '';
       
-      return username.includes(query) || 
+            return username.includes(query) ||
+              fullName.includes(query) ||
              country.includes(query);
     });
 
@@ -82,7 +84,7 @@ export default function CandidatesPage() {
       // Get ALL profiles (including unverified) for search - exclude admin and fan roles
       const { data: allProfilesData, error: allError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, role')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, vote_visibility, role')
         .not('username', 'is', null)
         .not('role', 'eq', 'admin')
         .not('role', 'eq', 'fan')
@@ -94,7 +96,7 @@ export default function CandidatesPage() {
       // Get only eligible candidates for display (active and fully verified) - exclude admin and fan roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, role')
+        .select('id, username, full_name, avatar_url, country, verification_level, account_status, vote_control, vote_visibility, role')
         .eq('account_status', 'active')
         .eq('verification_level', 'fully_verified')
         .not('username', 'is', null)
@@ -224,12 +226,12 @@ export default function CandidatesPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
-            {isSearching ? 'Search Results' : 'Top Candidates'}
+            {isSearching ? 'Candidate Search Results' : 'Find Your Candidate'}
           </h1>
           <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
             {isSearching 
               ? `Found ${filteredCandidates.length} candidates matching "${searchQuery}"`
-              : 'Meet the leading contestants with the highest votes'
+              : 'Search for a housemate by name or Nickname.'
             }
           </p>
         </div>
@@ -237,10 +239,10 @@ export default function CandidatesPage() {
         {/* Search Bar */}
         <div className="max-w-xl mx-auto mb-6">
           <div className="relative flex items-center bg-black/50 rounded-lg border border-white/10">
-            <Search className="w-4 h-4 text-gray-500 ml-3 flex-shrink-0" />
+            <Search className="w-4 h-4 text-[#C58B2A] ml-3 flex-shrink-0" />
             <input
               type="text"
-              placeholder="Search candidates by name..."
+              placeholder="Search by candidate name or Nickname..."
               className="w-full bg-transparent border-none outline-none px-3 py-2.5 text-sm text-white placeholder-gray-600"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -255,8 +257,8 @@ export default function CandidatesPage() {
             )}
           </div>
           {isSearching && (
-            <p className="text-xs text-white/40 mt-1.5 px-1">
-              Showing results including unverified candidates
+            <p className="text-xs text-white/50 mt-1.5 px-1">
+              Search results include candidates who are still completing verification.
             </p>
           )}
         </div>
@@ -268,7 +270,7 @@ export default function CandidatesPage() {
               onClick={() => setSelectedCountry('all')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 selectedCountry === 'all'
-                  ? 'bg-orange-500 text-white'
+                  ? 'metallic-gold text-black'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
             >
@@ -282,7 +284,7 @@ export default function CandidatesPage() {
                   onClick={() => setSelectedCountry(country)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     selectedCountry === country
-                      ? 'bg-orange-500 text-white'
+                      ? 'metallic-gold text-black'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10'
                   }`}
                 >
@@ -294,28 +296,22 @@ export default function CandidatesPage() {
         )}
 
         {/* Results Info */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-white/60 text-sm">
-            <Users className="w-4 h-4 flex-shrink-0" />
-            <span>
-              {isSearching 
-                ? `${filteredCandidates.length} results found`
-                : `${filteredCandidates.filter(c => c.verification_level === 'fully_verified').length} verified candidates`
-              }
+        {isSearching && (
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-white/60 text-sm">
+              {filteredCandidates.length} results found
             </span>
-          </div>
-          {searchQuery && (
             <div className="text-white/60 text-sm flex items-center gap-2">
               <span>Searching for "{searchQuery}"</span>
-              <button 
+              <button
                 onClick={clearSearch}
                 className="text-white/40 hover:text-white/60 transition-colors"
               >
                 <X className="w-3 h-3 flex-shrink-0" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Candidates Grid */}
         {displayCandidates.length > 0 ? (
@@ -326,7 +322,7 @@ export default function CandidatesPage() {
                 onClick={() => handleViewProfile(candidate.username)}
                 className="group cursor-pointer"
               >
-                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden border border-white/10 hover:border-orange-500/30 transition-all duration-300">
+                <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden border border-white/10 hover:border-[#C58B2A]/50 transition-all duration-300">
                   {/* Candidate Image */}
                   <div className="relative aspect-square overflow-hidden bg-gray-800">
                     {candidate.avatar_url ? (
@@ -339,7 +335,7 @@ export default function CandidatesPage() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500/30 to-yellow-500/30">
+                      <div className="w-full h-full flex items-center justify-center metallic-gold">
                         <span className="text-4xl font-bold text-white/50">
                           {formatUsername(candidate.username)?.charAt(0) || '?'}
                         </span>
@@ -350,7 +346,7 @@ export default function CandidatesPage() {
                     {candidate.verification_level === 'fully_verified' && candidate.rank && (
                       <div className="absolute top-2 left-2">
                         <div className="px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-orange-400/30">
-                          <span className="text-[10px] font-bold text-orange-400">#{candidate.rank}</span>
+                          <span className="text-[10px] font-bold text-[#F6D77A]">#{candidate.rank}</span>
                         </div>
                       </div>
                     )}
@@ -368,16 +364,16 @@ export default function CandidatesPage() {
                   {/* Candidate Info */}
                   <div className="p-2.5">
                     {/* Name - Using username with first letter capitalized, no @ */}
-                    <h3 className="text-sm font-bold text-white mb-1 truncate group-hover:text-orange-400 transition-colors">
+                    <h3 className="text-sm font-bold text-white mb-1 truncate group-hover:text-[#C58B2A] transition-colors">
                       {formatUsername(candidate.username)}
                     </h3>
                     
                     {/* Only show vote count if vote_control is TRUE */}
-                    {candidate.vote_control === true && (
+                    {candidate.vote_visibility === 'on' && (
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-[8px] text-white/40">VOTES</div>
-                          <div className="text-xs font-bold text-orange-400">
+                          <div className="text-xs font-bold text-[#C58B2A]">
                             {formatVotes(candidate.total_votes || 0)}
                           </div>
                         </div>
@@ -388,7 +384,7 @@ export default function CandidatesPage() {
                             e.stopPropagation();
                             handleViewProfile(candidate.username);
                           }}
-                          className="px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 transition-colors text-[10px] font-medium text-white flex items-center gap-0.5"
+                          className="px-2 py-1 rounded-md metallic-green transition-colors text-[10px] font-medium flex items-center gap-0.5"
                         >
                           <span>VIEW</span>
                           <ChevronRight className="w-2.5 h-2.5 flex-shrink-0" />
@@ -397,11 +393,11 @@ export default function CandidatesPage() {
                     )}
 
                     {/* If vote_control is FALSE, show different layout */}
-                    {candidate.vote_control !== true && (
+                    {candidate.vote_visibility !== 'on' && (
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-[8px] text-white/40">STATUS</div>
-                          <div className="text-[10px] font-medium text-green-400">Active</div>
+                          <div className="text-[10px] font-medium text-[#8FDAA9]">Profile available</div>
                         </div>
                         
                         {/* View Profile Button */}
@@ -410,7 +406,7 @@ export default function CandidatesPage() {
                             e.stopPropagation();
                             handleViewProfile(candidate.username);
                           }}
-                          className="px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 transition-colors text-[10px] font-medium text-white flex items-center gap-0.5"
+                          className="px-2 py-1 rounded-md metallic-green transition-colors text-[10px] font-medium flex items-center gap-0.5"
                         >
                           <span>VIEW</span>
                           <ChevronRight className="w-2.5 h-2.5 flex-shrink-0" />
@@ -426,12 +422,12 @@ export default function CandidatesPage() {
           <div className="text-center py-12">
             <Search className="w-12 h-12 mx-auto text-white/20 mb-4 flex-shrink-0" />
             <h3 className="text-lg font-medium text-white mb-2">
-              {searchQuery ? 'No candidates found' : 'No verified candidates yet'}
+              {searchQuery ? 'No candidate found' : 'Search for your candidate'}
             </h3>
             <p className="text-white/60 text-sm">
               {searchQuery 
                 ? `No results found for "${searchQuery}". Try a different search term.`
-                : 'Check back soon for new candidates.'
+                : 'No candidates are currently displayed. Search by name or Nickname to find your candidate.'
               }
             </p>
           </div>

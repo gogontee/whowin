@@ -275,6 +275,9 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Only render TopCandidates if there are candidates */}
+      {hasCandidates && <TopCandidates />}
       
       {/* Only render HomeFeaturedPost if there is content in who_win carousel or tv */}
       {hasHomeFeaturedContent && <HomeFeaturedPost />}
@@ -283,9 +286,6 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-6 md:py-8">
         {renderCTA()}
       </div>
-      
-      {/* Only render TopCandidates if there are candidates */}
-      {hasCandidates && <TopCandidates />}
       
       {/* TopNews - Always renders last */}
       <TopNews />

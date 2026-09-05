@@ -55,6 +55,7 @@ export default function ProfileManagement() {
   const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
   const [showBulkVerificationDropdown, setShowBulkVerificationDropdown] = useState(false);
   const [voteVisibilityOn, setVoteVisibilityOn] = useState(false);
+  const [pendingBulkStatus, setPendingBulkStatus] = useState(null);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -460,6 +461,25 @@ export default function ProfileManagement() {
     }
   };
 
+  const handleBulkStatusSelection = (status) => {
+    setShowBulkStatusDropdown(false);
+
+    if (status === 'active' || status === 'pending_verification') {
+      setPendingBulkStatus(status);
+      return;
+    }
+
+    handleBulkToggleControl('account_status', status);
+  };
+
+  const confirmBulkStatusChange = () => {
+    if (!pendingBulkStatus) return;
+
+    const status = pendingBulkStatus;
+    setPendingBulkStatus(null);
+    handleBulkToggleControl('account_status', status);
+  };
+
   const handleVoteVisibilityToggle = async () => {
     const nextVisibility = voteVisibilityOn ? 'off' : 'on';
     setUpdating(true);
@@ -627,8 +647,7 @@ export default function ProfileManagement() {
                       <button
                         key={opt.value}
                         onClick={() => {
-                          handleBulkToggleControl('account_status', opt.value);
-                          setShowBulkStatusDropdown(false);
+                          handleBulkStatusSelection(opt.value);
                         }}
                         className="w-full px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10 transition-colors flex items-center gap-2"
                       >
@@ -1948,6 +1967,54 @@ export default function ProfileManagement() {
               );
             })}
           </div>
+
+          {/* Bulk Status Warning Modal */}
+          <AnimatePresence>
+            {pendingBulkStatus && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
+                onClick={() => setPendingBulkStatus(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-yellow-500/30 p-6 max-w-md w-full shadow-2xl"
+                >
+                  <div className="w-14 h-14 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-7 h-7 text-yellow-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white text-center mb-2">
+                    Confirm Status Change
+                  </h3>
+                  <p className="text-sm text-white/70 text-center mb-6">
+                    {pendingBulkStatus === 'active'
+                      ? 'Your users will now have access to all buttons in their profile page.'
+                      : 'Your users will lose all approval benefits.'}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPendingBulkStatus(null)}
+                      className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmBulkStatusChange}
+                      disabled={updating}
+                      className="flex-1 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {updating ? <Loader className="w-4 h-4 animate-spin" /> : 'Continue'}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Delete Confirmation Modal */}
           <AnimatePresence>
