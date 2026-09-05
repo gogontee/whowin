@@ -664,7 +664,7 @@ export default function ProfilePage() {
     {
       title: 'Registration Instructions ✨',
       description: onboardingNeeds.images && onboardingNeeds.video
-        ? 'Adding your audition video and two clear images to your profile page is required.'
+        ? 'Adding your audition video and two clear images to your profile page is required. It determines consideration for your participation, it is compulsory.' 
         : onboardingNeeds.images
         ? 'Adding two clear images to your profile page is required.'
         : onboardingNeeds.video
@@ -692,18 +692,14 @@ export default function ProfilePage() {
     },
     {
       title: 'Build Your Gallery 🖼️',
-      description: 'Kindly upload 2 full clear pictures of yours. (Only studio standard pictures are acceptable).',
+      description: 'Kindly upload 2 full clear pictures of yourself. (Only studio standard pictures are acceptable).',
       images: ['/image1.jpeg', '/image2.jpeg'],
       tips: []
     },
     {
       title: 'Create Your Audition Video 🎬',
-      description: 'Make a video of yourself not more than 50 seconds on how you can make people have fun watching you on TV or phone screens.',
-      action: 'video',
-      tips: [
-        'In the video, you can just talk, dance, act, or do it any way you feel like',
-        'Click Upload Video on your profile page to add it'
-      ]
+      description: 'Make a video of yourself with a phone not more than 50 seconds on how you can make viewers have fun watching you on TV and on Phone screens. In the video you can TALK or DANCE or ACT or express yourself in anyway possible to convince our panel of screening.'
+      
     },
     {
       title: 'Complete Your Profile ✨',
@@ -1147,7 +1143,7 @@ export default function ProfilePage() {
 
                 {/* Tips - smaller */}
                 <div className="space-y-1">
-                  {currentStep.tips.map((tip, idx) => (
+                  {(currentStep.tips || []).map((tip, idx) => (
                     <div key={idx} className="flex items-start gap-1.5 text-sm font-medium text-white/60">
                       <Check className="w-3 h-3 text-[#C58B2A] flex-shrink-0 mt-0.5" />
                       <span className="text-xs">{tip}</span>
