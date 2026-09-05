@@ -470,7 +470,8 @@ export default function ProfileManagement() {
         .update({
           vote_visibility: nextVisibility,
           updated_at: new Date().toISOString()
-        });
+        })
+        .not('id', 'is', null);
 
       if (error) throw error;
 
@@ -481,7 +482,7 @@ export default function ProfileManagement() {
       })));
       alert(`✅ Vote visibility turned ${nextVisibility.toUpperCase()} for all profiles`);
     } catch (error) {
-      console.error('Error updating vote visibility:', error);
+      console.error('Error updating vote visibility:', error?.message || error, error?.details || '');
       alert('Failed to update vote visibility for all profiles.');
     } finally {
       setUpdating(false);
