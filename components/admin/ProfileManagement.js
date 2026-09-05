@@ -54,6 +54,7 @@ export default function ProfileManagement() {
   const [bulkAction, setBulkAction] = useState('');
   const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
   const [showBulkVerificationDropdown, setShowBulkVerificationDropdown] = useState(false);
+  const [voteVisibilityOn, setVoteVisibilityOn] = useState(false);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -123,6 +124,14 @@ export default function ProfileManagement() {
 
       setProfiles(sortedData);
       setTotalCount(count || 0);
+
+      const { data: visibilityData, error: visibilityError } = await supabase
+        .from('profiles')
+        .select('vote_visibility');
+
+      if (!visibilityError && visibilityData?.length > 0) {
+        setVoteVisibilityOn(visibilityData.every(profile => profile.vote_visibility === 'on'));
+      }
 
       if (data && data.length > 0) {
         const profileIds = data.map(p => p.id);
@@ -451,6 +460,34 @@ export default function ProfileManagement() {
     }
   };
 
+  const handleVoteVisibilityToggle = async () => {
+    const nextVisibility = voteVisibilityOn ? 'off' : 'on';
+    setUpdating(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          vote_visibility: nextVisibility,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setVoteVisibilityOn(nextVisibility === 'on');
+      setProfiles(profiles.map(profile => ({
+        ...profile,
+        vote_visibility: nextVisibility
+      })));
+      alert(`✅ Vote visibility turned ${nextVisibility.toUpperCase()} for all profiles`);
+    } catch (error) {
+      console.error('Error updating vote visibility:', error);
+      alert('Failed to update vote visibility for all profiles.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const exportToCSV = () => {
     const headers = [
       'Username', 'Full Name', 'Email', 'Phone', 'Country', 'State',
@@ -663,6 +700,7 @@ export default function ProfileManagement() {
                 handleBulkToggleControl('vote_control', !allOn);
               }}
               disabled={profiles.length === 0}
+              title="When ON, visitors cannot see candidates' vote counts, but candidates can still see their own counts."
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 profiles.length > 0 && profiles.every(p => p.vote_control === true)
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -670,7 +708,22 @@ export default function ProfileManagement() {
               }`}
             >
               <Vote className="w-3.5 h-3.5" />
-              <span>Votes {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
+              <span>Off Vote For Visitors {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
+            </button>
+
+            {/* Global Vote Visibility Toggle */}
+            <button
+              onClick={handleVoteVisibilityToggle}
+              disabled={updating}
+              title="When ON, neither visitors nor candidates can see vote counts."
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                voteVisibilityOn
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+              }`}
+            >
+              {voteVisibilityOn ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span>Off Vote For Everyone {voteVisibilityOn ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
