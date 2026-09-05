@@ -1,7 +1,7 @@
 // components/admin/AboutMetaManagement.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Save, 
   Loader, 
@@ -86,6 +86,10 @@ export default function AboutMetaManagement() {
   const [statForm, setStatForm] = useState({ label: '', value: '', icon: 'Users' });
   const [editingWarningIndex, setEditingWarningIndex] = useState(null);
   const [warningForm, setWarningForm] = useState({ title: '', content: '' });
+  const [editingSection, setEditingSection] = useState(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const draftHydrated = useRef(false);
+  const DRAFT_KEY = 'whowin_about_meta_draft';
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -109,7 +113,7 @@ export default function AboutMetaManagement() {
 
       if (data) {
         setAboutData(data);
-        setFormData({
+        const serverFormData = {
           short_description: data.short_description || '',
           full_description: data.full_description || '',
           vision: data.vision || '',
@@ -122,7 +126,20 @@ export default function AboutMetaManagement() {
           policy: data.policy || '',
           quick_tips: data.quick_tips || '',
           warning: data.warning || []
-        });
+        };
+        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        if (savedDraft) {
+          try {
+            setFormData({ ...serverFormData, ...JSON.parse(savedDraft) });
+            setHasDraft(true);
+          } catch (draftError) {
+            console.error('Error restoring About metadata draft:', draftError);
+            setFormData(serverFormData);
+          }
+        } else {
+          setFormData(serverFormData);
+        }
+        draftHydrated.current = true;
       }
     } catch (error) {
       console.error('Error fetching about data:', error);
@@ -130,6 +147,18 @@ export default function AboutMetaManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (!draftHydrated.current || loading) return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+    setHasDraft(true);
+  }, [formData, loading]);
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
+    fetchAboutData();
   };
 
   const handleSave = async () => {
@@ -153,6 +182,8 @@ export default function AboutMetaManagement() {
       if (error) throw error;
 
       setSuccess(true);
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraft(false);
       setTimeout(() => setSuccess(false), 3000);
       fetchAboutData();
     } catch (error) {
@@ -358,12 +389,26 @@ export default function AboutMetaManagement() {
         )}
       </AnimatePresence>
 
+      {hasDraft && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#C58B2A]/25 bg-[#C58B2A]/10 px-3 py-2.5 text-xs text-[#F6D77A]">
+          <span>Your unsaved edits are saved locally on this device.</span>
+          <button type="button" onClick={clearDraft} className="rounded-md border border-[#C58B2A]/30 px-2 py-1 text-white/70 hover:bg-white/10 hover:text-white">
+            Clear Draft
+          </button>
+        </div>
+      )}
+
       {/* Form */}
       <div className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-6 space-y-6">
         {/* Short Description */}
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">About Page Copy</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-white">About Page Copy</h3>
+              <button type="button" onClick={() => setEditingSection('copy')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+                <Edit className="h-3 w-3" /> Edit
+              </button>
+            </div>
             <p className="text-xs text-white/40 mt-1">Write the short and full descriptions visitors will read.</p>
           </div>
           <div>
@@ -395,7 +440,12 @@ export default function AboutMetaManagement() {
         {/* Vision, Mission, Goal */}
         <section className="space-y-3 border-t border-white/10 pt-5">
           <div>
-            <h3 className="text-sm font-semibold text-white">Vision, Mission & Goal</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-white">Vision, Mission & Goal</h3>
+              <button type="button" onClick={() => setEditingSection('purpose')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+                <Edit className="h-3 w-3" /> Edit
+              </button>
+            </div>
             <p className="text-xs text-white/40 mt-1">Keep each statement focused and easy to understand.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -438,7 +488,12 @@ export default function AboutMetaManagement() {
         {/* Theme, Telephone, WhatsApp */}
         <section className="space-y-3 border-t border-white/10 pt-5">
           <div>
-            <h3 className="text-sm font-semibold text-white">Contact & Show Details</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-white">Contact & Show Details</h3>
+              <button type="button" onClick={() => setEditingSection('contact')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+                <Edit className="h-3 w-3" /> Edit
+              </button>
+            </div>
             <p className="text-xs text-white/40 mt-1">Update the public theme and contact channels.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -485,7 +540,16 @@ export default function AboutMetaManagement() {
         </section>
 
         {/* Quick Tips */}
-        <div>
+        <div className="border-t border-white/10 pt-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Homepage Messaging</h3>
+              <p className="text-xs text-white/40 mt-1">Control the quick tips shown on the homepage.</p>
+            </div>
+            <button type="button" onClick={() => setEditingSection('quickTips')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
+          </div>
           <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
             <Info className="w-3 h-3 text-green-400" />
             Quick Tips (for homepage)
@@ -501,7 +565,16 @@ export default function AboutMetaManagement() {
         </div>
 
         {/* Policy */}
-        <div>
+        <div className="border-t border-white/10 pt-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Policy</h3>
+              <p className="text-xs text-white/40 mt-1">Edit the policy content used across the site.</p>
+            </div>
+            <button type="button" onClick={() => setEditingSection('policy')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
+          </div>
           <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
             <File className="w-3 h-3 text-blue-400" />
             Policy
@@ -519,11 +592,16 @@ export default function AboutMetaManagement() {
         {/* Stats Management */}
         <div className="border-t border-white/10 pt-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
-              <Users className="w-4 h-4 text-burnt-orange-400" />
-              Stats
-            </h3>
-            <span className="text-xs text-white/40">{formData.stats?.length || 0} stats</span>
+            <div>
+              <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#C58B2A]" />
+                Stats
+              </h3>
+              <span className="text-xs text-white/40">{formData.stats?.length || 0} stats</span>
+            </div>
+            <button type="button" onClick={() => setEditingSection('stats')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
           </div>
 
           {/* Stats List */}
@@ -628,11 +706,16 @@ export default function AboutMetaManagement() {
         {/* Warnings Management */}
         <div className="border-t border-white/10 pt-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-400" />
-              Warnings
-            </h3>
-            <span className="text-xs text-white/40">{formData.warning?.length || 0} warnings</span>
+            <div>
+              <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-[#C58B2A]" />
+                Warnings
+              </h3>
+              <span className="text-xs text-white/40">{formData.warning?.length || 0} warnings</span>
+            </div>
+            <button type="button" onClick={() => setEditingSection('warnings')} className="inline-flex items-center gap-1.5 rounded-lg bg-[#C58B2A]/15 px-2.5 py-1.5 text-xs font-medium text-[#F6D77A] hover:bg-[#C58B2A]/25">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
           </div>
 
           {/* Warnings List */}
@@ -738,6 +821,151 @@ export default function AboutMetaManagement() {
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {editingSection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            onClick={() => setEditingSection(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              onClick={(event) => event.stopPropagation()}
+              className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#C58B2A]/30 bg-gray-950 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    {editingSection === 'copy' && 'Edit About Page Copy'}
+                    {editingSection === 'purpose' && 'Edit Vision, Mission & Goal'}
+                    {editingSection === 'contact' && 'Edit Contact & Show Details'}
+                    {editingSection === 'quickTips' && 'Edit Homepage Messaging'}
+                    {editingSection === 'policy' && 'Edit Policy'}
+                    {editingSection === 'stats' && 'Manage Stats'}
+                    {editingSection === 'warnings' && 'Manage Warnings'}
+                  </h2>
+                  <p className="mt-1 text-xs text-white/40">Changes are saved locally until you click Save Changes.</p>
+                </div>
+                <button type="button" onClick={() => setEditingSection(null)} className="rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-5">
+                {editingSection === 'copy' && (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Short Description</label>
+                      <textarea name="short_description" value={formData.short_description} onChange={handleChange} rows="4" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" autoFocus placeholder="Brief description of the show..." />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Full Description</label>
+                      <textarea name="full_description" value={formData.full_description} onChange={handleChange} rows="10" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" placeholder="Full description of the show..." />
+                    </div>
+                  </div>
+                )}
+
+                {editingSection === 'purpose' && (
+                  <div className="grid gap-5 md:grid-cols-3">
+                    {['vision', 'mission', 'goal'].map((field) => (
+                      <div key={field}>
+                        <label className="mb-2 block text-sm font-medium capitalize text-white/80">{field}</label>
+                        <textarea name={field} value={formData[field]} onChange={handleChange} rows="10" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" autoFocus={field === 'vision'} placeholder={`Our ${field}...`} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editingSection === 'contact' && (
+                  <div className="grid gap-5 md:grid-cols-2">
+                    {[
+                      ['theme', 'Theme', 'e.g., Who Win 2026 - The Ultimate Showdown'],
+                      ['telephone', 'Telephone', '+2348012345678'],
+                      ['whatsapp_line', 'WhatsApp Line', '+2348012345678']
+                    ].map(([field, label, placeholder]) => (
+                      <div key={field} className={field === 'theme' ? 'md:col-span-2' : ''}>
+                        <label className="mb-2 block text-sm font-medium text-white/80">{label}</label>
+                        <input name={field} value={formData[field]} onChange={handleChange} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" placeholder={placeholder} autoFocus={field === 'theme'} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editingSection === 'quickTips' && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">Quick Tips for Homepage</label>
+                    <textarea name="quick_tips" value={formData.quick_tips} onChange={handleChange} rows="12" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" autoFocus placeholder="Example: STRATEGY || ALLIANCE || COMPETITIVENESS" />
+                  </div>
+                )}
+
+                {editingSection === 'policy' && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">Policy Content</label>
+                    <textarea name="policy" value={formData.policy} onChange={handleChange} rows="18" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm leading-relaxed text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" autoFocus placeholder="Enter the full policy text..." />
+                  </div>
+                )}
+
+                {editingSection === 'stats' && (
+                  <div className="space-y-4">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {formData.stats?.map((stat, index) => (
+                        <div key={index} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C58B2A]/15">{renderIcon(stat.icon, 'h-4 w-4 text-[#C58B2A]')}</div>
+                            <div><p className="font-semibold text-white">{stat.value}</p><p className="text-xs text-white/50">{stat.label}</p></div>
+                          </div>
+                          <div className="flex gap-1">
+                            <button type="button" onClick={() => handleEditStat(index)} className="rounded-lg p-2 hover:bg-white/10"><Edit className="h-4 w-4 text-blue-400" /></button>
+                            <button type="button" onClick={() => handleDeleteStat(index)} className="rounded-lg p-2 hover:bg-white/10"><Trash2 className="h-4 w-4 text-red-400" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid gap-3 rounded-xl border border-[#C58B2A]/20 bg-[#C58B2A]/5 p-4 sm:grid-cols-3">
+                      <input value={statForm.label} onChange={(e) => setStatForm({ ...statForm, label: e.target.value })} placeholder="Label" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" />
+                      <input value={statForm.value} onChange={(e) => setStatForm({ ...statForm, value: e.target.value })} placeholder="Value" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" />
+                      <select value={statForm.icon} onChange={(e) => setStatForm({ ...statForm, icon: e.target.value })} className="rounded-lg border border-white/10 bg-gray-900 px-3 py-2 text-sm text-white focus:border-[#C58B2A] focus:outline-none">
+                        {ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                      <div className="flex gap-2 sm:col-span-3">
+                        <button type="button" onClick={editingStatIndex !== null ? handleUpdateStat : handleAddStat} className="rounded-lg bg-[#C58B2A] px-4 py-2 text-sm font-semibold text-black hover:bg-[#A96F1F]">{editingStatIndex !== null ? 'Update Stat' : 'Add Stat'}</button>
+                        {editingStatIndex !== null && <button type="button" onClick={handleCancelStatEdit} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">Cancel</button>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {editingSection === 'warnings' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {formData.warning?.map((warning, index) => (
+                        <div key={index} className="flex items-start justify-between gap-3 rounded-xl border border-[#C58B2A]/20 bg-[#C58B2A]/5 p-4">
+                          <div><p className="font-semibold text-white">{warning.title}</p><p className="mt-1 text-sm text-white/60">{warning.content}</p></div>
+                          <div className="flex gap-1"><button type="button" onClick={() => handleEditWarning(index)} className="rounded-lg p-2 hover:bg-white/10"><Edit className="h-4 w-4 text-blue-400" /></button><button type="button" onClick={() => handleDeleteWarning(index)} className="rounded-lg p-2 hover:bg-white/10"><Trash2 className="h-4 w-4 text-red-400" /></button></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-3 rounded-xl border border-[#C58B2A]/20 bg-[#C58B2A]/5 p-4">
+                      <input value={warningForm.title} onChange={(e) => setWarningForm({ ...warningForm, title: e.target.value })} placeholder="Warning title" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" />
+                      <textarea value={warningForm.content} onChange={(e) => setWarningForm({ ...warningForm, content: e.target.value })} rows="4" placeholder="Warning content" className="w-full resize-y rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none" />
+                      <div className="flex gap-2"><button type="button" onClick={editingWarningIndex !== null ? handleUpdateWarning : handleAddWarning} className="rounded-lg bg-[#C58B2A] px-4 py-2 text-sm font-semibold text-black hover:bg-[#A96F1F]">{editingWarningIndex !== null ? 'Update Warning' : 'Add Warning'}</button>{editingWarningIndex !== null && <button type="button" onClick={handleCancelWarningEdit} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">Cancel</button>}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-white/10 px-5 py-4">
+                <button type="button" onClick={() => setEditingSection(null)} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">Done</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
