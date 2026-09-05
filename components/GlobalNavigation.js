@@ -45,6 +45,7 @@ const GlobalNavigation = () => {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [liveTvChromeHidden, setLiveTvChromeHidden] = useState(false);
   
   const pathname = usePathname();
   const router = useRouter();
@@ -163,6 +164,15 @@ const GlobalNavigation = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const handleLiveTvChrome = (event) => {
+      setLiveTvChromeHidden(Boolean(event.detail?.hidden));
+    };
+
+    window.addEventListener('live-tv-chrome', handleLiveTvChrome);
+    return () => window.removeEventListener('live-tv-chrome', handleLiveTvChrome);
+  }, []);
 
   // ============================================
   // NAVIGATION HELPERS
@@ -292,7 +302,7 @@ const GlobalNavigation = () => {
   return (
     <>
       {/* ===== DESKTOP HEADER ===== */}
-      <header className="hidden md:block sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/10">
+      <header className={`hidden md:block sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/10 transition-opacity duration-500 ${liveTvChromeHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
 
@@ -443,7 +453,7 @@ const GlobalNavigation = () => {
       </header>
 
       {/* ===== MOBILE HEADER ===== */}
-      <header className="md:hidden sticky top-0 z-50 bg-black/95 backdrop-blur-sm border-b border-white/10">
+      <header className={`md:hidden sticky top-0 z-50 bg-black/95 backdrop-blur-sm border-b border-white/10 transition-opacity duration-500 ${liveTvChromeHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
 
@@ -547,7 +557,7 @@ const GlobalNavigation = () => {
       </header>
 
       {/* ===== MOBILE BOTTOM TAB ===== */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-white/10 z-40 shadow-2xl">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-white/10 z-40 shadow-2xl transition-opacity duration-500 ${liveTvChromeHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <div className="grid grid-cols-5 items-center py-2 px-1">
           {mobileNavItems.map((item) => {
             const isActive = activeTab === item.id;

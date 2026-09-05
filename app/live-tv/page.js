@@ -15,6 +15,7 @@ export default function LiveTVPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [networkQuality, setNetworkQuality] = useState('good');
   const [videoError, setVideoError] = useState(false);
+  const chromeTimerRef = useRef(null);
   
   const videoRef = useRef(null);
   const iframeRef = useRef(null);
@@ -34,8 +35,70 @@ export default function LiveTVPage() {
     };
     
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.dispatchEvent(new CustomEvent('live-tv-chrome', { detail: { hidden: false } }));
+      if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
+    };
   }, []);
+
+  const setChromeVisibility = (hidden) => {
+    window.dispatchEvent(new CustomEvent('live-tv-chrome', { detail: { hidden } }));
+  };
+
+  const showChromeTemporarily = () => {
+    setChromeVisibility(false);
+    if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
+    if (!videoRef.current?.paused || isYouTube) {
+      chromeTimerRef.current = setTimeout(() => setChromeVisibility(true), 3000);
+    }
+  };
+
+  const handleVideoPlay = () => setChromeVisibility(true);
+  const handleVideoPause = () => {
+    if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
+    setChromeVisibility(false);
+  };
+
+  const handleIframeLoad = () => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }),
+      '*'
+    );
+  };
+
+  useEffect(() => {
+    const handleYouTubeMessage = (event) => {
+      if (!isYouTube || event.source !== iframeRef.current?.contentWindow) return;
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.event === 'onStateChange') {
+          if (data.info === 1) setChromeVisibility(true);
+          if (data.info === 2 || data.info === 0) handleVideoPause();
+        }
+      } catch {
+        // Ignore unrelated postMessage payloads.
+      }
+    };
+
+    window.addEventListener('message', handleYouTubeMessage);
+    return () => window.removeEventListener('message', handleYouTubeMessage);
+  }, [isYouTube]);
+
+  useEffect(() => {
+    const handlePlayerInteraction = (event) => {
+      if (containerRef.current?.contains(event.target)) {
+        showChromeTemporarily();
+      }
+    };
+
+    document.addEventListener('touchstart', handlePlayerInteraction, { passive: true });
+    document.addEventListener('pointerdown', handlePlayerInteraction);
+    return () => {
+      document.removeEventListener('touchstart', handlePlayerInteraction);
+      document.removeEventListener('pointerdown', handlePlayerInteraction);
+    };
+  }, [isYouTube]);
 
   const fetchLiveVideo = async () => {
     try {
@@ -270,6 +333,8 @@ export default function LiveTVPage() {
           {/* Video Player Container */}
           <div 
             ref={containerRef}
+            onClick={showChromeTemporarily}
+            onTouchStart={showChromeTemporarily}
             className="relative bg-black rounded-xl overflow-hidden border border-white/10 shadow-lg mx-auto"
             style={{ maxWidth: '900px' }}
           >
@@ -293,6 +358,7 @@ export default function LiveTVPage() {
                     key={videoUrl} // Force re-render when URL changes
                     ref={iframeRef}
                     src={getYouTubeEmbedUrl(videoUrl)}
+                    onLoad={handleIframeLoad}
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -310,6 +376,8 @@ export default function LiveTVPage() {
                     playsInline
                     volume={volume / 100}
                     onError={handleVideoError}
+                    onPlay={handleVideoPlay}
+                    onPause={handleVideoPause}
                     crossOrigin="anonymous"
                   />
                 )}
