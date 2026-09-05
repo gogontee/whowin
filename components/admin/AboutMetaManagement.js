@@ -320,12 +320,12 @@ export default function AboutMetaManagement() {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4">
-        <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-          <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-burnt-orange-400" />
+          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+          <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-[#C58B2A]" />
           About Page Management
         </h2>
         <p className="text-[10px] sm:text-xs text-white/40 mt-1">
-          Manage content for the About page, Terms, Policy, and more
+          Edit the page content below, then save all changes once.
         </p>
       </div>
 
@@ -359,85 +359,102 @@ export default function AboutMetaManagement() {
       </AnimatePresence>
 
       {/* Form */}
-      <div className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-6 space-y-4">
+      <div className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-6 space-y-6">
         {/* Short Description */}
-        <div>
-          <label className="block text-xs text-white/60 mb-1">Short Description</label>
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">About Page Copy</h3>
+            <p className="text-xs text-white/40 mt-1">Write the short and full descriptions visitors will read.</p>
+          </div>
+          <div>
+          <label className="block text-sm font-medium text-white/70 mb-1">Short Description</label>
           <textarea
             name="short_description"
             value={formData.short_description}
             onChange={handleChange}
             rows="2"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none"
+            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 resize-none focus:border-[#C58B2A] focus:outline-none"
             placeholder="Brief description of the show..."
           />
-        </div>
+          </div>
 
         {/* Full Description */}
         <div>
-          <label className="block text-xs text-white/60 mb-1">Full Description</label>
+          <label className="block text-sm font-medium text-white/70 mb-1">Full Description</label>
           <textarea
             name="full_description"
             value={formData.full_description}
             onChange={handleChange}
             rows="4"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none"
+            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 resize-none focus:border-[#C58B2A] focus:outline-none"
             placeholder="Full description of the show..."
           />
-        </div>
+          </div>
+        </section>
 
         {/* Vision, Mission, Goal */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <section className="space-y-3 border-t border-white/10 pt-5">
           <div>
-            <label className="block text-xs text-white/60 mb-1">Vision</label>
+            <h3 className="text-sm font-semibold text-white">Vision, Mission & Goal</h3>
+            <p className="text-xs text-white/40 mt-1">Keep each statement focused and easy to understand.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-white/70 mb-1">Vision</label>
             <textarea
               name="vision"
               value={formData.vision}
               onChange={handleChange}
               rows="2"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 resize-none focus:border-[#C58B2A] focus:outline-none"
               placeholder="Our vision..."
             />
           </div>
           <div>
-            <label className="block text-xs text-white/60 mb-1">Mission</label>
+            <label className="block text-sm font-medium text-white/70 mb-1">Mission</label>
             <textarea
               name="mission"
               value={formData.mission}
               onChange={handleChange}
               rows="2"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 resize-none focus:border-[#C58B2A] focus:outline-none"
               placeholder="Our mission..."
             />
           </div>
           <div>
-            <label className="block text-xs text-white/60 mb-1">Goal</label>
+            <label className="block text-sm font-medium text-white/70 mb-1">Goal</label>
             <textarea
               name="goal"
               value={formData.goal}
               onChange={handleChange}
               rows="2"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white resize-none"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 resize-none focus:border-[#C58B2A] focus:outline-none"
               placeholder="Our goal..."
             />
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* Theme, Telephone, WhatsApp */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <section className="space-y-3 border-t border-white/10 pt-5">
           <div>
-            <label className="block text-xs text-white/60 mb-1">Theme</label>
+            <h3 className="text-sm font-semibold text-white">Contact & Show Details</h3>
+            <p className="text-xs text-white/40 mt-1">Update the public theme and contact channels.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-white/70 mb-1">Theme</label>
             <input
               type="text"
               name="theme"
               value={formData.theme}
               onChange={handleChange}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none"
               placeholder="e.g., Who Win 2026 - The Ultimate Showdown"
             />
           </div>
           <div>
-            <label className="block text-xs text-white/60 mb-1 flex items-center gap-1">
+            <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
               <Phone className="w-3 h-3" />
               Telephone
             </label>
@@ -446,12 +463,12 @@ export default function AboutMetaManagement() {
               name="telephone"
               value={formData.telephone}
               onChange={handleChange}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none"
               placeholder="+2348012345678"
             />
           </div>
           <div>
-            <label className="block text-xs text-white/60 mb-1 flex items-center gap-1">
+            <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
               <MessageCircle className="w-3 h-3" />
               WhatsApp Line
             </label>
@@ -460,15 +477,16 @@ export default function AboutMetaManagement() {
               name="whatsapp_line"
               value={formData.whatsapp_line}
               onChange={handleChange}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:border-[#C58B2A] focus:outline-none"
               placeholder="+2348012345678"
             />
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* Quick Tips */}
         <div>
-          <label className="block text-xs text-white/60 mb-1 flex items-center gap-1">
+          <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
             <Info className="w-3 h-3 text-green-400" />
             Quick Tips (for homepage)
           </label>
@@ -484,7 +502,7 @@ export default function AboutMetaManagement() {
 
         {/* Policy */}
         <div>
-          <label className="block text-xs text-white/60 mb-1 flex items-center gap-1">
+          <label className="flex items-center gap-1 text-sm font-medium text-white/70 mb-1">
             <File className="w-3 h-3 text-blue-400" />
             Policy
           </label>
