@@ -182,10 +182,10 @@ const GlobalNavigation = () => {
     if (pathname.startsWith('/candidates')) return 'candidates';
     if (pathname.startsWith('/event-gallery')) return 'gallery';
     if (pathname.startsWith('/updates')) return 'updates';
-    if (pathname.startsWith('/vote')) return 'vote';
+    if (pathname.startsWith('/vote')) return 'explore';
     if (pathname.startsWith('/about')) return 'about';
     const usernameMatch = pathname.match(/^\/([^\/]+)$/);
-    if (usernameMatch && !['candidates', 'event-gallery', 'updates', 'vote', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
+    if (usernameMatch && !['candidates', 'event-gallery', 'updates', 'explore', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
       return 'profile';
     }
     return 'home';
@@ -267,7 +267,7 @@ const GlobalNavigation = () => {
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
-    { id: 'vote', label: 'Vote', icon: Flame, href: '/vote' },
+    { id: 'explore', label: 'Explore', icon: Flame, href: '/vote' },
     { id: 'about', label: 'About', icon: Info, href: '/about' },
   ];
 
@@ -277,7 +277,7 @@ const GlobalNavigation = () => {
   const mobileNavItems = [
     { id: 'home', icon: Home, label: 'Home', href: '/' },
     { id: 'updates', icon: Bell, label: 'Updates', href: '/updates' },
-    { id: 'vote', icon: Flame, label: 'Vote', isSpecial: true, href: '/vote' },
+    { id: 'explore', icon: Flame, label: 'Explore', isSpecial: true, href: '/vote' },
     { id: 'gallery', icon: Images, label: 'Gallery', href: '/event-gallery' },
     {
       id: 'profile',
