@@ -709,7 +709,7 @@ export default function ProfileManagement() {
               }`}
             >
               <Vote className="w-3.5 h-3.5" />
-              <span>Off Vote For Visitors {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
+              <span>Vote For Visitors {profiles.length > 0 && profiles.every(p => p.vote_control === true) ? 'ON' : 'OFF'}</span>
             </button>
 
             {/* Global Vote Visibility Toggle */}
@@ -724,7 +724,7 @@ export default function ProfileManagement() {
               }`}
             >
               {voteVisibilityOn ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              <span>Off Vote For Everyone {voteVisibilityOn ? 'ON' : 'OFF'}</span>
+              <span>Vote For Everyone {voteVisibilityOn ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
