@@ -43,6 +43,7 @@ export default function CelebMedia() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const [editingFeaturedItem, setEditingFeaturedItem] = useState(null);
+  const [featuredFileInputRef, setFeaturedFileInputRef] = useState(null);
 
   // State for each column
   const [carousel, setCarousel] = useState([]);
@@ -176,6 +177,29 @@ export default function CelebMedia() {
                    addType === 'featured' ? 'featured' : 
                    'images';
     const url = await uploadFile(file, folder);
+    if (url) {
+      setAddForm({ ...addForm, url: url, file: null });
+    }
+    e.target.value = '';
+  };
+
+  // Handle file selection for Featured Post upload
+  const handleFeaturedFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please select a valid image or video file (JPG, PNG, GIF, WEBP, MP4, WEBM)');
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert('File size should be less than 20MB');
+      return;
+    }
+
+    const url = await uploadFile(file, 'featured');
     if (url) {
       setAddForm({ ...addForm, url: url, file: null });
     }
@@ -1062,8 +1086,8 @@ export default function CelebMedia() {
               </h3>
 
               <div className="space-y-3 sm:space-y-4">
-                {/* File Upload for Hero, Carousel, TV, Gallery, Featured */}
-                {(addType === 'hero' || addType === 'carousel' || addType === 'tv' || addType === 'gallery' || addType === 'featured') && (
+                {/* File Upload for Hero, Carousel, TV, Gallery */}
+                {(addType === 'hero' || addType === 'carousel' || addType === 'tv' || addType === 'gallery') && (
                   <>
                     <div>
                       <label className="block text-xs text-white/60 mb-1">
@@ -1135,6 +1159,61 @@ export default function CelebMedia() {
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
                       />
                     </div>
+                  </>
+                )}
+
+                {/* Featured Post Upload - Direct file upload only, no URL validation */}
+                {addType === 'featured' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">
+                        Upload Image or Video (JPG, PNG, GIF, WEBP, MP4)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          ref={(ref) => setFeaturedFileInputRef(ref)}
+                          onChange={handleFeaturedFileSelect}
+                          accept="image/*,video/*"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => featuredFileInputRef?.click()}
+                          disabled={uploading}
+                          className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 border border-white/10"
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader className="w-4 h-4 animate-spin" />
+                              {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              Choose File
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      {addForm.url && (
+                        <p className="text-[10px] text-green-400 mt-1 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          File uploaded successfully
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Show preview */}
+                    {addForm.url && (
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10">
+                        {addForm.type === 'video' ? (
+                          <video src={addForm.url} className="w-full h-full object-cover" controls />
+                        ) : (
+                          <Image src={addForm.url} alt="Preview" fill className="object-cover" />
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 
