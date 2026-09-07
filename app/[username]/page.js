@@ -952,12 +952,11 @@ export default function ProfilePage() {
       ]
     },
     {
-      title: 'Connect Your Social Media 🌐',
-      description: 'Add your social media links. Telegram is required for verification purposes.',
+      title: 'Connect Your Telegram',
+      description: 'Telegram is required for verification purposes.',
       action: 'social_links',
       tips: [
-        'Telegram is required',
-        'Link all your active social accounts'
+        'Click the button below to add your active telegram phone number'
       ]
     },
     {
