@@ -522,7 +522,7 @@ export default function CelebMedia() {
           )}
 
           {/* Content Display */}
-          <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4">
+          <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4 max-h-[70vh] overflow-y-auto">
             {/* HERO SECTION */}
             {activeSection === 'hero' && (
               <div className="space-y-3 sm:space-y-4">
@@ -539,7 +539,6 @@ export default function CelebMedia() {
                         animate={{ opacity: 1 }}
                         className="relative group bg-white/5 rounded-lg overflow-hidden border border-white/10 aspect-video"
                       >
-                        {/* Same as before... */}
                         {editingId === `hero-${index}` ? (
                           <div className="p-2 space-y-2">
                             <input
@@ -951,7 +950,7 @@ export default function CelebMedia() {
               </div>
             )}
 
-            {/* FEATURED POST SECTION */}
+            {/* FEATURED POST SECTION - WITH SCROLL */}
             {activeSection === 'featured' && (
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
@@ -971,7 +970,7 @@ export default function CelebMedia() {
                 {featuredPost.length === 0 ? (
                   <p className="text-center text-white/40 py-6 sm:py-8 text-xs sm:text-sm">No featured items</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {featuredPost.map((item) => (
                       <motion.div
                         key={item.id}
@@ -1036,7 +1035,7 @@ export default function CelebMedia() {
         </>
       )}
 
-      {/* Add Modal */}
+      {/* Add Modal - With Scroll */}
       <AnimatePresence>
         {showAddModal && (
           <motion.div
@@ -1051,9 +1050,9 @@ export default function CelebMedia() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-md w-full mx-4"
+              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4 sticky top-0 bg-gray-900/95 py-2 -mt-2 z-10">
                 {addType === 'hero' ? 'Add Hero Image' :
                  addType === 'carousel' ? 'Add Carousel Image' : 
                  addType === 'tv' ? 'Add TV Video' :
@@ -1182,7 +1181,7 @@ export default function CelebMedia() {
                   </div>
                 )}
 
-                <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
+                <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 sticky bottom-0 bg-gray-900/95 py-3 -mb-3 border-t border-white/5">
                   <button
                     onClick={() => {
                       if (addType === 'hero') handleAddHeroItem(addForm);
@@ -1217,7 +1216,7 @@ export default function CelebMedia() {
         )}
       </AnimatePresence>
 
-      {/* Edit Featured Modal */}
+      {/* Edit Featured Modal - With Scroll */}
       <AnimatePresence>
         {showEditFeaturedModal && editingFeaturedItem && (
           <motion.div
@@ -1235,9 +1234,11 @@ export default function CelebMedia() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-md w-full mx-4"
+              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-4 sm:p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">Edit Featured Item</h3>
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4 sticky top-0 bg-gray-900/95 py-2 -mt-2 z-10">
+                Edit Featured Item
+              </h3>
 
               <div className="space-y-3 sm:space-y-4">
                 {/* Preview */}
@@ -1287,7 +1288,7 @@ export default function CelebMedia() {
                   </select>
                 </div>
 
-                <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
+                <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 sticky bottom-0 bg-gray-900/95 py-3 -mb-3 border-t border-white/5">
                   <button
                     onClick={handleUpdateFeaturedItem}
                     disabled={updating}
@@ -1332,6 +1333,24 @@ export default function CelebMedia() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(250, 204, 21, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(250, 204, 21, 0.5);
+        }
+      `}</style>
     </div>
   );
 }
