@@ -2074,7 +2074,7 @@ export default function SignupPage() {
               </div>
               
               <h2 className="text-2xl font-bold text-white mb-3">
-                Welcome to WhoWin! 🎉
+                Welcome to Who Wins! 🎉
               </h2>
               
               <p className="text-[#C58B2A] text-base mb-6">
