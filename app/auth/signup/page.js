@@ -1073,11 +1073,11 @@ export default function SignupPage() {
               className="text-center"
             >
               <h2 className="text-xl md:text-2xl font-bold text-[#C58B2A]">
-                {selectedRole === 'candidate' ? 'Create Your Profile' : 'Join as a Fan'}
+                {selectedRole === 'candidate' ? 'FILL YOUR REGISTRATION FORM' : 'Join as a Fan'}
               </h2>
               <p className="text-xs md:text-sm text-white/60">
                 {selectedRole === 'candidate' 
-                  ? 'Carefully fill the form below to create your profile page.'
+                  ? 'Carefully fill the form below to get enrolled.'
                   : 'Support your favorite contestants'}
               </p>
             </motion.div>
