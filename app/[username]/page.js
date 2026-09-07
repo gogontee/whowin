@@ -254,24 +254,46 @@ export default function ProfilePage() {
         telegram: hasTelegram
       };
 
-      const nextStep = !currentStatus.images ? 2
-        : !currentStatus.video ? 3
-        : !currentStatus.bio ? 4
-        : !currentStatus.telegram ? 5
-        : -1;
+      const allCompleted = currentStatus.images && currentStatus.video && currentStatus.bio && currentStatus.telegram;
 
-      if (nextStep === -1) {
+      // Check if this is a first-time user (no images, no video, no bio, no telegram)
+      const isFirstTimeUser = !currentStatus.images && !currentStatus.video && !currentStatus.bio && !currentStatus.telegram;
+
+      // Check if user has seen the welcome steps
+      const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profileData.id}`);
+
+      let nextStep = -1;
+
+      if (allCompleted) {
+        // All steps completed
         if (onboardingCompletionPendingRef.current) {
           onboardingCompletionPendingRef.current = false;
           completionPopupShownRef.current = true;
-          setOnboardingStep(onboardingSteps.length - 1);
-          setShowOnboarding(true);
+          nextStep = onboardingSteps.length - 1;
         } else if (!completionPopupShownRef.current) {
           setShowOnboarding(false);
+          isCheckingOnboardingRef.current = false;
+          return;
         }
-      } else {
+      } else if (isFirstTimeUser && !hasSeenWelcome) {
+        // First-time user - show welcome steps (Step 0 and Step 1)
+        nextStep = 0;
+      } else if (!currentStatus.images) {
+        // User has seen welcome but hasn't uploaded photos
+        nextStep = 2;
+      } else if (!currentStatus.video) {
+        nextStep = 3;
+      } else if (!currentStatus.bio) {
+        nextStep = 4;
+      } else if (!currentStatus.telegram) {
+        nextStep = 5;
+      }
+
+      if (nextStep !== -1) {
         setOnboardingStep(nextStep);
         setShowOnboarding(true);
+      } else {
+        setShowOnboarding(false);
       }
     } finally {
       isCheckingOnboardingRef.current = false;
@@ -326,25 +348,39 @@ export default function ProfilePage() {
 
     setCompletionStatus(status);
 
-    const nextStep = !status.images ? 2
-      : !status.video ? 3
-      : !status.bio ? 4
-      : !status.telegram ? 5
-      : -1;
+    const allCompleted = status.images && status.video && status.bio && status.telegram;
+    const isFirstTimeUser = !status.images && !status.video && !status.bio && !status.telegram;
+    const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profile.id}`);
 
-    setHasSeenOnboarding(false);
-    if (nextStep === -1) {
+    let nextStep = -1;
+
+    if (allCompleted) {
       if (onboardingCompletionPendingRef.current) {
         onboardingCompletionPendingRef.current = false;
         completionPopupShownRef.current = true;
-        setOnboardingStep(onboardingSteps.length - 1);
-        setShowOnboarding(true);
+        nextStep = onboardingSteps.length - 1;
       } else if (!completionPopupShownRef.current) {
         setShowOnboarding(false);
+        return;
       }
-    } else {
+    } else if (isFirstTimeUser && !hasSeenWelcome) {
+      // First-time user - show welcome steps
+      nextStep = 0;
+    } else if (!status.images) {
+      nextStep = 2;
+    } else if (!status.video) {
+      nextStep = 3;
+    } else if (!status.bio) {
+      nextStep = 4;
+    } else if (!status.telegram) {
+      nextStep = 5;
+    }
+
+    if (nextStep !== -1) {
       setOnboardingStep(nextStep);
       setShowOnboarding(true);
+    } else {
+      setShowOnboarding(false);
     }
   }, [isOwner, profile, loading]);
 
@@ -881,8 +917,7 @@ export default function ProfilePage() {
       images: ['/passport1.jpeg', '/passport2.jpg'],
       tips: [
         'Use a clear, well-lit photo',
-        'Face should be clearly visible',
-        'Smile and look approachable'
+        'Face should be clearly visible'
       ]
     },
     {
@@ -1343,13 +1378,13 @@ export default function ProfilePage() {
                   {onboardingSteps.map((_, index) => (
                     <div
                       key={index}
-                      className={`h-1 rounded-full transition-all ${
+                      className={`h-1 rounded-full transition-all ${(
                         index === onboardingStep
                           ? 'w-4 bg-[#C58B2A]'
                           : index < onboardingStep
                           ? 'w-1 bg-[#C58B2A]/30'
                           : 'w-1 bg-white/10'
-                      }`}
+                      )}`}
                     />
                   ))}
                 </div>
