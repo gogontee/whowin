@@ -39,7 +39,11 @@ import {
   Linkedin,
   Send,
   Gift,
-  Star
+  Star,
+  Upload,
+  Film,
+  Link2,
+  CheckCircle
 } from 'lucide-react';
 
 // Import components
@@ -55,6 +59,13 @@ import SettingsModal from '../../components/profile/SettingsModal';
 import VoteModal from '../../components/profile/VoteModal';
 import GiftModal from '../../components/profile/GiftModal';
 import Status from '../../components/profile/Status';
+import AboutMeModal from '../../components/profile/AboutMeModal';
+import SocialLinksModal from '../../components/profile/SocialLinksModal';
+
+const countProfileImages = (imagePosts) => (Array.isArray(imagePosts) ? imagePosts : []).reduce(
+  (count, post) => count + (Array.isArray(post?.media) ? post.media.length : 1),
+  0
+);
 
 export default function ProfilePage() {
   const params = useParams();
@@ -82,13 +93,21 @@ export default function ProfilePage() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showAboutMeModal, setShowAboutMeModal] = useState(false);
+  const [showSocialLinksModal, setShowSocialLinksModal] = useState(false);
   
-  // Onboarding tips state
+  // Onboarding tips state - Progressive
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [galleryImageIndex, setGalleryImageIndex] = useState(0);
-  const [onboardingNeeds, setOnboardingNeeds] = useState({ images: false, video: false });
+  const [photoExampleIndex, setPhotoExampleIndex] = useState(0);
+  const [completionStatus, setCompletionStatus] = useState({
+    images: false,
+    video: false,
+    bio: false,
+    telegram: false
+  });
   
   const [stats, setStats] = useState({
     totalVotes: 0,
@@ -100,6 +119,11 @@ export default function ProfilePage() {
 
   const fetchProfileRef = useRef(false);
   const authCheckRef = useRef(false);
+  const silentRefreshTimerRef = useRef(null);
+  const isCheckingOnboardingRef = useRef(false);
+  const onboardingActionRef = useRef(false);
+  const onboardingCompletionPendingRef = useRef(false);
+  const completionPopupShownRef = useRef(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -127,42 +151,202 @@ export default function ProfilePage() {
   }, [profile]);
 
   // =====================
-  // Check onboarding history and remind owners about missing audition content once per session.
+  // SILENT REFRESH - Check for profile updates without reloading the page
   // =====================
   useEffect(() => {
-    if (!isOwner || !profile || loading) return undefined;
+    if (!isOwner || !profile) return;
 
-    const hasTwoImages = Array.isArray(profile.image_url) && profile.image_url.length >= 2;
-    const hasVideoUrl = Array.isArray(profile.video_url)
-      ? profile.video_url.length > 0
-      : typeof profile.video_url === 'string'
-      ? profile.video_url.trim().length > 0
-      : Boolean(profile.video_url);
-    const hasAuditionVideo = hasVideoUrl || allPosts.some(post => post.type === 'video');
-    const needs = {
-      images: !hasTwoImages,
-      video: !hasAuditionVideo
-    };
-    const hasSeen = localStorage.getItem(`whowin_onboarding_${profile.id}`);
-    const sessionReminderKey = `whowin_onboarding_reminder_${profile.id}`;
-    const reminderShownThisSession = sessionStorage.getItem(sessionReminderKey);
-    const shouldShow = !hasSeen || (needs.images || needs.video) && !reminderShownThisSession;
-
-    setHasSeenOnboarding(Boolean(hasSeen));
-    setOnboardingNeeds(needs);
-
-    if (!shouldShow) {
-      setShowOnboarding(false);
-      return undefined;
+    if (silentRefreshTimerRef.current) {
+      clearInterval(silentRefreshTimerRef.current);
     }
 
-    const timer = setTimeout(() => {
-      sessionStorage.setItem(sessionReminderKey, 'true');
-      setShowOnboarding(true);
-    }, 1500);
+    silentRefreshTimerRef.current = setInterval(() => {
+      silentRefreshProfile();
+    }, 3000);
 
-    return () => clearTimeout(timer);
-  }, [isOwner, profile, loading, allPosts]);
+    return () => {
+      if (silentRefreshTimerRef.current) {
+        clearInterval(silentRefreshTimerRef.current);
+      }
+    };
+  }, [isOwner, profile]);
+
+  // =====================
+  // SILENT REFRESH FUNCTION - Fetches profile without reloading the page
+  // =====================
+  const silentRefreshProfile = async () => {
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .maybeSingle();
+
+      if (error || !profileData) return;
+
+      const hasChanged = 
+        JSON.stringify(profileData.image_url) !== JSON.stringify(profile.image_url) ||
+        JSON.stringify(profileData.video_url) !== JSON.stringify(profile.video_url) ||
+        profileData.bio !== profile.bio ||
+        profileData.telegram !== profile.telegram;
+
+      if (hasChanged) {
+        setProfile(profileData);
+        
+        // Check if there are any image posts (array of post objects)
+        const hasTwoImages = countProfileImages(profileData.image_url) >= 2;
+        const hasVideo = Array.isArray(profileData.video_url) && profileData.video_url.length > 0;
+        const hasBio = profileData.bio && profileData.bio.trim().length > 0;
+        const hasTelegram = profileData.telegram && profileData.telegram.trim().length > 0;
+
+        const newStatus = {
+          images: hasTwoImages,
+          video: hasVideo,
+          bio: hasBio,
+          telegram: hasTelegram
+        };
+
+        setCompletionStatus(newStatus);
+
+        // Update posts - image_url now contains post objects
+        const imagePosts = (profileData.image_url || []).map((post) => ({
+          ...post,
+          type: 'image'
+        }));
+
+        // video_url now contains post objects
+        const videoPosts = (profileData.video_url || []).map((post) => ({
+          ...post,
+          type: 'video'
+        }));
+
+        const combinedPosts = [...imagePosts, ...videoPosts].sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        
+        setAllPosts(combinedPosts);
+        setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
+
+        checkAndTriggerOnboarding(profileData, newStatus);
+      }
+    } catch (error) {
+      console.log('Silent refresh failed:', error.message);
+    }
+  };
+
+  // =====================
+  // CHECK AND TRIGGER ONBOARDING
+  // =====================
+  const checkAndTriggerOnboarding = (profileData, status) => {
+    if (isCheckingOnboardingRef.current) return;
+    isCheckingOnboardingRef.current = true;
+
+    try {
+      const hasTwoImages = status ? status.images : countProfileImages(profileData.image_url) >= 2;
+      const hasVideo = status ? status.video : (Array.isArray(profileData.video_url) && profileData.video_url.length > 0);
+      const hasBio = status ? status.bio : Boolean(profileData.bio?.trim());
+      const hasTelegram = status ? status.telegram : Boolean(profileData.telegram?.trim());
+
+      const currentStatus = {
+        images: hasTwoImages,
+        video: hasVideo,
+        bio: hasBio,
+        telegram: hasTelegram
+      };
+
+      const nextStep = !currentStatus.images ? 2
+        : !currentStatus.video ? 3
+        : !currentStatus.bio ? 4
+        : !currentStatus.telegram ? 5
+        : -1;
+
+      if (nextStep === -1) {
+        if (onboardingCompletionPendingRef.current) {
+          onboardingCompletionPendingRef.current = false;
+          completionPopupShownRef.current = true;
+          setOnboardingStep(onboardingSteps.length - 1);
+          setShowOnboarding(true);
+        } else if (!completionPopupShownRef.current) {
+          setShowOnboarding(false);
+        }
+      } else {
+        setOnboardingStep(nextStep);
+        setShowOnboarding(true);
+      }
+    } finally {
+      isCheckingOnboardingRef.current = false;
+    }
+  };
+
+  // =====================
+  // Auto-rotate photo examples
+  // =====================
+  useEffect(() => {
+    if (!showOnboarding) return;
+    const photoExamples = ['/passport1.jpeg', '/passport2.jpg'];
+    
+    const interval = setInterval(() => {
+      setPhotoExampleIndex(prev => (prev + 1) % photoExamples.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [showOnboarding]);
+
+  // =====================
+  // Auto-rotate gallery images
+  // =====================
+  useEffect(() => {
+    const galleryImages = onboardingSteps[onboardingStep]?.images;
+    if (!showOnboarding || !galleryImages) return;
+
+    const interval = setInterval(() => {
+      setGalleryImageIndex(prev => (prev + 1) % galleryImages.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [showOnboarding, onboardingStep]);
+
+  // =====================
+  // Check completion status and trigger progressive onboarding
+  // =====================
+  useEffect(() => {
+    if (!isOwner || !profile || loading) return;
+
+    const hasTwoImages = countProfileImages(profile.image_url) >= 2;
+    const hasVideo = Array.isArray(profile.video_url) && profile.video_url.length > 0;
+    const hasBio = Boolean(profile.bio?.trim());
+    const hasTelegram = Boolean(profile.telegram?.trim());
+
+    const status = {
+      images: hasTwoImages,
+      video: hasVideo,
+      bio: hasBio,
+      telegram: hasTelegram
+    };
+
+    setCompletionStatus(status);
+
+    const nextStep = !status.images ? 2
+      : !status.video ? 3
+      : !status.bio ? 4
+      : !status.telegram ? 5
+      : -1;
+
+    setHasSeenOnboarding(false);
+    if (nextStep === -1) {
+      if (onboardingCompletionPendingRef.current) {
+        onboardingCompletionPendingRef.current = false;
+        completionPopupShownRef.current = true;
+        setOnboardingStep(onboardingSteps.length - 1);
+        setShowOnboarding(true);
+      } else if (!completionPopupShownRef.current) {
+        setShowOnboarding(false);
+      }
+    } else {
+      setOnboardingStep(nextStep);
+      setShowOnboarding(true);
+    }
+  }, [isOwner, profile, loading]);
 
   // =====================
   // FETCH PROFILE - ALWAYS WORKS
@@ -197,40 +381,61 @@ export default function ProfilePage() {
         profileData.image_url = [];
       }
       
+      if (!profileData.video_url || !Array.isArray(profileData.video_url)) {
+        profileData.video_url = [];
+      }
+      
       setProfile(profileData);
 
+      // image_url now contains post objects with type 'image'
+      const imagePosts = (profileData.image_url || []).map((post) => ({
+        ...post,
+        type: 'image'
+      }));
+
+      // video_url now contains post objects with type 'video'
+      const videoPosts = (profileData.video_url || []).map((post) => ({
+        ...post,
+        type: 'video'
+      }));
+
+      // Combine all posts and sort by created_at
+      const combinedPosts = [...imagePosts, ...videoPosts].sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
+      
+      setAllPosts(combinedPosts);
+      setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
+
+      // Also fetch videos from videos table (for backward compatibility)
       const { data: videos, error: videosError } = await supabase
         .from('videos')
         .select('*')
         .eq('user_id', profileData.id)
         .order('created_at', { ascending: false });
 
-      if (videosError) {
-        console.error('Error fetching videos:', videosError);
+      if (!videosError && videos) {
+        const videoTablePosts = videos.map(video => ({
+          id: video.id,
+          type: 'video',
+          media: [{
+            url: video.url,
+            embedUrl: video.embed_url || video.url,
+            provider: video.provider || 'youtube'
+          }],
+          caption: video.caption || '',
+          created_at: video.created_at,
+          likes: 0,
+          comments: 0,
+          _fromTable: 'videos'
+        }));
+        
+        const allPostsCombined = [...combinedPosts, ...videoTablePosts].sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        setAllPosts(allPostsCombined);
+        setStats(prev => ({ ...prev, totalPosts: allPostsCombined.length }));
       }
-
-      const videoPosts = (videos || []).map(video => ({
-        id: video.id,
-        type: 'video',
-        media: [{
-          url: video.url,
-          embedUrl: video.embed_url || video.url,
-          provider: video.provider || 'youtube'
-        }],
-        caption: video.caption || '',
-        created_at: video.created_at,
-        likes: 0,
-        comments: 0,
-        _fromTable: 'videos'
-      }));
-
-      const images = profileData.image_url || [];
-      const combinedPosts = [...images, ...videoPosts].sort((a, b) => 
-        new Date(b.created_at) - new Date(a.created_at)
-      );
-      
-      setAllPosts(combinedPosts);
-      setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
 
       const { count: followersCount } = await supabase
         .from('followers')
@@ -418,13 +623,11 @@ export default function ProfilePage() {
     }
   };
 
-  const handleImagePost = async (files, caption) => {
+  const handleImagePost = async (files) => {
     if (!files.length || !profile) {
       console.error('No files or profile');
       return;
     }
-
-    console.log('Uploading images:', files.length);
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
@@ -453,23 +656,24 @@ export default function ProfilePage() {
 
       const mediaUrls = await Promise.all(uploadPromises);
 
+      // Create a SINGLE post object with multiple images in media array
       const newPost = {
         id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'image',
         media: mediaUrls,
-        caption: caption || '',
+        caption: '',
         created_at: new Date().toISOString(),
         likes: 0,
         comments: 0
       };
 
-      const currentPosts = profile.image_url || [];
-      const updatedPosts = [newPost, ...currentPosts];
+      const existingImages = profile.image_url || [];
+      const updatedImages = [newPost, ...existingImages];
 
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          image_url: updatedPosts,
+          image_url: updatedImages,
           updated_at: new Date().toISOString()
         })
         .eq('id', profile.id);
@@ -479,12 +683,15 @@ export default function ProfilePage() {
         throw error;
       }
 
-      console.log('Post added successfully');
-
-      setProfile(prev => ({ ...prev, image_url: updatedPosts }));
+      setProfile(prev => ({ ...prev, image_url: updatedImages }));
       setAllPosts(prev => [newPost, ...prev]);
       setStats(prev => ({ ...prev, totalPosts: prev.totalPosts + 1 }));
+      if (onboardingActionRef.current) {
+        onboardingActionRef.current = false;
+        onboardingCompletionPendingRef.current = true;
+      }
       setShowPostModal(false);
+
     } catch (error) {
       console.error('Error uploading post:', error);
       alert('Failed to upload post. Please try again.');
@@ -512,16 +719,17 @@ export default function ProfilePage() {
       }
 
       if (post.type === 'image') {
-        const updatedPosts = (profile.image_url || []).filter(p => p.id !== post.id);
+        const updatedImages = (profile.image_url || []).filter(p => p.id !== post.id);
+        
         await supabase
           .from('profiles')
           .update({ 
-            image_url: updatedPosts,
+            image_url: updatedImages,
             updated_at: new Date().toISOString()
           })
           .eq('id', profile.id);
         
-        setProfile(prev => ({ ...prev, image_url: updatedPosts }));
+        setProfile(prev => ({ ...prev, image_url: updatedImages }));
       }
 
       setAllPosts(prev => prev.filter(p => p.id !== post.id));
@@ -553,22 +761,20 @@ export default function ProfilePage() {
         return;
       }
 
-      let updatedPosts;
-      if (post.type === 'image') {
-        updatedPosts = (profile.image_url || []).map(p => 
-          p.id === postId ? { ...p, caption: newCaption } : p
-        );
-        await supabase
-          .from('profiles')
-          .update({ 
-            image_url: updatedPosts,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', profile.id);
-        
-        setProfile(prev => ({ ...prev, image_url: updatedPosts }));
-      }
+      // Update the post in the image_url array
+      const updatedImages = (profile.image_url || []).map(p => 
+        p.id === postId ? { ...p, caption: newCaption } : p
+      );
 
+      await supabase
+        .from('profiles')
+        .update({ 
+          image_url: updatedImages,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profile.id);
+
+      setProfile(prev => ({ ...prev, image_url: updatedImages }));
       setAllPosts(prev => prev.map(p => 
         p.id === postId ? { ...p, caption: newCaption } : p
       ));
@@ -657,70 +863,70 @@ export default function ProfilePage() {
   };
 
   // =====================
-  // ONBOARDING HANDLERS
+  // PROGRESSIVE ONBOARDING HANDLERS
   // =====================
 
   const onboardingSteps = [
     {
-      title: 'Registration Instructions ✨',
-      description: onboardingNeeds.images && onboardingNeeds.video
-        ? 'Adding your audition video and two clear images to your profile page is required. It determines consideration for your participation, it is compulsory.' 
-        : onboardingNeeds.images
-        ? 'Adding two clear images to your profile page is required.'
-        : onboardingNeeds.video
-        ? 'Adding your audition video to your profile page is required.'
-        : 'To perfect your registration, these are the things you must do next.',
-      tips: onboardingNeeds.images || onboardingNeeds.video
-        ? [
-            onboardingNeeds.images && 'Upload two clear images to your profile page',
-            onboardingNeeds.video && 'Upload your audition video to your profile page'
-          ].filter(Boolean)
-        : [
-            'Complete each step carefully',
-            'Show the best version of you'
-          ]
+      title: 'Next Step ✨',
+      description: 'You will be required to upload an audition video, and two clear studio standard full image photos of yourself.',
+      tips: [
+        'Complete each step carefully',
+        'Show the best version of you'
+      ]
     },
     {
-      title: 'Great First Impression! 📸',
+      title: 'Profile Photo 📸',
       description: 'Your profile photo is the first thing we notice. Make it clear and attractive.',
-      image: '/passport1.jpeg',
-      imageAlt: 'Example profile photo',
+      images: ['/passport1.jpeg', '/passport2.jpg'],
       tips: [
         'Use a clear, well-lit photo',
-        'Face should be clearly visible'
+        'Face should be clearly visible',
+        'Smile and look approachable'
       ]
     },
     {
-      title: 'Build Your Gallery 🖼️',
+      title: 'Upload Your Photos 📸',
       description: 'Kindly upload 2 full clear pictures of yourself. (Only studio standard pictures are acceptable).',
       images: ['/image1.jpeg', '/image2.jpeg'],
-      tips: []
-    },
-    {
-      title: 'Create Your Audition Video 🎬',
-      description: 'Make a video of yourself with a phone not more than 50 seconds on how you can make viewers have fun watching you on TV and on Phone screens. In the video you can TALK or DANCE or ACT or express yourself in anyway possible to convince our panel of screening.'
-      
-    },
-    {
-      title: 'Complete Your Profile ✨',
-      description: 'Click the Settings icon ⚙️ and add your "About Me" section.',
-      action: 'settings',
+      action: 'upload_photos',
       tips: [
-        'Tell us more about yourself'
+        'NOTE: This will determine the consideration for your participation, it is compulsory.',
+        'Upload clear, well-lit photos',
+        'Studio standard pictures only'
       ]
     },
     {
-      title: 'Connect Social Media 🌐',
-      description: 'Add your social media links in Settings.',
-      socialIcons: [Send, Instagram, Twitter, Youtube, Facebook, Linkedin],
+      title: 'Audition Video Needed 🎬',
+      description: 'Make a video of yourself with a phone not more than 50 seconds on how you can make viewers have fun watching you on TV and on Phone screens. In the video you can TALK or DANCE or ACT or express yourself in anyway possible to convince our panel of screening.',
+      action: 'upload_video',
       tips: [
-        'Link all your active social media accounts',
-        'Adding your Telegram link is also important.'
+        'Video must be 50 seconds or less',
+        'Show your personality',
+        'Be creative and entertaining'
       ]
     },
     {
-      title: "You're Ready to Shine! ⭐",
-      description: "Make sure you follow all instructions!",
+      title: 'Tell Us About Yourself ✨',
+      description: 'Click below to tell us more about yourself. Share your story, background, and what makes you unique.',
+      action: 'about_me',
+      tips: [
+        'Share your journey and passion',
+        'Be authentic and genuine'
+      ]
+    },
+    {
+      title: 'Connect Your Social Media 🌐',
+      description: 'Add your social media links. Telegram is required for verification purposes.',
+      action: 'social_links',
+      tips: [
+        'Telegram is required',
+        'Link all your active social accounts'
+      ]
+    },
+    {
+      title: "🎉 Congratulations! You're Ready to Shine! ⭐",
+      description: "You've successfully completed all required steps! Our team will review your application and get back to you soon.",
       isFinal: true,
       tips: [
         'Be yourself and have fun!',
@@ -728,17 +934,6 @@ export default function ProfilePage() {
       ]
     }
   ];
-
-  useEffect(() => {
-    const galleryImages = onboardingSteps[onboardingStep]?.images;
-    if (!showOnboarding || !galleryImages) return;
-
-    const interval = setInterval(() => {
-      setGalleryImageIndex(prev => (prev + 1) % galleryImages.length);
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [showOnboarding, onboardingStep]);
 
   const handleNextOnboarding = () => {
     if (onboardingStep < onboardingSteps.length - 1) {
@@ -757,26 +952,61 @@ export default function ProfilePage() {
     setHasSeenOnboarding(true);
     if (profile?.id) {
       localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
+      localStorage.setItem(`whowin_welcome_seen_${profile.id}`, 'true');
     }
+    const sessionReminderKey = `whowin_onboarding_reminder_${profile?.id}`;
+    sessionStorage.removeItem(sessionReminderKey);
+  };
+
+  const handleFinalStepComplete = () => {
+    setShowOnboarding(false);
+    completionPopupShownRef.current = false;
+    setHasSeenOnboarding(true);
+    if (profile?.id) {
+      localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
+      localStorage.setItem(`whowin_welcome_seen_${profile.id}`, 'true');
+      localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
+    }
+    const sessionReminderKey = `whowin_onboarding_reminder_${profile?.id}`;
+    sessionStorage.removeItem(sessionReminderKey);
   };
 
   const handleOnboardingAction = (action) => {
-    if (action === 'settings' || action === 'video') {
-      setShowOnboarding(false);
-      setHasSeenOnboarding(true);
-      if (profile?.id) {
-        localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
-      }
-      if (action === 'settings') {
-        setShowSettings(true);
-      } else {
+    setShowOnboarding(false);
+    onboardingActionRef.current = true;
+    
+    if (profile?.id) {
+      localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
+      localStorage.setItem(`whowin_welcome_seen_${profile.id}`, 'true');
+    }
+    
+    switch (action) {
+      case 'upload_photos':
+        setShowPostModal(true);
+        break;
+      case 'upload_video':
         setShowVideoModal(true);
-      }
+        break;
+      case 'about_me':
+        setShowAboutMeModal(true);
+        break;
+      case 'social_links':
+        setShowSocialLinksModal(true);
+        break;
+      default:
+        break;
     }
   };
 
   const handleOpenOnboarding = () => {
-    setOnboardingStep(0);
+    let step = 0;
+    if (completionStatus.images) step = 3;
+    if (completionStatus.images && completionStatus.video) step = 4;
+    if (completionStatus.images && completionStatus.video && completionStatus.bio) step = 5;
+    if (completionStatus.images && completionStatus.video && completionStatus.bio && completionStatus.telegram) {
+      step = onboardingSteps.length - 1;
+    }
+    setOnboardingStep(step);
     setGalleryImageIndex(0);
     setShowOnboarding(true);
   };
@@ -828,6 +1058,8 @@ export default function ProfilePage() {
 
   const isFinalStep = onboardingStep === onboardingSteps.length - 1;
   const currentStep = onboardingSteps[onboardingStep];
+
+  const allStepsCompleted = completionStatus.images && completionStatus.video && completionStatus.bio && completionStatus.telegram;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
@@ -885,27 +1117,34 @@ export default function ProfilePage() {
               profile={profile}
             />
           </div>
-          {isOwner && (
+          {isOwner && !allStepsCompleted && (
             <button
               type="button"
               onClick={handleOpenOnboarding}
-              className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/70 hover:text-white transition-colors"
+              className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-[#C58B2A]/20 hover:bg-[#C58B2A]/30 border border-[#C58B2A]/30 rounded-lg text-xs text-[#C58B2A] hover:text-[#D4AF37] transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#C58B2A]" />
-              Tips
+              <Sparkles className="w-3.5 h-3.5" />
+              Complete Steps
+            </button>
+          )}
+          {isOwner && allStepsCompleted && (
+            <button
+              type="button"
+              className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-lg text-xs text-green-400"
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              Complete
             </button>
           )}
         </div>
       </div>
 
-      {/* Status Modal - Only for owner */}
       <Status
         profile={profile}
         isOpen={showStatusModal}
         onClose={() => setShowStatusModal(false)}
       />
 
-      {/* Modals */}
       <AnimatePresence>
         {showSettings && (
           <SettingsModal
@@ -921,7 +1160,9 @@ export default function ProfilePage() {
       <AnimatePresence>
         {showPostModal && (
           <PostModal
-            onClose={() => setShowPostModal(false)}
+            onClose={() => {
+              setShowPostModal(false);
+            }}
             onUpload={handleImagePost}
           />
         )}
@@ -957,9 +1198,15 @@ export default function ProfilePage() {
       <AnimatePresence>
         {showVideoModal && (
           <VideoModal
-            onClose={() => setShowVideoModal(false)}
+            onClose={() => {
+              setShowVideoModal(false);
+            }}
             profileId={profile?.id}
             onVideoAdded={(newVideo) => {
+              if (onboardingActionRef.current) {
+                onboardingActionRef.current = false;
+                onboardingCompletionPendingRef.current = true;
+              }
               const newPost = {
                 id: newVideo.id,
                 type: 'video',
@@ -1013,7 +1260,47 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* Onboarding Tips Modal - Clean & Compact */}
+      <AnimatePresence>
+        {showAboutMeModal && (
+          <AboutMeModal
+            profile={profile}
+            isOpen={showAboutMeModal}
+            onClose={() => {
+              setShowAboutMeModal(false);
+            }}
+            onUpdate={() => {
+              if (onboardingActionRef.current) {
+                onboardingActionRef.current = false;
+                onboardingCompletionPendingRef.current = true;
+              }
+              fetchProfile();
+            }}
+            supabase={supabase}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSocialLinksModal && (
+          <SocialLinksModal
+            profile={profile}
+            isOpen={showSocialLinksModal}
+            onClose={() => {
+              setShowSocialLinksModal(false);
+            }}
+            onUpdate={() => {
+              if (onboardingActionRef.current) {
+                onboardingActionRef.current = false;
+                onboardingCompletionPendingRef.current = true;
+              }
+              fetchProfile();
+            }}
+            supabase={supabase}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Progressive Onboarding Modal */}
       <AnimatePresence>
         {showOnboarding && isOwner && (
           <motion.div
@@ -1030,7 +1317,6 @@ export default function ProfilePage() {
               className="relative bg-gradient-to-br from-gray-900 to-black border border-[#C58B2A]/20 rounded-xl p-5 max-w-sm w-full shadow-2xl shadow-[#C58B2A]/5"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Progress bar - thinner */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 rounded-t-xl overflow-hidden">
                 <motion.div
                   className="h-full bg-gradient-to-r from-[#C58B2A] to-[#A96F1F]"
@@ -1040,18 +1326,18 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Close button - smaller */}
-              <button
-                onClick={handleCloseOnboarding}
-                className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors z-10"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {(currentStep.isFinal || onboardingStep === 0) && (
+                <button
+                  onClick={handleCloseOnboarding}
+                  className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
 
-              {/* Step indicator - compact */}
               <div className="flex items-center justify-between mb-3 mt-1">
                 <span className="text-[10px] text-white/30">
-                  {onboardingStep + 1}/{onboardingSteps.length}
+                  Step {onboardingStep + 1} of {onboardingSteps.length}
                 </span>
                 <div className="flex gap-1">
                   {onboardingSteps.map((_, index) => (
@@ -1069,26 +1355,49 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Content - compact */}
               <div className="space-y-2.5">
-                {/* Title - smaller */}
                 <h2 className="text-base font-bold text-white">
                   {currentStep.title}
                 </h2>
 
-                {/* Images - smaller */}
-                {currentStep.image && (
-                    <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden border border-[#C58B2A]/20 shadow-lg shadow-[#C58B2A]/10">
-                    <Image
-                      src={currentStep.image}
-                      alt={currentStep.imageAlt || 'Example'}
-                      fill
-                      className="object-cover"
-                    />
+                {currentStep.images && onboardingStep === 1 && (
+                  <div className="space-y-2">
+                    <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden border border-[#C58B2A]/20 shadow-lg shadow-[#C58B2A]/10">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={photoExampleIndex}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.5 }}
+                          className="absolute inset-0"
+                        >
+                          <Image
+                            src={currentStep.images[photoExampleIndex]}
+                            alt={`Example ${photoExampleIndex + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex justify-center gap-1.5">
+                      {currentStep.images.map((_, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          aria-label={`Show example ${index + 1}`}
+                          onClick={() => setPhotoExampleIndex(index)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            index === photoExampleIndex ? 'w-4 bg-[#C58B2A]' : 'w-1.5 bg-white/20'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {currentStep.images && (
+                {currentStep.images && onboardingStep === 2 && (
                   <div className="space-y-2">
                     <div className="relative w-32 h-32 mx-auto rounded-md overflow-hidden border border-white/5">
                       <AnimatePresence mode="wait">
@@ -1125,23 +1434,10 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Social icons - smaller */}
-                {currentStep.socialIcons && (
-                  <div className="flex justify-center gap-2">
-                    {currentStep.socialIcons.map((Icon, idx) => (
-                      <div key={idx} className="w-7 h-7 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                        <Icon className="w-3.5 h-3.5 text-white/40" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Description - smaller */}
                 <p className="text-sm font-medium text-white/70 leading-relaxed">
                   {currentStep.description}
                 </p>
 
-                {/* Tips - smaller */}
                 <div className="space-y-1">
                   {(currentStep.tips || []).map((tip, idx) => (
                     <div key={idx} className="flex items-start gap-1.5 text-sm font-medium text-white/60">
@@ -1151,41 +1447,30 @@ export default function ProfilePage() {
                   ))}
                 </div>
 
-                {/* Action buttons - compact */}
                 <div className="flex gap-2 pt-1.5">
-                    {isFinalStep ? (
-                    <>
-                      <button
-                        onClick={() => handleOnboardingAction('settings')}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                        Setup Now
-                      </button>
-                      <button
-                        onClick={handleCloseOnboarding}
-                        className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        Later
-                      </button>
-                    </>
+                  {currentStep.isFinal ? (
+                    <button
+                      onClick={handleFinalStepComplete}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Got It!
+                    </button>
                   ) : currentStep.action ? (
-                    <>
-                      <button
-                        onClick={() => handleOnboardingAction(currentStep.action)}
-                        className="w-full px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        {currentStep.action === 'video' ? 'Upload Video' : 'Open Settings'}
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={handleNextOnboarding}
-                        className="w-full px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        Next
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleOnboardingAction(currentStep.action)}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                    >
+                      {currentStep.action === 'upload_photos' && <Upload className="w-3.5 h-3.5" />}
+                      {currentStep.action === 'upload_video' && <Film className="w-3.5 h-3.5" />}
+                      {currentStep.action === 'about_me' && <User className="w-3.5 h-3.5" />}
+                      {currentStep.action === 'social_links' && <Link2 className="w-3.5 h-3.5" />}
+                      {currentStep.action === 'upload_photos' && 'Upload Photos'}
+                      {currentStep.action === 'upload_video' && 'Upload Video'}
+                      {currentStep.action === 'about_me' && 'Tell Us About You'}
+                      {currentStep.action === 'social_links' && 'Add Social Links'}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   ) : (
                     <button
                       onClick={handleNextOnboarding}
@@ -1197,8 +1482,7 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Previous button - smaller */}
-                {onboardingStep > 0 && !isFinalStep && (
+                {onboardingStep > 0 && !currentStep.action && !currentStep.isFinal && (
                   <button
                     onClick={handlePreviousOnboarding}
                     className="w-full text-[10px] text-white/30 hover:text-white/50 transition-colors"
@@ -1208,7 +1492,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Decorative sparkles - smaller */}
               <div className="absolute -top-1 -right-1 opacity-10">
                 <Sparkles className="w-5 h-5 text-[#C58B2A]" />
               </div>
