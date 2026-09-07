@@ -1158,17 +1158,16 @@ export default function ProfilePage() {
               onClick={handleOpenOnboarding}
               className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-[#C58B2A]/20 hover:bg-[#C58B2A]/30 border border-[#C58B2A]/30 rounded-lg text-xs text-[#C58B2A] hover:text-[#D4AF37] transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              Complete Steps
+              
             </button>
           )}
           {isOwner && allStepsCompleted && (
             <button
               type="button"
-              className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-lg text-xs text-green-400"
+              
             >
-              <CheckCircle className="w-3.5 h-3.5" />
-              Complete
+              
+            
             </button>
           )}
         </div>
