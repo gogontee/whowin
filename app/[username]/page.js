@@ -912,16 +912,16 @@ export default function ProfilePage() {
       ]
     },
     {
-      title: 'Profile Photo 📸',
+      
       description: 'Your profile photo is the first thing we notice. Make it clear and attractive.',
-      images: ['/passport1.jpeg', '/passport2.jpg'],
+      
       tips: [
         'Use a clear, well-lit photo',
         'Face should be clearly visible'
       ]
     },
     {
-      title: 'Upload Your Photos 📸',
+      title: 'Upload Your Full Image',
       description: 'Kindly upload 2 full clear pictures of yourself. (Only studio standard pictures are acceptable).',
       images: ['/image1.jpeg', '/image2.jpeg'],
       action: 'upload_photos',
@@ -932,7 +932,7 @@ export default function ProfilePage() {
       ]
     },
     {
-      title: 'Audition Video Needed 🎬',
+      title: 'Audition Video Needed',
       description: 'Make a video of yourself with a phone not more than 50 seconds on how you can make viewers have fun watching you on TV and on Phone screens. In the video you can TALK or DANCE or ACT or express yourself in anyway possible to convince our panel of screening.',
       action: 'upload_video',
       tips: [
@@ -946,6 +946,7 @@ export default function ProfilePage() {
       description: 'Click below to tell us more about yourself. Share your story, background, and what makes you unique.',
       action: 'about_me',
       tips: [
+        'Have you ever participated in any competition/show? If yes, kindly indicate',
         'Share your journey and passion',
         'Be authentic and genuine'
       ]
