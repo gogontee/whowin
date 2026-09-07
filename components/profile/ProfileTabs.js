@@ -1,7 +1,7 @@
 // /components/profile/ProfileTabs.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { 
@@ -18,7 +18,11 @@ import {
   Music,
   Globe,
   Link as LinkIcon,
-  Settings
+  Settings,
+  Film,
+  Pause,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 export default function ProfileTabs({ 
@@ -31,15 +35,14 @@ export default function ProfileTabs({
   onPostClick,
   onAddPhoto,
   onAddVideo,
-  onSettingsClick, // Add new prop
+  onSettingsClick,
   profile
 }) {
-  // Filter posts based on active tab
   const getFilteredPosts = () => {
     if (activeTab === 'videos') {
       return posts.filter(post => post.type === 'video');
     }
-    return posts; // 'posts' tab shows all posts (images + videos)
+    return posts;
   };
 
   const filteredPosts = getFilteredPosts();
@@ -48,7 +51,6 @@ export default function ProfileTabs({
 
   return (
     <div className="px-4">
-      {/* Tabs - Posts, Videos, About */}
       <div className="flex border-t border-white/10">
         <button
           onClick={() => onTabChange('posts')}
@@ -99,10 +101,8 @@ export default function ProfileTabs({
         </button>
       </div>
 
-      {/* Tab Content */}
       {isAboutTab ? (
         <div className="py-4 space-y-4">
-          {/* About Content */}
           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
             <h3 className="text-sm font-semibold text-white mb-2">
               About {profile?.full_name || 'User'}
@@ -117,7 +117,6 @@ export default function ProfileTabs({
             )}
           </div>
 
-          {/* Social Links - Only if social_control is true */}
           {showSocialIcons && (
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
@@ -211,13 +210,12 @@ export default function ProfileTabs({
                 )}
               </div>
 
-              {/* Website Link */}
               {profile?.website && (
                 <a
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all group border border-white/5 hover:border-[#C58B2A]/30 mt-2"
+                  className="flex items-center gap-3 px-3 py-2.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all group border border-white/5 hover:border-[#C58B2A]/30 mt-2"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#C58B2A]/20 flex items-center justify-center flex-shrink-0">
                     <LinkIcon className="w-4 h-4 text-[#C58B2A]" />
@@ -233,7 +231,6 @@ export default function ProfileTabs({
         </div>
       ) : (
         <>
-          {/* Gallery Grid */}
           <div className="py-4">
             {filteredPosts.length > 0 ? (
               <PostGrid posts={filteredPosts} onPostClick={onPostClick} />
@@ -247,7 +244,6 @@ export default function ProfileTabs({
               />
             )}
 
-            {/* Add Post Buttons for owners with existing posts */}
             {isOwner && filteredPosts.length > 0 && (
               <AddPostButtons 
                 onAddPhoto={onAddPhoto} 
@@ -263,68 +259,256 @@ export default function ProfileTabs({
 }
 
 function PostGrid({ posts, onPostClick }) {
+  // Flatten posts - each media item becomes its own grid item
+  const flattenedPosts = posts.flatMap(post => {
+    if (post.type === 'image' && post.media && post.media.length > 0) {
+      return post.media.map((mediaItem, index) => ({
+        ...post,
+        id: `${post.id}_${index}`, // Unique ID for each image
+        media: [mediaItem], // Each item gets its own media array
+        _originalPost: post, // Keep reference to original
+        _imageIndex: index, // Track which image in the sequence
+        _totalImages: post.media.length // Total images in the post
+      }));
+    }
+    return [post]; // Keep videos and single images as is
+  });
+
   return (
     <div className="grid grid-cols-3 gap-1 md:gap-4">
-      {posts.map((post, index) => (
-        <motion.div
-          key={post.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: index * 0.05 }}
-          className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
-          onClick={() => onPostClick(post)}
-        >
-          {post.type === 'image' ? (
-            <Image
-              src={post.media[0]?.url}
-              alt={`Post ${index + 1}`}
-              fill
-              sizes="(max-width: 768px) 33vw, 300px"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <VideoThumbnail post={post} />
-          )}
-          
-          {/* Video indicator */}
-          {post.type === 'video' && (
-            <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full p-1.5">
-              <Play className="w-3 h-3 text-white" fill="white" />
-            </div>
-          )}
-        </motion.div>
-      ))}
+      {flattenedPosts.map((post, index) => {
+        let postType = post.type || 'image';
+        let mediaUrl = '';
+        
+        if (post.media && Array.isArray(post.media) && post.media.length > 0) {
+          mediaUrl = post.media[0]?.url || post.media[0] || '';
+        }
+        
+        if (!mediaUrl) {
+          return (
+            <motion.div
+              key={post.id || index}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer bg-white/5 flex items-center justify-center"
+              onClick={() => onPostClick(post._originalPost || post)}
+            >
+              <div className="text-white/20 text-sm">No media</div>
+            </motion.div>
+          );
+        }
+
+        return (
+          <motion.div
+            key={post.id || index}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.05 }}
+            className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
+            onClick={() => onPostClick(post._originalPost || post)}
+          >
+            {postType === 'image' ? (
+              <Image
+                src={mediaUrl}
+                alt={`Post ${index + 1}`}
+                fill
+                sizes="(max-width: 768px) 33vw, 300px"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  e.target.src = '/image-placeholder.jpg';
+                }}
+              />
+            ) : (
+              <VideoThumbnail post={post} mediaUrl={mediaUrl} />
+            )}
+            
+            {postType === 'video' && (
+              <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full p-1.5">
+                <Play className="w-3 h-3 text-white" fill="white" />
+              </div>
+            )}
+            
+            {/* Show image counter badge if there are multiple images */}
+            {post._originalPost && post._originalPost.media && post._originalPost.media.length > 1 && (
+              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm rounded-full px-2 py-0.5">
+                <span className="text-[10px] text-white/80">
+                  {post._imageIndex + 1}/{post._totalImages}
+                </span>
+              </div>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
 
-function VideoThumbnail({ post }) {
-  const [imgError, setImgError] = useState(false);
+function VideoThumbnail({ post, mediaUrl }) {
+  const [videoError, setVideoError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const videoRef = useRef(null);
   
-  const getVideoId = (url) => {
-    return url.split('youtu.be/')[1]?.split('?')[0] || 
-           url.split('v=')[1]?.split('&')[0];
-  };
-
-  if (imgError) {
+  let videoUrl = '';
+  if (mediaUrl && typeof mediaUrl === 'string') {
+    videoUrl = mediaUrl;
+  } else if (post.media && Array.isArray(post.media) && post.media.length > 0) {
+    const url = post.media[0]?.url || post.media[0]?.embedUrl || '';
+    if (typeof url === 'string') {
+      videoUrl = url;
+    }
+  }
+  
+  const isValidVideoUrl = videoUrl && typeof videoUrl === 'string' && videoUrl.length > 0;
+  const isYouTube = isValidVideoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
+  
+  // For uploaded videos - use HTML5 video element with controls
+  if (isValidVideoUrl && !isYouTube && !videoError) {
     return (
-      <div className="relative w-full h-full bg-gradient-to-br from-purple-900/50 to-black flex items-center justify-center">
-        <Play className="w-8 h-8 text-white/50" />
+      <div 
+        className="relative w-full h-full bg-gradient-to-br from-[#C58B2A]/20 to-purple-900/30 overflow-hidden group"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          if (videoRef.current && isPlaying) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+          }
+        }}
+      >
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          muted={isMuted}
+          loop
+          playsInline
+          preload="metadata"
+          onError={(e) => {
+            console.error('Video error:', e);
+            setVideoError(true);
+          }}
+          onClick={() => {
+            if (videoRef.current) {
+              if (isPlaying) {
+                videoRef.current.pause();
+              } else {
+                videoRef.current.play();
+              }
+              setIsPlaying(!isPlaying);
+            }
+          }}
+        />
+        
+        {/* Play/Pause Overlay */}
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors cursor-pointer"
+          onClick={() => {
+            if (videoRef.current) {
+              if (isPlaying) {
+                videoRef.current.pause();
+              } else {
+                videoRef.current.play();
+              }
+              setIsPlaying(!isPlaying);
+            }
+          }}
+        >
+          <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center border border-white/30 transition-transform hover:scale-110">
+            {isPlaying ? (
+              <Pause className="w-5 h-5 text-white" />
+            ) : (
+              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+            )}
+          </div>
+        </div>
+
+        {/* Controls - appear on hover */}
+        {isHovered && (
+          <div className="absolute bottom-2 right-2 flex gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (videoRef.current) {
+                  videoRef.current.muted = !isMuted;
+                  setIsMuted(!isMuted);
+                }
+              }}
+              className="p-1.5 bg-black/60 rounded-full hover:bg-black/80 transition-colors"
+            >
+              {isMuted ? (
+                <VolumeX className="w-3 h-3 text-white" />
+              ) : (
+                <Volume2 className="w-3 h-3 text-white" />
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Duration Badge */}
+        <div className="absolute bottom-2 left-2 bg-black/60 rounded-md px-1.5 py-0.5">
+          <span className="text-[10px] text-white/80">Video</span>
+        </div>
       </div>
     );
   }
+  
+  // For YouTube videos
+  if (isYouTube) {
+    const getVideoId = (url) => {
+      if (!url) return null;
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=)([\w-]+)/,
+        /(?:youtu\.be\/)([\w-]+)/,
+        /(?:youtube\.com\/embed\/)([\w-]+)/,
+        /(?:youtube\.com\/shorts\/)([\w-]+)/
+      ];
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    };
 
+    const videoId = getVideoId(videoUrl);
+    
+    if (videoId && !videoError) {
+      return (
+        <div className="relative w-full h-full bg-gradient-to-br from-purple-900/50 to-black">
+          <Image
+            src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+            alt="Video thumbnail"
+            fill
+            sizes="(max-width: 768px) 33vw, 300px"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setVideoError(true)}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+            <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center border border-white/30">
+              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Fallback
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-purple-900/50 to-black">
-      <Image
-        src={`https://img.youtube.com/vi/${getVideoId(post.media[0]?.url)}/maxresdefault.jpg`}
-        alt="Video thumbnail"
-        fill
-        sizes="(max-width: 768px) 33vw, 300px"
-        className="object-cover group-hover:scale-105 transition-transform duration-300"
-        onError={() => setImgError(true)}
-      />
-      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
+    <div className="relative w-full h-full bg-gradient-to-br from-[#C58B2A]/20 to-purple-900/30 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center mx-auto mb-2 border border-white/20">
+          <Film className="w-6 h-6 text-white/60" />
+        </div>
+        <span className="text-[10px] text-white/40">Video</span>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+        <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center border border-white/30">
+          <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+        </div>
+      </div>
     </div>
   );
 }

@@ -35,20 +35,17 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     setSelectedFile(null);
     setVideoPreview(null);
 
-    // Check file type
     if (!file.type.startsWith('video/')) {
       setFileError('Please select a video file');
       return;
     }
 
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       setValidationMessage('Videos exceeding 50MB are not allowed. Please reduce the video size and try again.');
       e.target.value = '';
       return;
     }
 
-    // Check duration
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
@@ -60,7 +57,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
         return;
       }
       
-      // Valid video
       setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setVideoPreview(url);
@@ -77,9 +73,12 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
 
     try {
       const fileExt = selectedFile.name.split('.').pop();
+      // 🗂️ Store in user-specific folder: {userId}/videos/
       const fileName = `${profileId}/videos/${Date.now()}-${Math.random().toString(36).substr(2, 6)}.${fileExt}`;
       
-      // Simulate upload progress
+      console.log('📤 Uploading video to bucket: videos');
+      console.log('📤 File path:', fileName);
+      
       const interval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 95) {
@@ -102,18 +101,26 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
       setUploadProgress(100);
 
       if (uploadError) {
-        console.error('Video upload error:', uploadError);
+        console.error('❌ Video upload error:', uploadError);
         throw new Error(uploadError.message);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('videos')
-        .getPublicUrl(fileName);
+      console.log('✅ Upload successful:', data);
+
+      // 🔥 Use the exact path from the upload response
+      const uploadedPath = data?.path || fileName;
+      
+      // Construct the public URL
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const bucketName = 'videos';
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${uploadedPath}`;
+
+      console.log('📹 Public URL (saving to database):', publicUrl);
 
       return publicUrl;
 
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('❌ Upload error:', error);
       throw error;
     }
   };
@@ -124,62 +131,97 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     setSuccess(false);
     setUploadProgress(0);
 
-    // Device upload submission
-      if (!selectedFile) {
-        setError('Please select a video file to upload');
-        return;
+    if (!selectedFile) {
+      setError('Please select a video file to upload');
+      return;
+    }
+
+    if (!profileId) {
+      setError('User not authenticated. Please log in.');
+      return;
+    }
+
+    setAdding(true);
+
+    try {
+      const publicUrl = await uploadVideoFile();
+
+      if (!publicUrl) {
+        throw new Error('Failed to upload video');
       }
 
-      if (!profileId) {
-        setError('User not authenticated. Please log in.');
-        return;
+      // Create a video post object
+      const newVideoPost = {
+        id: `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'video',
+        media: [{
+          url: publicUrl
+        }],
+        caption: caption || '',
+        created_at: new Date().toISOString(),
+        likes: 0,
+        comments: 0
+      };
+
+      console.log('📹 Saving to profile:', JSON.stringify(newVideoPost, null, 2));
+
+      // Get existing video_url array
+      const { data: profileData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('video_url')
+        .eq('id', profileId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching profile video_url:', fetchError);
       }
 
-      setAdding(true);
-
-      try {
-        // Upload video to storage
-        const publicUrl = await uploadVideoFile();
-
-        if (!publicUrl) {
-          throw new Error('Failed to upload video');
+      let existingVideos = [];
+      if (profileData?.video_url) {
+        if (Array.isArray(profileData.video_url)) {
+          existingVideos = profileData.video_url;
         }
+      }
 
-        // Save video metadata to database
-        const { data, error } = await supabase
-          .from('videos')
-          .insert({
-            user_id: profileId,
-            url: publicUrl,
-            embed_url: publicUrl,
-            caption: caption || '',
-            provider: 'upload'
-          })
-          .select();
+      // Add new video post to the array
+      const updatedVideos = [newVideoPost, ...existingVideos];
 
-        if (error) throw error;
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ 
+          video_url: updatedVideos,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profileId);
 
-        setSuccess(true);
-        setSelectedFile(null);
-        setVideoPreview(null);
-        setCaption('');
-        setUploadProgress(0);
+      if (profileUpdateError) {
+        console.error('Error updating profile video_url:', profileUpdateError);
+        throw new Error('Failed to save video to profile');
+      }
 
-        if (onVideoAdded && data && data[0]) {
-          onVideoAdded(data[0]);
-        }
+      console.log('✅ Video saved to profile successfully!');
 
-        setTimeout(() => {
-          setAdding(false);
-          onClose();
-        }, 1500);
+      setSuccess(true);
+      setSelectedFile(null);
+      setVideoPreview(null);
+      setCaption('');
+      setUploadProgress(0);
 
-      } catch (error) {
-        console.error('Error uploading video:', error);
-        setError(error.message || 'Failed to upload video. Please try again.');
+      if (onVideoAdded) {
+        onVideoAdded(newVideoPost);
+      }
+
+      setTimeout(() => {
         setAdding(false);
-        setUploadProgress(0);
-      }
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      setError(error.message || 'Failed to upload video. Please try again.');
+      setAdding(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleClose = () => {
@@ -214,7 +256,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
         <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-black/50 backdrop-blur-sm">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Video className="w-5 h-5 text-[#D4AF37]" />
-            Add Video
+            Upload Video
           </h2>
           <button
             onClick={handleClose}
@@ -242,98 +284,93 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             </div>
           )}
 
-          {/* Video Upload Section */}
-          <>
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white/80 mb-2">
-                  <Upload className="w-4 h-4 text-[#D4AF37]" />
-                  Upload Video
-                </label>
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-white/80 mb-2">
+              <Upload className="w-4 h-4 text-[#D4AF37]" />
+              Upload Video
+            </label>
+            
+            <div className="flex items-center gap-4">
+              <div 
+                className={`flex-1 p-4 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                  fileError ? 'border-red-500 bg-red-500/10' : 
+                  selectedFile ? 'border-green-500 bg-green-500/10' : 
+                  'border-white/20 hover:border-[#D4AF37] hover:bg-white/5'
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={adding || success}
+                />
                 
-                <div className="flex items-center gap-4">
-                  <div 
-                    className={`flex-1 p-4 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
-                      fileError ? 'border-red-500 bg-red-500/10' : 
-                      selectedFile ? 'border-green-500 bg-green-500/10' : 
-                      'border-white/20 hover:border-[#D4AF37] hover:bg-white/5'
-                    }`}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="video/*"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      disabled={adding || success}
-                    />
-                    
-                    {selectedFile ? (
-                      <div className="space-y-1">
-                        <FileVideo className="w-8 h-8 text-green-400 mx-auto" />
-                        <p className="text-xs text-white/80 font-medium">{selectedFile.name}</p>
-                        <p className="text-[10px] text-white/40">
-                          {formatFileSize(selectedFile.size)}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <Film className="w-8 h-8 text-white/40 mx-auto" />
-                        <p className="text-xs text-white/60">Click to select video</p>
-                        <div className="flex justify-center gap-4 text-[10px] text-white/30">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            60s max
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <HardDrive className="w-3 h-3" />
-                            50MB max
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                {selectedFile ? (
+                  <div className="space-y-1">
+                    <FileVideo className="w-8 h-8 text-green-400 mx-auto" />
+                    <p className="text-xs text-white/80 font-medium">{selectedFile.name}</p>
+                    <p className="text-[10px] text-white/40">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
                   </div>
-                </div>
-
-                {fileError && (
-                  <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {fileError}
-                  </p>
-                )}
-
-                {selectedFile && videoPreview && (
-                  <div className="mt-3 rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                    <video
-                      src={videoPreview}
-                      className="w-full max-h-48 object-contain"
-                      controls
-                      preload="metadata"
-                    />
+                ) : (
+                  <div className="space-y-1">
+                    <Film className="w-8 h-8 text-white/40 mx-auto" />
+                    <p className="text-xs text-white/60">Click to select video</p>
+                    <div className="flex justify-center gap-4 text-[10px] text-white/30">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        60s max
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <HardDrive className="w-3 h-3" />
+                        50MB max
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Upload Progress */}
-              {uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/40">
-                    <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-[#D4AF37] to-yellow-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${uploadProgress}%` }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </div>
-              )}
-          </>
+            {fileError && (
+              <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {fileError}
+              </p>
+            )}
 
-          {/* Caption - Common for both methods */}
+            {selectedFile && videoPreview && (
+              <div className="mt-3 rounded-lg overflow-hidden bg-white/5 border border-white/10">
+                <video
+                  src={videoPreview}
+                  className="w-full max-h-48 object-contain"
+                  controls
+                  preload="metadata"
+                />
+              </div>
+            )}
+          </div>
+
+          {uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-white/40">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-[#D4AF37] to-yellow-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${uploadProgress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-white/80 mb-2">
               Caption <span className="text-white/30 text-xs">(Optional)</span>
@@ -369,7 +406,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             ) : success ? (
               <>
                 <Check className="w-4 h-4" />
-                Added!
+                Uploaded!
               </>
             ) : (
               <>
