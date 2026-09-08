@@ -193,11 +193,12 @@ export default function ProfilePage() {
       if (hasChanged) {
         setProfile(profileData);
         
-        // Check if there are any image posts (array of post objects)
         const hasTwoImages = countProfileImages(profileData.image_url) >= 2;
         const hasVideo = Array.isArray(profileData.video_url) && profileData.video_url.length > 0;
         const hasBio = profileData.bio && profileData.bio.trim().length > 0;
         const hasTelegram = profileData.telegram && profileData.telegram.trim().length > 0;
+
+        console.log('🔍 Silent Refresh - Status:', { hasTwoImages, hasVideo, hasBio, hasTelegram });
 
         const newStatus = {
           images: hasTwoImages,
@@ -208,13 +209,11 @@ export default function ProfilePage() {
 
         setCompletionStatus(newStatus);
 
-        // Update posts - image_url now contains post objects
         const imagePosts = (profileData.image_url || []).map((post) => ({
           ...post,
           type: 'image'
         }));
 
-        // video_url now contains post objects
         const videoPosts = (profileData.video_url || []).map((post) => ({
           ...post,
           type: 'video'
@@ -235,7 +234,7 @@ export default function ProfilePage() {
   };
 
   // =====================
-  // CHECK AND TRIGGER ONBOARDING
+  // CHECK AND TRIGGER ONBOARDING - FIXED
   // =====================
   const checkAndTriggerOnboarding = (profileData, status) => {
     if (isCheckingOnboardingRef.current) return;
@@ -256,30 +255,34 @@ export default function ProfilePage() {
 
       const allCompleted = currentStatus.images && currentStatus.video && currentStatus.bio && currentStatus.telegram;
 
-      // Check if this is a first-time user (no images, no video, no bio, no telegram)
-      const isFirstTimeUser = !currentStatus.images && !currentStatus.video && !currentStatus.bio && !currentStatus.telegram;
+      console.log('🔍 checkAndTriggerOnboarding - allCompleted:', allCompleted);
+      console.log('🔍 checkAndTriggerOnboarding - currentStatus:', currentStatus);
 
-      // Check if user has seen the welcome steps
+      const isFirstTimeUser = !currentStatus.images && !currentStatus.video && !currentStatus.bio && !currentStatus.telegram;
       const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profileData.id}`);
 
       let nextStep = -1;
 
       if (allCompleted) {
-        // All steps completed
-        if (onboardingCompletionPendingRef.current) {
-          onboardingCompletionPendingRef.current = false;
-          completionPopupShownRef.current = true;
+        // ✅ FIX: Check if success popup has already been shown
+        const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profileData.id}`);
+        console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
+        
+        if (!hasSeenSuccess) {
+          console.log('🎉 SUCCESS! Showing success popup!');
           nextStep = onboardingSteps.length - 1;
-        } else if (!completionPopupShownRef.current) {
+          localStorage.setItem(`whowin_success_seen_${profileData.id}`, 'true');
+          setOnboardingStep(nextStep);
+          setShowOnboarding(true);
+        } else {
+          console.log('🔍 Success already seen, not showing');
           setShowOnboarding(false);
           isCheckingOnboardingRef.current = false;
           return;
         }
       } else if (isFirstTimeUser && !hasSeenWelcome) {
-        // First-time user - show welcome steps (Step 0 and Step 1)
         nextStep = 0;
       } else if (!currentStatus.images) {
-        // User has seen welcome but hasn't uploaded photos
         nextStep = 2;
       } else if (!currentStatus.video) {
         nextStep = 3;
@@ -329,7 +332,7 @@ export default function ProfilePage() {
   }, [showOnboarding, onboardingStep]);
 
   // =====================
-  // Check completion status and trigger progressive onboarding
+  // Check completion status and trigger progressive onboarding - FIXED
   // =====================
   useEffect(() => {
     if (!isOwner || !profile || loading) return;
@@ -338,6 +341,8 @@ export default function ProfilePage() {
     const hasVideo = Array.isArray(profile.video_url) && profile.video_url.length > 0;
     const hasBio = Boolean(profile.bio?.trim());
     const hasTelegram = Boolean(profile.telegram?.trim());
+
+    console.log('🔍 Main useEffect - Status:', { hasTwoImages, hasVideo, hasBio, hasTelegram });
 
     const status = {
       images: hasTwoImages,
@@ -352,19 +357,27 @@ export default function ProfilePage() {
     const isFirstTimeUser = !status.images && !status.video && !status.bio && !status.telegram;
     const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profile.id}`);
 
+    console.log('🔍 Main useEffect - allCompleted:', allCompleted);
+
     let nextStep = -1;
 
     if (allCompleted) {
-      if (onboardingCompletionPendingRef.current) {
-        onboardingCompletionPendingRef.current = false;
-        completionPopupShownRef.current = true;
+      // ✅ FIX: Check if success popup has already been shown
+      const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profile.id}`);
+      console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
+      
+      if (!hasSeenSuccess) {
+        console.log('🎉 SUCCESS! Showing success popup from main useEffect!');
         nextStep = onboardingSteps.length - 1;
-      } else if (!completionPopupShownRef.current) {
+        localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
+        setOnboardingStep(nextStep);
+        setShowOnboarding(true);
+      } else {
+        console.log('🔍 Success already seen, not showing');
         setShowOnboarding(false);
         return;
       }
     } else if (isFirstTimeUser && !hasSeenWelcome) {
-      // First-time user - show welcome steps
       nextStep = 0;
     } else if (!status.images) {
       nextStep = 2;
@@ -423,19 +436,16 @@ export default function ProfilePage() {
       
       setProfile(profileData);
 
-      // image_url now contains post objects with type 'image'
       const imagePosts = (profileData.image_url || []).map((post) => ({
         ...post,
         type: 'image'
       }));
 
-      // video_url now contains post objects with type 'video'
       const videoPosts = (profileData.video_url || []).map((post) => ({
         ...post,
         type: 'video'
       }));
 
-      // Combine all posts and sort by created_at
       const combinedPosts = [...imagePosts, ...videoPosts].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
@@ -443,7 +453,6 @@ export default function ProfilePage() {
       setAllPosts(combinedPosts);
       setStats(prev => ({ ...prev, totalPosts: combinedPosts.length }));
 
-      // Also fetch videos from videos table (for backward compatibility)
       const { data: videos, error: videosError } = await supabase
         .from('videos')
         .select('*')
@@ -692,7 +701,6 @@ export default function ProfilePage() {
 
       const mediaUrls = await Promise.all(uploadPromises);
 
-      // Create a SINGLE post object with multiple images in media array
       const newPost = {
         id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'image',
@@ -797,7 +805,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Update the post in the image_url array
       const updatedImages = (profile.image_url || []).map(p => 
         p.id === postId ? { ...p, caption: newCaption } : p
       );

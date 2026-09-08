@@ -245,11 +245,9 @@ export default function SignupPage() {
   const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
   const [showWhatsappNotice, setShowWhatsappNotice] = useState(false);
   const [whatsappNoticeDismissed, setWhatsappNoticeDismissed] = useState(false);
-
-  const dismissWhatsappNotice = () => {
-    setWhatsappNoticeDismissed(true);
-    setShowWhatsappNotice(false);
-  };
+  
+  // Password error alert - simple message below password field
+  const [passwordAlert, setPasswordAlert] = useState('');
   
   // Avatar guidance modal
   const [showAvatarGuidance, setShowAvatarGuidance] = useState(false);
@@ -451,6 +449,73 @@ export default function SignupPage() {
     });
   };
 
+  // Validate password and show alert below input
+  const validatePassword = (password) => {
+    if (password.length === 0) {
+      setPasswordAlert('');
+      return true;
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      setPasswordAlert('Please make sure you add at least one capital letter to your password');
+      return false;
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      setPasswordAlert('Please make sure you add at least one small letter to your password');
+      return false;
+    }
+    
+    if (!/[0-9]/.test(password)) {
+      setPasswordAlert('Please make sure you add at least one numeric to your password');
+      return false;
+    }
+    
+    if (password.length < 8) {
+      setPasswordAlert('Password must be at least 8 characters long');
+      return false;
+    }
+    
+    setPasswordAlert('');
+    return true;
+  };
+
+  // Handle password validation on blur
+  const handlePasswordBlur = (e) => {
+    const password = e.target.value;
+    if (password.length > 0) {
+      validatePassword(password);
+    } else {
+      setPasswordAlert('');
+    }
+  };
+
+  // Handle password change - clear alert when user types
+  const handlePasswordChange = (e) => {
+    const password = e.target.value;
+    setFormData(prev => ({ ...prev, password }));
+    checkPasswordStrength(password);
+    
+    // Clear alert when user types
+    if (passwordAlert) {
+      // Only clear if the issue is fixed
+      if (password.length > 0) {
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const minLength = password.length >= 8;
+        
+        if (hasUpper && hasLower && hasNumber && minLength) {
+          setPasswordAlert('');
+        }
+      }
+    }
+    
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: '' }));
+    }
+  };
+
   // Check username availability
   useEffect(() => {
     let isMounted = true;
@@ -563,6 +628,12 @@ export default function SignupPage() {
     setTimeout(() => setSwitchingRole(false), 300);
   };
 
+  // Handle dismissing WhatsApp notice - FIXED function name
+  const handleDismissWhatsapp = () => {
+    setWhatsappNoticeDismissed(true);
+    setShowWhatsappNotice(false);
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
@@ -615,7 +686,7 @@ export default function SignupPage() {
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (!minLength || !hasLower || !hasUpper || !hasNumber) {
-      newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, and number';
+      newErrors.password = 'Password does not meet requirements';
     }
     
     if (formData.password !== formData.confirmPassword) {
@@ -651,16 +722,6 @@ export default function SignupPage() {
     
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handlePasswordChange = (e) => {
-    const password = e.target.value;
-    setFormData(prev => ({ ...prev, password }));
-    checkPasswordStrength(password);
-    
-    if (errors.password) {
-      setErrors(prev => ({ ...prev, password: '' }));
     }
   };
 
@@ -1528,6 +1589,7 @@ export default function SignupPage() {
                     }`}
                     value={formData.password}
                     onChange={handlePasswordChange}
+                    onBlur={handlePasswordBlur}
                     required
                     disabled={cooldownSeconds > 0}
                   />
@@ -1541,7 +1603,16 @@ export default function SignupPage() {
                     {showPassword ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                   </button>
                 </div>
-                {errors.password && (
+                
+                {/* Password alert message - shown below input */}
+                {passwordAlert && (
+                  <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                    {passwordAlert}
+                  </p>
+                )}
+                
+                {errors.password && !passwordAlert && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                     <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                     {errors.password}
@@ -1820,7 +1891,7 @@ export default function SignupPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.25, ease: 'easeOut' } }}
             className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={dismissWhatsappNotice}
+            onClick={handleDismissWhatsapp}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -1836,7 +1907,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 aria-label="Close Whatsapp warning"
-                onClick={dismissWhatsappNotice}
+                onClick={handleDismissWhatsapp}
                 className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -1856,7 +1927,7 @@ export default function SignupPage() {
               </div>
               <button
                 type="button"
-                onClick={dismissWhatsappNotice}
+                onClick={handleDismissWhatsapp}
                 className="mt-4 w-full rounded-lg bg-[#C58B2A] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#A96F1F]"
               >
                 I Understand
