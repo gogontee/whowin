@@ -952,19 +952,18 @@ export default function ProfilePage() {
       ]
     },
     {
-      title: 'Connect Your Telegram',
-      description: 'Telegram is required for verification purposes.',
+      title: 'Your Telegram Number Needed',
+      description: 'Telegram is required as one of our main means of communicating you and Incase you do not have active telegram account, kindly visit play store or Apple store and download telegram app and sign up then come back and fill in your telegram number.',
       action: 'social_links',
       tips: [
         'Click the button below to add your active telegram phone number'
       ]
     },
     {
-      title: "🎉 Congratulations! You're Ready to Shine! ⭐",
-      description: "You've successfully completed all required steps! Our team will review your application and get back to you soon.",
+      title: "Your Registration Is Successfully Submitted",
+      description: "You have successfully completed your registration, Our screening Department will review your application using your pictures and your audition video in your screening and get back to you via your telegram or WhatsApp, kindly stay tuned as we will communicate you soon.",
       isFinal: true,
       tips: [
-        'Be yourself and have fun!',
         'Wishing you the best of luck!'
       ]
     }
