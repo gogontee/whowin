@@ -895,11 +895,11 @@ export default function ProfilePage() {
   };
 
   const shouldRenderProfileHeader = () => {
-    if (!profile) return false;
-    if (!isOwner) return true;
-    const status = profile.account_status;
-    return status !== 'pending_verification' && status !== 'suspended';
-  };
+  if (!profile) return false;
+  // Only show ProfileHeader if account status is 'active'
+  const status = profile.account_status;
+  return status === 'active';
+};
 
   const handleOpenVoteModal = () => {
     setShowVoteModal(true);
