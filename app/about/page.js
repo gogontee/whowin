@@ -36,7 +36,7 @@ export default function AboutPage() {
 
   // Fallback values
   const FALLBACKS = {
-    full_description: `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.
+    full_description: `Who Wins is Africa's premier reality show where young aspiring creators compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite aspiring creator go head-to-head in the most thrilling entertainment spectacle on the continent.
 
 Now in its 1st season, the show brings together exceptional young people from across Africa into one house life in spotlight. From singers and dancers to comedians and performers, WhoWin provides a platform for raw talent to shine on the biggest stage with millions of viewers across the continent and worldwide.`,
     vision: 'To become Africa\'s most celebrated reality show that discovers and celebrates exceptional talent while creating unforgettable entertainment experiences.',
@@ -253,35 +253,35 @@ Now in its 1st season, the show brings together exceptional young people from ac
     {
       step: 1,
       title: 'Create Account',
-      desc: 'Create your account on WhoWin Portal, add your photos, and complete your profile using the settings button on your page',
+      desc: 'Create your account on Who Wins Website, complete all neccessary requirements in order to be reviewed by Who Wins approval Board',
       icon: UserPlus,
       color: 'from-green-500 to-emerald-500'
     },
     {
       step: 2,
       title: 'Priority Challenge',
-      desc: 'Get active in the Priority Challenge. This challenge determines who will make up the 45 housemates in WhoWin Mansion',
+      desc: 'If approved by the Board, make sure you get active in all Priority Challenges. This challenge determines who will make up the 45 housemates in Who Wins Mansion',
       icon: AlertCircle,
       color: 'from-yellow-500 to-amber-500'
     },
     {
       step: 3,
-      title: 'Top Candidates',
-      desc: 'Top candidates shall be announced on all WhoWin platforms. If you make it to the house, congratulations in advance!',
+      title: 'Emerging Housemates',
+      desc: 'Emerging candidates shall be announced on all Who Wins platforms. Do everything possible to emerge among the 45 Housemate',
       icon: PartyPopper,
       color: 'from-green-500 to-emerald-500'
     },
     {
       step: 4,
       title: 'Live Show',
-      desc: 'The show shall be full of life! The public shall determine who gets evicted and who stays through votes. Get ready for the battle of stars',
+      desc: 'The show shall be full of life! The public shall determine who gets evicted and who stays',
       icon: Tv,
       color: 'from-yellow-500 to-amber-500'
     },
     {
       step: 5,
       title: 'Grand Final',
-      desc: 'One winner shall emerge as the STAR OF AFRICA. You have what it takes, so don\'t dull!',
+      desc: 'One winner shall emerge. You have what it takes, so don\'t dull!',
       icon: Crown,
       color: 'from-green-500 to-emerald-500'
     },
@@ -328,13 +328,13 @@ Now in its 1st season, the show brings together exceptional young people from ac
         >
           <h1 className="text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold mb-2">
             <span className="bg-gradient-to-r from-green-400 to-yellow-400 bg-clip-text text-transparent">
-              WhoWin
+              Who Wins
             </span>
             <br className="sm:hidden" />
-            <span className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl">Reality Show Africa</span>
+            <span className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl">Reality Show</span>
           </h1>
           <p className="text-white/60 text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-4">
-            Africa's biggest talent showcase. Where stars are born and dreams come true.
+            Most exciting showcase. Where stars are born and dreams are fulfilled.
           </p>
         </motion.div>
 
@@ -352,27 +352,6 @@ Now in its 1st season, the show brings together exceptional young people from ac
             <Shield className="w-3 h-3" />
             <span>Terms</span>
           </Link>
-
-          <motion.a
-            href={`https://wa.me/${aboutData.whatsapp_line.replace('+', '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-2 sm:px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-md text-xs font-semibold shadow-lg shadow-green-500/30 flex items-center gap-1 whitespace-nowrap"
-          >
-            <MessageCircle className="w-3 h-3" />
-            <span>WhatsApp</span>
-          </motion.a>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-2 sm:px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-md text-xs font-semibold flex items-center gap-1 hover:bg-white/20 transition-all whitespace-nowrap"
-          >
-            <Download className="w-3 h-3" />
-            <span>Brochure</span>
-          </motion.button>
 
           {tabs.map((tab) => (
             <motion.button
@@ -408,7 +387,7 @@ Now in its 1st season, the show brings together exceptional young people from ac
             {/* About Tab */}
             {activeTab === 'about' && (
               <div className="space-y-4 sm:space-y-6">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-4 sm:mb-6">About WhoWin Africa</h2>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-4 sm:mb-6">About Who Wins Show</h2>
                 <div className="grid md:grid-cols-2 gap-4 sm:gap-8">
                   <div className="space-y-3 sm:space-y-4">
                     <div className="text-sm sm:text-base text-white/80 leading-relaxed whitespace-pre-line">
