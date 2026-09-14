@@ -582,7 +582,7 @@ export default function LoginPage() {
               
               <p className="text-gray-600 text-base mb-6">
                 You've successfully signed in to<br />
-                <span className="font-semibold text-amber-600">WhoWin</span>
+                <span className="font-semibold text-amber-600">Who Wins</span>
               </p>
               
               <div className="space-y-3">

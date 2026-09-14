@@ -1,407 +1,402 @@
-// components/ImageGallery.js
+// components/Catalogue.js
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Search, Heart, MessageCircle, Share2, Download, X, Grid3x3, Grid } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import { supabase } from "../lib/supabase";
+import {
+  Play,
+  X,
+  ImageIcon,
+  Video,
+  Search,
+  Heart,
+  Share2,
+  Download,
+} from 'lucide-react';
 
-const ImageGallery = () => {
-  const [selectedImage, setSelectedImage] = useState(null);
+/* ---------- helpers ---------- */
+
+function getYouTubeId(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace('www.', '').replace('m.', '');
+    if (host === 'youtube.com') {
+      if (u.searchParams.get('v')) return u.searchParams.get('v');
+      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2] || null;
+      if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2] || null;
+      if (u.pathname.startsWith('/live/')) return u.pathname.split('/')[2] || null;
+    }
+    if (host === 'youtu.be') {
+      return u.pathname.replace(/^\//, '').split('/')[0] || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getEmbedUrl(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace('www.', '').replace('m.', '');
+    const ytId = getYouTubeId(url);
+    if (ytId) return `https://www.youtube.com/embed/${ytId}`;
+    if (host === 'vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      if (id) return `https://player.vimeo.com/video/${id}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+function isDirectVideo(url) {
+  if (!url) return false;
+  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+}
+
+function getThumbnail(item) {
+  if (item?.image_url) return item.image_url;
+  const ytId = getYouTubeId(item?.video_url);
+  if (ytId) return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+  return null;
+}
+
+/* ---------- main component ---------- */
+
+export default function Catalogue() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [likedImages, setLikedImages] = useState({});
-  const [mobileView, setMobileView] = useState(false);
-  const [gridView, setGridView] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
+  const [liked, setLiked] = useState({});
 
-  // Check if mobile on mount and resize
+  /* fetch from supabase */
   useEffect(() => {
-    const checkMobile = () => {
-      setMobileView(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error } = await supabase
+        .from('catalogue')
+        .select('*')
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Catalogue fetch error:', error);
+        setError(error.message);
+        setItems([]);
+      } else {
+        setItems(data || []);
+      }
+      setLoading(false);
+    })();
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      cancelled = true;
     };
   }, []);
 
-  // Sample gallery images data
-  const galleryImages = [
-    {
-      id: 1,
-      url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&auto=format&fit=crop',
-      title: 'Grand Opening Night',
-      date: '2024-01-15',
-      housemate: 'Alex Johnson',
-      likes: 245,
-      comments: 42,
-      category: 'event',
-    },
-    {
-      id: 2,
-      url: 'https://images.unsplash.com/photo-1492684223066-e9e3a028a4a3?w-800&auto=format&fit=crop',
-      title: 'Pool Party Moments',
-      date: '2024-01-16',
-      housemate: 'Sarah Miller',
-      likes: 189,
-      comments: 31,
-      category: 'party',
-    },
-    {
-      id: 3,
-      url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
-      title: 'Late Night Conversations',
-      date: '2024-01-17',
-      housemate: 'Michael Chen',
-      likes: 312,
-      comments: 56,
-      category: 'daily',
-    },
-    {
-      id: 4,
-      url: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&auto=format&fit=crop',
-      title: 'Task Challenge Victory',
-      date: '2024-01-18',
-      housemate: 'Emma Wilson',
-      likes: 421,
-      comments: 78,
-      category: 'task',
-    },
-    {
-      id: 5,
-      url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop',
-      title: 'Drama Unfolds',
-      date: '2024-01-19',
-      housemate: 'David Brown',
-      likes: 198,
-      comments: 92,
-      category: 'drama',
-    },
-    {
-      id: 6,
-      url: 'https://images.unsplash.com/photo-1511576661531-b34d7da5d0bb?w=800&auto=format&fit=crop',
-      title: 'Special Guest Appearance',
-      date: '2024-01-20',
-      housemate: 'All',
-      likes: 567,
-      comments: 124,
-      category: 'event',
-    },
-    {
-      id: 7,
-      url: 'https://images.unsplash.com/photo-1492684223066-e9e3a028a4a3?w=800&auto=format&fit=crop',
-      title: 'Kitchen Fun',
-      date: '2024-01-21',
-      housemate: 'Lisa Taylor',
-      likes: 234,
-      comments: 45,
-      category: 'daily',
-    },
-    {
-      id: 8,
-      url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&auto=format&fit=crop',
-      title: 'Nomination Special',
-      date: '2024-01-22',
-      housemate: 'James Wilson',
-      likes: 389,
-      comments: 67,
-      category: 'nomination',
-    },
-  ];
+  /* lock body scroll when lightbox is open */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = lightbox ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [lightbox]);
 
-  // Filter images based on search
-  const filteredImages = galleryImages.filter(image => {
-    const matchesSearch = image.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         image.housemate.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesSearch;
-  });
+  /* ESC closes lightbox */
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => e.key === 'Escape' && setLightbox(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
+
+  /* categories from items */
+  const categories = useMemo(() => {
+    const set = new Set();
+    items.forEach((i) => {
+      const c = (i.category || '').trim();
+      if (c) set.add(c);
+    });
+    return ['All', ...Array.from(set)];
+  }, [items]);
+
+  /* apply category + search filters */
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return items.filter((i) => {
+      const matchCategory =
+        activeCategory === 'All' ||
+        (i.category || '').trim() === activeCategory;
+      const haystack = `${i.caption || ''} ${i.category || ''}`.toLowerCase();
+      const matchSearch = !q || haystack.includes(q);
+      return matchCategory && matchSearch;
+    });
+  }, [items, activeCategory, searchQuery]);
 
   const handleLike = (id, e) => {
-    e.stopPropagation();
-    setLikedImages(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+    e?.stopPropagation();
+    setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleDownload = (url, title, e) => {
-    e.stopPropagation();
-    alert(`Downloading: ${title}`);
+    e?.stopPropagation();
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = title || 'download';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
-  const handleShare = (url, title, e) => {
-    e.stopPropagation();
+  const handleShare = async (url, title, e) => {
+    e?.stopPropagation();
+    if (!url) return;
     if (navigator.share) {
-      navigator.share({
-        title: title,
-        text: `Check out this image from Celebrity Star Africa: ${title}`,
-        url: url,
-      });
+      try {
+        await navigator.share({
+          title,
+          text: `Check this out from Who Wins: ${title}`,
+          url,
+        });
+      } catch {
+        /* user cancelled */
+      }
     } else {
-      navigator.clipboard.writeText(url);
-      alert('Link copied to clipboard!');
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('Link copied to clipboard!');
+      } catch {
+        alert('Unable to share. Copy the link manually.');
+      }
     }
   };
 
-  // Determine grid columns based on view mode
-  const gridColumnsClass = mobileView && gridView 
-    ? 'grid-cols-2' 
-    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  /* ---------- render states ---------- */
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-16 text-red-400 text-sm">
+        Failed to load catalogue: {error}
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white pt-4">
-      {/* Header with Search and Mobile Grid Toggle */}
-      <div className="container mx-auto px-4 mb-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3">
-            {/* Search Bar - Compact on mobile, larger on desktop */}
-            <div className="flex-1">
-              <div className="relative">
-                {/* Background glow - reduced on mobile */}
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-lg blur opacity-10 md:opacity-20"></div>
-                
-                {/* Search input container */}
-                <div className="relative flex items-center bg-black/80 backdrop-blur-sm rounded-lg border border-orange-500/30">
-                  {/* Mobile: smaller icon and padding */}
-                  <div className="md:hidden">
-                    <Search className="w-3.5 h-3.5 text-gray-400 ml-2.5" />
-                  </div>
-                  {/* Desktop: regular icon */}
-                  <div className="hidden md:block">
-                    <Search className="w-4 h-4 text-gray-400 ml-3" />
-                  </div>
-                  
-                  <input
-                    type="text"
-                    placeholder="Search images..."
-                    className="flex-1 bg-transparent border-none outline-none px-3 py-2 text-sm text-white placeholder-gray-400"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="p-1.5 hover:bg-white/10 rounded transition-colors"
-                    >
-                      {/* Mobile: smaller close icon */}
-                      <div className="md:hidden">
-                        <X className="w-2.5 h-2.5 text-gray-400" />
-                      </div>
-                      {/* Desktop: regular close icon */}
-                      <div className="hidden md:block">
-                        <X className="w-3 h-3 text-gray-400" />
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Grid Toggle - Only visible on mobile, small size */}
-            {mobileView && (
+    <div className="w-full">
+      {/* Search bar */}
+      <div className="max-w-4xl mx-auto mb-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-400 rounded-lg blur opacity-10 md:opacity-20" />
+          <div className="relative flex items-center bg-black/80 backdrop-blur-sm rounded-lg border border-orange-500/30">
+            <Search className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 ml-2.5 md:ml-3" />
+            <input
+              type="text"
+              placeholder="Search catalogue..."
+              className="flex-1 bg-transparent border-none outline-none px-3 py-2 text-sm text-white placeholder-gray-400"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
               <button
-                onClick={() => setGridView(!gridView)}
-                className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border transition-all duration-300 ${
-                  gridView 
-                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-orange-500/50' 
-                    : 'bg-black/40 backdrop-blur-sm border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-                }`}
-                aria-label={gridView ? "Switch to default view" : "Switch to grid view"}
+                onClick={() => setSearchQuery('')}
+                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                aria-label="Clear search"
               >
-                {/* Small icons for mobile */}
-                {gridView ? (
-                  <Grid3x3 className="w-4 h-4" />
-                ) : (
-                  <Grid className="w-4 h-4" />
-                )}
+                <X className="w-3 h-3 text-gray-400" />
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Gallery Grid */}
-      <div className="container mx-auto px-4 pb-20">
-        {filteredImages.length > 0 ? (
-          <div className={`grid ${gridColumnsClass} gap-4`}>
-            {filteredImages.map((image) => (
-              <div
-                key={image.id}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 to-black border border-gray-800 hover:border-orange-500/50 transition-all duration-500 hover:-translate-y-0.5 cursor-pointer"
-                onClick={() => setSelectedImage(image)}
-              >
-                {/* Image Container */}
-                <div className="relative aspect-square overflow-hidden">
-                  <Image
-                    src={image.url}
-                    alt={image.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    unoptimized
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  />
-                  
-                  {/* Overlay Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  
-                  {/* Quick Actions */}
-                  <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button
-                      onClick={(e) => handleLike(image.id, e)}
-                      className="p-1.5 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-colors"
-                    >
-                      <Heart 
-                        className={`w-3 h-3 ${likedImages[image.id] ? 'fill-red-500 text-red-500' : 'text-white'}`}
-                      />
-                    </button>
-                  </div>
-                </div>
+      {/* Category pills */}
+      {categories.length > 1 && (
+        <div className="flex flex-wrap gap-2 justify-center mb-6">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition border ${
+                activeCategory === cat
+                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-orange-500/50'
+                  : 'bg-white/5 text-white/70 border-white/10 hover:border-orange-500/50 hover:text-white'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
-                {/* Content */}
-                <div className="p-3">
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-semibold text-sm line-clamp-1">{image.title}</h3>
-                    <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded-full">
-                      {image.category}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center text-xs text-gray-400 mb-2">
-                    <span className="truncate">{image.housemate}</span>
-                    <span className="mx-1">•</span>
-                    <span>{new Date(image.date).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric'
-                    })}</span>
-                  </div>
+      {/* Grid or empty state */}
+      {items.length === 0 ? (
+        <div className="text-center py-16 text-white/40 text-sm">
+          No catalogue items yet.
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-5xl mb-3">📷</div>
+          <h3 className="text-xl font-semibold mb-2">No Items Found</h3>
+          <p className="text-gray-400 text-sm">Try adjusting your search or filter</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {filtered.map((item) => (
+            <CatalogueCard
+              key={item.id}
+              item={item}
+              liked={!!liked[item.id]}
+              onLike={(e) => handleLike(item.id, e)}
+              onShare={(e) => handleShare(item.video_url || item.image_url, item.caption, e)}
+              onDownload={(e) => handleDownload(item.video_url || item.image_url, item.caption, e)}
+              onOpen={() => setLightbox(item)}
+            />
+          ))}
+        </div>
+      )}
 
-                  {/* Stats */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-800">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs">{image.likes + (likedImages[image.id] ? 1 : 0)}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <MessageCircle className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs">{image.comments}</span>
-                      </div>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={(e) => handleDownload(image.url, image.title, e)}
-                        className="p-1 hover:bg-white/10 rounded transition-colors"
-                      >
-                        <Download className="w-3 h-3 text-gray-400" />
-                      </button>
-                      <button
-                        onClick={(e) => handleShare(image.url, image.title, e)}
-                        className="p-1 hover:bg-white/10 rounded transition-colors"
-                      >
-                        <Share2 className="w-3 h-3 text-gray-400" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-3">📷</div>
-            <h3 className="text-xl font-semibold mb-2">No Images Found</h3>
-            <p className="text-gray-400">Try adjusting your search</p>
-          </div>
-        )}
-      </div>
-
-      {/* Image Modal */}
-      {selectedImage && (
-        <div 
+      {/* Lightbox — two-column layout matching ImageGallery */}
+      {lightbox && (
+        <div
           className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
         >
-          <div 
+          <div
             className="relative max-w-4xl max-h-[90vh] w-full bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setLightbox(null)}
               className="absolute top-2 right-2 z-10 p-1.5 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-colors"
+              aria-label="Close"
             >
               <X className="w-4 h-4 text-white" />
             </button>
-            
+
             <div className="grid md:grid-cols-2 h-full">
-              {/* Image Side */}
-              <div className="relative h-64 md:h-auto">
-                <Image
-                  src={selectedImage.url}
-                  alt={selectedImage.title}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
+              {/* Media side */}
+              <div className="relative h-64 md:h-auto bg-black">
+                {lightbox.video_url ? (
+                  isDirectVideo(lightbox.video_url) ? (
+                    <video
+                      src={lightbox.video_url}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <iframe
+                      src={getEmbedUrl(lightbox.video_url)}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      title={lightbox.caption || 'Video'}
+                    />
+                  )
+                ) : lightbox.image_url ? (
+                  <Image
+                    src={lightbox.image_url}
+                    alt={lightbox.caption || 'Catalogue image'}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white/40 text-sm">
+                    No media available
+                  </div>
+                )}
               </div>
-              
-              {/* Details Side */}
+
+              {/* Details side */}
               <div className="p-4 md:p-6 flex flex-col">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold mb-2">{selectedImage.title}</h2>
-                  <div className="flex items-center text-gray-400 mb-3 text-sm">
-                    <span>{new Date(selectedImage.date).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}</span>
-                    <span className="mx-2">•</span>
-                    <span>{selectedImage.housemate}</span>
-                  </div>
-                  <span className="inline-block px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs">
-                    {selectedImage.category}
-                  </span>
+                  <h2 className="text-xl md:text-2xl font-bold mb-2">
+                    {lightbox.caption || 'Catalogue Item'}
+                  </h2>
+                  {lightbox.category && (
+                    <span className="inline-block px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs">
+                      {lightbox.category}
+                    </span>
+                  )}
                 </div>
-                
+
                 <div className="flex-1">
                   <p className="text-gray-300 mb-4 text-sm">
-                    This image captures a special moment from the Celebrity Star Africa house. 
-                    The housemates are seen engaging in {selectedImage.category.toLowerCase()} activities, 
-                    creating memorable experiences for viewers.
+                    {lightbox.description ||
+                      'A memorable moment from the Who Wins archive.'}
                   </p>
                 </div>
-                
-                {/* Stats and Actions */}
+
+                {/* Stats and actions */}
                 <div className="pt-4 border-t border-gray-800">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center space-x-4">
                       <button
-                        onClick={(e) => handleLike(selectedImage.id, e)}
+                        onClick={(e) => handleLike(lightbox.id, e)}
                         className="flex items-center space-x-1.5 hover:text-red-500 transition-colors text-sm"
                       >
-                        <Heart 
-                          className={`w-4 h-4 ${likedImages[selectedImage.id] ? 'fill-red-500 text-red-500' : 'text-gray-400'}`}
+                        <Heart
+                          className={`w-4 h-4 ${
+                            liked[lightbox.id]
+                              ? 'fill-red-500 text-red-500'
+                              : 'text-gray-400'
+                          }`}
                         />
-                        <span>{selectedImage.likes + (likedImages[selectedImage.id] ? 1 : 0)}</span>
+                        <span>{liked[lightbox.id] ? 1 : 0}</span>
                       </button>
-                      <div className="flex items-center space-x-1.5 text-sm">
-                        <MessageCircle className="w-4 h-4 text-gray-400" />
-                        <span>{selectedImage.comments}</span>
-                      </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={(e) => handleDownload(selectedImage.url, selectedImage.title, e)}
-                        className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 rounded-lg font-medium transition-all duration-300 hover:-translate-y-0.5 flex items-center space-x-1.5 text-sm"
+                        onClick={(e) =>
+                          handleDownload(
+                            lightbox.video_url || lightbox.image_url,
+                            lightbox.caption,
+                            e
+                          )
+                        }
+                        className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-400 hover:to-yellow-400 text-black rounded-lg font-medium transition-all duration-300 hover:-translate-y-0.5 flex items-center space-x-1.5 text-sm"
                       >
                         <Download className="w-3 h-3" />
                         <span>Download</span>
                       </button>
                       <button
-                        onClick={(e) => handleShare(selectedImage.url, selectedImage.title, e)}
+                        onClick={(e) =>
+                          handleShare(
+                            lightbox.video_url || lightbox.image_url,
+                            lightbox.caption,
+                            e
+                          )
+                        }
                         className="px-3 py-1.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 rounded-lg font-medium transition-all duration-300 hover:-translate-y-0.5 flex items-center space-x-1.5 text-sm"
                       >
                         <Share2 className="w-3 h-3" />
@@ -417,6 +412,104 @@ const ImageGallery = () => {
       )}
     </div>
   );
-};
+}
 
-export default ImageGallery;
+/* ---------- card ---------- */
+
+function CatalogueCard({ item, liked, onLike, onShare, onDownload, onOpen }) {
+  const hasVideo = Boolean(item.video_url);
+  const thumbnail = getThumbnail(item);
+  const categoryLabel = (item.category || '').trim();
+
+  return (
+    <div
+      className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 to-black border border-gray-800 hover:border-orange-500/50 transition-all duration-500 hover:-translate-y-0.5 cursor-pointer"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
+    >
+      {/* Media */}
+      <div className="relative aspect-square overflow-hidden bg-black/40">
+        {thumbnail ? (
+          <Image
+            src={thumbnail}
+            alt={item.caption || categoryLabel || 'Catalogue item'}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            unoptimized
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-white/30">
+            {hasVideo ? <Video size={28} /> : <ImageIcon size={28} />}
+          </div>
+        )}
+
+        {/* Hover gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Quick actions */}
+        <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button
+            onClick={onLike}
+            className="p-1.5 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-colors"
+            aria-label="Like"
+          >
+            <Heart
+              className={`w-3 h-3 ${
+                liked ? 'fill-red-500 text-red-500' : 'text-white'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Play badge */}
+        {hasVideo && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur flex items-center justify-center border border-white/20 group-hover:bg-orange-500 group-hover:border-orange-500 transition">
+              <Play
+                size={18}
+                className="text-white group-hover:text-black ml-0.5"
+                fill="currentColor"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Category chip */}
+        {categoryLabel && (
+          <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wide bg-black/60 backdrop-blur px-2 py-0.5 rounded-full text-white/80 border border-white/10">
+            {categoryLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Caption */}
+      <div className="p-3">
+        {item.caption && (
+          <h3 className="font-semibold text-sm line-clamp-1 mb-2">
+            {item.caption}
+          </h3>
+        )}
+
+        <div className="flex items-center justify-end space-x-1 pt-2 border-t border-gray-800">
+          <button
+            onClick={onDownload}
+            className="p-1 hover:bg-white/10 rounded transition-colors"
+            aria-label="Download"
+          >
+            <Download className="w-3 h-3 text-gray-400" />
+          </button>
+          <button
+            onClick={onShare}
+            className="p-1 hover:bg-white/10 rounded transition-colors"
+            aria-label="Share"
+          >
+            <Share2 className="w-3 h-3 text-gray-400" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -17,7 +17,8 @@ import {
   LogOut,
   Info,
   Menu,
-  X
+  X,
+  Clapperboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -51,12 +52,11 @@ const GlobalNavigation = () => {
   const router = useRouter();
 
   // ============================================
-  // AUTH STATE - CLEAN & RELIABLE
+  // AUTH STATE
   // ============================================
   useEffect(() => {
     let mounted = true;
 
-    // Helper: Load user profile
     const loadUserProfile = async (user) => {
       if (!user) {
         if (mounted) {
@@ -89,7 +89,6 @@ const GlobalNavigation = () => {
       setUserProfile(profile || null);
     };
 
-    // Initialize auth
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -117,14 +116,10 @@ const GlobalNavigation = () => {
       }
     };
 
-    // Initialize current session
     initializeAuth();
 
-    // Listen for future auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-
-      console.log('🔔 Auth event:', event);
 
       if (event === 'SIGNED_IN' && session?.user) {
         loadUserProfile(session.user);
@@ -158,7 +153,7 @@ const GlobalNavigation = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // <-- EMPTY DEPENDENCY ARRAY - ONLY RUNS ONCE
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -181,11 +176,12 @@ const GlobalNavigation = () => {
     if (pathname === '/') return 'home';
     if (pathname.startsWith('/candidates')) return 'candidates';
     if (pathname.startsWith('/event-gallery')) return 'gallery';
+    if (pathname.startsWith('/previous-seasons')) return 'previous-seasons';
     if (pathname.startsWith('/updates')) return 'updates';
     if (pathname.startsWith('/vote')) return 'explore';
     if (pathname.startsWith('/about')) return 'about';
     const usernameMatch = pathname.match(/^\/([^\/]+)$/);
-    if (usernameMatch && !['candidates', 'event-gallery', 'updates', 'explore', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
+    if (usernameMatch && !['candidates', 'event-gallery', 'previous-seasons', 'updates', 'explore', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
       return 'profile';
     }
     return 'home';
@@ -266,6 +262,7 @@ const GlobalNavigation = () => {
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
+    { id: 'previous-seasons', label: 'Season 1', icon: Clapperboard, href: '/previous-seasons' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
     { id: 'explore', label: 'Explore', icon: Flame, href: '/vote' },
     { id: 'about', label: 'About', icon: Info, href: '/about' },
@@ -292,6 +289,7 @@ const GlobalNavigation = () => {
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
+    { id: 'previous-seasons', label: 'Season 1', icon: Clapperboard, href: '/previous-seasons' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
     { id: 'about', label: 'About', icon: Info, href: '/about' },
   ];
@@ -303,127 +301,144 @@ const GlobalNavigation = () => {
     <>
       {/* ===== DESKTOP HEADER ===== */}
       <header className={`hidden md:block sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/10 transition-opacity duration-500 ${liveTvChromeHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between gap-6">
 
-            {/* Logo Section - Left */}
-            <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
-              <div className="relative group">
-                <div className="h-16 w-auto overflow-hidden flex items-center justify-center">
-                  <Image
-                    src={logoUrl}
-                    alt="WhoWin Logo"
-                    width={64}
-                    height={64}
-                    className="h-full w-auto object-contain"
-                    priority
-                    unoptimized
-                  />
-                </div>
+            {/* LEFT: Logo */}
+            <Link
+              href="/"
+              className="flex items-center shrink-0 hover:opacity-90 transition-opacity"
+            >
+              <div className="h-16 w-auto overflow-hidden flex items-center justify-center">
+                <Image
+                  src={logoUrl}
+                  alt="WhoWin Logo"
+                  width={64}
+                  height={64}
+                  className="h-full w-auto object-contain"
+                  priority
+                  unoptimized
+                />
               </div>
             </Link>
 
-            {/* Desktop Navigation - Center */}
-            <nav className="absolute left-1/2 transform -translate-x-1/2">
-              <div className="flex items-center space-x-1 bg-black/40 backdrop-blur-sm rounded-xl p-1 border border-white/20">
+            {/* CENTER: Nav links */}
+            <nav className="flex-1 flex justify-center min-w-0">
+              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-xl p-1 border border-white/20">
                 {desktopNavItems.map((item) => {
                   const isActive = activeTab === item.id;
                   return (
                     <Link
                       key={item.id}
                       href={item.href}
-                      className={`group relative px-4 py-2.5 rounded-lg transition-all duration-300 ${
+                      className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 whitespace-nowrap ${
                         isActive ? 'bg-white/10' : 'hover:bg-white/10'
                       }`}
                     >
-                      <div className="flex items-center space-x-2">
-                        <item.icon className={`w-4 h-4 transition-colors ${
-                          isActive ? 'text-green-400' : 'text-white/80 group-hover:text-green-400'
-                        }`} />
-                        <span className={`text-sm font-medium ${
-                          isActive ? 'text-white' : 'text-white/90 group-hover:text-white'
-                        }`}>
-                          {item.label}
-                        </span>
-                      </div>
-                      <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full ${
-                        isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                      } transition-opacity duration-300`}></div>
+                      <item.icon
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive
+                            ? 'text-green-400'
+                            : 'text-white/80 group-hover:text-green-400'
+                        }`}
+                      />
+                      <span
+                        className={`text-[13px] font-medium leading-none ${
+                          isActive
+                            ? 'text-white'
+                            : 'text-white/90 group-hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      <span
+                        className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-opacity duration-300 ${
+                          isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                      />
                     </Link>
                   );
                 })}
               </div>
             </nav>
 
-            {/* Right Section - Icons */}
-            <div className="flex items-center space-x-3">
-              {/* Live TV Icon */}
-              <Link href="/live-tv" className="relative group">
-                <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5">
-                  <Tv className="w-5 h-5 text-white" />
-                </div>
+            {/* RIGHT: Actions */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Live TV */}
+              <Link
+                href="/live-tv"
+                className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5"
+                aria-label="Live TV"
+              >
+                <Tv className="w-5 h-5 text-white" />
               </Link>
 
-              {/* Register Button - Only show for non-auth users */}
+              {/* Register Button (guest only) */}
               {!authLoaded ? (
-                <div className="w-20 h-9 bg-white/5 rounded-lg animate-pulse"></div>
+                <div className="w-20 h-9 bg-white/5 rounded-lg animate-pulse" />
               ) : !isLoggedIn ? (
                 <button
                   onClick={handleRegisterClick}
-                  className="relative group"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 border border-green-400/50 shadow-lg transition-all duration-300"
                   onMouseEnter={() => setHoveringRegister(true)}
                   onMouseLeave={() => setHoveringRegister(false)}
                 >
-                  <div className="relative px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 transition-all duration-300 border border-green-400/50 flex items-center space-x-1.5 shadow-lg">
-                    <LogIn className="w-3.5 h-3.5 text-white" />
-                    <span className="text-xs font-semibold text-white">Register</span>
-                  </div>
+                  <LogIn className="w-3.5 h-3.5 text-white" />
+                  <span className="text-xs font-semibold text-white leading-none">
+                    Register
+                  </span>
                 </button>
               ) : null}
 
-              {/* User Auth Button */}
+              {/* User / Profile */}
               <div className="relative">
                 <button
                   onClick={handleUserCircleClick}
-                  className="relative group"
+                  className="relative p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5"
+                  aria-label={isLoggedIn ? "Account menu" : "Login"}
                 >
-                  <div className="p-2.5 rounded-xl bg-white/10 border border-white/20 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-0.5">
-                    {isLoggedIn && userProfile?.avatar_url ? (
-                      <div className="w-5 h-5 rounded-full overflow-hidden">
-                        <Image
-                          src={userProfile.avatar_url}
-                          alt="Profile"
-                          width={20}
-                          height={20}
-                          className="object-cover w-full h-full"
-                          unoptimized
-                        />
-                      </div>
-                    ) : (
-                      <User className="w-5 h-5 text-white" />
-                    )}
-                    {isLoggedIn && (
-                      <Crown className="w-3 h-3 absolute -top-1 -right-1 text-green-400" fill="#22c55e" />
-                    )}
-                  </div>
+                  {isLoggedIn && userProfile?.avatar_url ? (
+                    <div className="w-5 h-5 rounded-full overflow-hidden">
+                      <Image
+                        src={userProfile.avatar_url}
+                        alt="Profile"
+                        width={20}
+                        height={20}
+                        className="object-cover w-full h-full"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <User className="w-5 h-5 text-white" />
+                  )}
+                  {isLoggedIn && (
+                    <Crown
+                      className="w-3 h-3 absolute -top-1 -right-1 text-green-400"
+                      fill="#22c55e"
+                    />
+                  )}
                 </button>
 
-                {/* User Dropdown - Only for auth users */}
+                {/* User Dropdown */}
                 {isLoggedIn && showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl py-2 z-50">
                     <div className="px-4 py-3 border-b border-white/10">
-                      <div className="text-white font-medium">{userProfile?.full_name || 'User'}</div>
-                      <div className="text-xs text-white/60">@{userProfile?.username || 'username'}</div>
+                      <div className="text-white font-medium truncate">
+                        {userProfile?.full_name || 'User'}
+                      </div>
+                      <div className="text-xs text-white/60 truncate">
+                        @{userProfile?.username || 'username'}
+                      </div>
                     </div>
 
                     <button
                       onClick={handleProfileClick}
                       className="w-full px-4 py-3 text-white hover:bg-white/10 text-left text-sm flex items-center gap-3"
                     >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shrink-0">
                         <User className="w-4 h-4 text-white" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium">Your Profile</div>
                         <div className="text-xs text-white/60">View your profile</div>
                       </div>
@@ -436,11 +451,13 @@ const GlobalNavigation = () => {
                         isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shrink-0">
                         <LogOut className="w-4 h-4 text-white" />
                       </div>
-                      <div>
-                        <div className="font-medium">{isLoggingOut ? 'Logging out...' : 'Logout'}</div>
+                      <div className="min-w-0">
+                        <div className="font-medium">
+                          {isLoggingOut ? 'Logging out...' : 'Logout'}
+                        </div>
                         <div className="text-xs text-white/60">Sign out</div>
                       </div>
                     </button>
@@ -668,7 +685,7 @@ const GlobalNavigation = () => {
       {/* Spacer for mobile bottom tab */}
       <div className="md:hidden h-16"></div>
 
-      {/* Mobile User Dropdown - Only for auth users */}
+      {/* Mobile User Dropdown */}
       {isLoggedIn && showUserDropdown && (
         <div className="md:hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={() => setShowUserDropdown(false)}>
           <div className="absolute bottom-24 left-4 right-4 bg-black/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl py-2" onClick={(e) => e.stopPropagation()}>
