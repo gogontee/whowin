@@ -21,12 +21,14 @@ import {
   Upload,
   Layout,
   FileText,
-  Play
+  Play,
+  Clapperboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { createBrowserClient } from '@supabase/ssr';
 import NewsManagement from './NewsManagement';
+import ContentScrollManagement from './ContentScrollManagement';
 
 export default function CelebMedia() {
   const [whoWinData, setWhoWinData] = useState(null);
@@ -488,6 +490,7 @@ export default function CelebMedia() {
     { id: 'gallery', label: 'Gallery', icon: ImageIcon, count: celebGallery.length },
     { id: 'videos', label: 'YouTube', icon: Youtube, count: videos.length },
     { id: 'featured', label: 'Featured', icon: FileText, count: featuredPost.length },
+    { id: 'scroll', label: 'Content Scroll', icon: Clapperboard, count: 0 },
     { id: 'news', label: 'News', icon: Newspaper, count: 0 }
   ];
 
@@ -511,13 +514,15 @@ export default function CelebMedia() {
               activeSection === section.id
                 ? section.id === 'news'
                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                  : 'bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white'
+                  : section.id === 'scroll'
+                    ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                    : 'bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
             }`}
           >
             <section.icon className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">{section.label}</span>
-            {section.id !== 'news' && (
+            {section.id !== 'news' && section.id !== 'scroll' && (
               <span className="text-[8px] sm:text-xs bg-white/20 px-1 py-0.5 rounded-full ml-0.5">
                 {section.count}
               </span>
@@ -526,9 +531,11 @@ export default function CelebMedia() {
         ))}
       </div>
 
-      {/* Conditional rendering - Show NewsManagement when news section is active */}
+      {/* Conditional rendering - Show sub-management components */}
       {activeSection === 'news' ? (
         <NewsManagement />
+      ) : activeSection === 'scroll' ? (
+        <ContentScrollManagement />
       ) : (
         <>
           {/* Add Button - Hide for featured section (uses edit modal instead) */}

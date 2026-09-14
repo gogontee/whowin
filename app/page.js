@@ -9,6 +9,7 @@ import Stats from '../components/Home/Stats';
 import TopCandidates from '../components/Home/TopCandidates';
 import HomeFeaturedPost from '../components/Home/FeaturedPost';
 import FeaturedPost from '../components/FeaturedPost';
+import ContentScroll from '../components/ContentScroll';
 import TopNews from '../components/Home/TopNews';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -252,6 +253,9 @@ export default function HomePage() {
           <div className="w-12 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 mx-auto mt-2 rounded-full"></div>
         </div>
       </div>
+
+      {/* ContentScroll - Infinite horizontal image/video strip */}
+      <ContentScroll />
       
       {/* FeaturedPost from components/FeaturedPost - Always renders */}
       <FeaturedPost />

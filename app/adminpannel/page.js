@@ -14,7 +14,8 @@ import {
   Image as ImageIcon,
   Mail,
   Gift,
-  FileText
+  FileText,
+  Clapperboard
 } from 'lucide-react';
 
 // Import components
@@ -25,6 +26,7 @@ import CelebMedia from '../../components/admin/CelebMedia';
 import MessagePortal from '../../components/MessagePortal';
 import GiftTransactions from '../../components/admin/GiftTransactions';
 import AboutMetaManagement from '../../components/admin/AboutMetaManagement';
+import CatalogueManagement from '../../components/admin/CatalogueManagement';
 
 export default function AdminPanelPage() {
   const router = useRouter();
@@ -284,6 +286,7 @@ export default function AdminPanelPage() {
                    activeTab === 'voters' ? 'View all transactions' : 
                    activeTab === 'gifts' ? 'View all gift transactions' :
                    activeTab === 'media' ? 'Manage celebrity media content' :
+                   activeTab === 'previous-events' ? 'Manage previous events catalogue' :
                    activeTab === 'about' ? 'Manage About page content' :
                    `${unreadMessagesCount} unread messages`}
                 </p>
@@ -349,6 +352,20 @@ export default function AdminPanelPage() {
                 </span>
               </button>
               <button
+                onClick={() => setActiveTab('previous-events')}
+                className={`flex-1 sm:flex-none px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === 'previous-events'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                }`}
+                style={{ minHeight: '48px' }}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Clapperboard className="w-4 h-4" />
+                  Previous Events
+                </span>
+              </button>
+              <button
                 onClick={() => setActiveTab('messages')}
                 className={`flex-1 sm:flex-none px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${
                   activeTab === 'messages'
@@ -401,6 +418,8 @@ export default function AdminPanelPage() {
           <GiftTransactions />
         ) : activeTab === 'media' ? (
           <CelebMedia />
+        ) : activeTab === 'previous-events' ? (
+          <CatalogueManagement />
         ) : activeTab === 'about' ? (
           <AboutMetaManagement />
         ) : (
