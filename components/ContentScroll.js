@@ -208,7 +208,7 @@ export default function ContentScroll() {
             px-4 md:px-6
             select-none
           "
-          style={{ touchAction: 'pan-x' }}
+          style={{ touchAction: 'pan-x pan-y' }}
         >
           {loopItems.map((item, i) => (
             <ContentCard
@@ -357,5 +357,5 @@ function ContentCard({ item, onClick }) {
         </p>
       )}
     </button>
-  );
+  )
 }
