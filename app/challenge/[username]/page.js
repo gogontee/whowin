@@ -24,7 +24,7 @@ import {
   Calendar,
   Star
 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../../lib/supabase';
 
 export default function ChallengePage() {
   const params = useParams();
@@ -38,11 +38,6 @@ export default function ChallengePage() {
   const [copied, setCopied] = useState(false);
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     const fetchData = async () => {

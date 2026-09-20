@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import { 
   ChevronLeft,
   Shield,
@@ -41,11 +41,6 @@ export default function AdminPanelPage() {
   // Refs for silent refresh
   const refreshIntervalRef = useRef(null);
   const isRefreshingRef = useRef(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Check admin status and session on load
   useEffect(() => {

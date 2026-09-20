@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import { 
   ChevronLeft,
   MoreHorizontal,
@@ -124,11 +124,6 @@ export default function ProfilePage() {
   const onboardingActionRef = useRef(false);
   const onboardingCompletionPendingRef = useRef(false);
   const completionPopupShownRef = useRef(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // =====================
   // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!

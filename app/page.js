@@ -11,7 +11,7 @@ import HomeFeaturedPost from '../components/Home/FeaturedPost';
 import FeaturedPost from '../components/FeaturedPost';
 import ContentScroll from '../components/ContentScroll';
 import TopNews from '../components/Home/TopNews';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
   const router = useRouter();
@@ -27,11 +27,6 @@ export default function HomePage() {
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
   const FALLBACK_QUICK_TIPS = 'STRATEGY || ALLIANCE || COMPETITIVENESS';
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     const checkContent = async () => {

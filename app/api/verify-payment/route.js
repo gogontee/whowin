@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Heart, Loader, Check, AlertCircle, CreditCard, DollarSign, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const PaymentIcon = ({ provider }) => {
   switch(provider) {
@@ -41,11 +41,6 @@ export default function VoteModal({
   const currencySelectionRef = useRef(null);
   const proceedButtonRef = useRef(null);
   const scriptLoadedRef = useRef(false); // Prevent multiple script loads
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Paystack public key from env
   const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;

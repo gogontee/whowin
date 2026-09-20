@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import { 
   Eye, 
   EyeOff, 
@@ -300,10 +300,6 @@ export default function SignupPage() {
   const [uploadError, setUploadError] = useState(null);
   const [formInitialized, setFormInitialized] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Auto-rotate example images
   useEffect(() => {

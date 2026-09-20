@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../../lib/supabase';
 import { 
   Eye, 
   EyeOff, 
@@ -36,11 +36,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Cooldown countdown effect
   useEffect(() => {

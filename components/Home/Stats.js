@@ -3,7 +3,7 @@
 
 import { Users, Calendar, Home, Trophy, TrendingUp, Globe, Eye, Target, FileText, Settings, Phone, MessageCircle, Heart, Star, Zap, Coffee, Camera, Music, Award, Clock, DollarSign, Shield } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 // Icon mapping for dynamic icons
 const iconMap = {
@@ -86,11 +86,6 @@ const Stats = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [stats, setStats] = useState(FALLBACK_STATS);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchStats();

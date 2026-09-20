@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Image as ImageIcon, Video, X, Heart, Eye, Calendar, User, Play } from 'lucide-react';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const EventGalleryPage = () => {
   const [activeTab, setActiveTab] = useState('images');
@@ -13,11 +13,6 @@ const EventGalleryPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [liked, setLiked] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     const fetchData = async () => {

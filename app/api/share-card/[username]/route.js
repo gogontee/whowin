@@ -1,18 +1,13 @@
 // app/api/share-card/[username]/route.js
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseServer } from '../../../../lib/supabase-server';
 
 export async function GET(request, { params }) {
   const username = params.username;
-  
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   try {
     // Fetch candidate profile
-    const { data: candidate } = await supabase
+    const { data: candidate } = await supabaseServer
       .from('profiles')
       .select('full_name, username, avatar_url, country')
       .eq('username', username)

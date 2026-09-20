@@ -20,7 +20,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
@@ -31,10 +31,6 @@ export default function ProfileInfo({
 }) {
   const router = useRouter();
   const [liveStats, setLiveStats] = useState(initialStats);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Check if user is admin AND is the page owner
   const isAdminAndOwner = profile?.role === 'admin' && isOwner === true;

@@ -32,7 +32,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 // Gift emoji mapping
 const GIFT_EMOJIS = {
@@ -91,11 +91,6 @@ export default function GiftTransactions() {
   const ITEMS_PER_PAGE = 10;
   const tableRef = useRef(null);
   const statsRef = useRef(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchTransactions();

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Volume2, VolumeX, Maximize2, X, ChevronLeft, ChevronRight, Loader } from "lucide-react";
 import Image from "next/image";
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../lib/supabase';
 
 export default function FeaturedPost() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -41,11 +41,6 @@ export default function FeaturedPost() {
 
   // Fallback video from public folder
   const FALLBACK_VIDEO = ["/video1.mp4"];
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Fetch data from who_win table
   useEffect(() => {

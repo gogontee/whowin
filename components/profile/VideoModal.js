@@ -4,7 +4,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Video, Loader, Check, AlertCircle, Upload, Film, Clock, HardDrive, FileVideo } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function VideoModal({ onClose, profileId, onVideoAdded }) {
   const [caption, setCaption] = useState('');
@@ -17,11 +17,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
   const [fileError, setFileError] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
   const fileInputRef = useRef(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   const MAX_DURATION = 60; // 60 seconds

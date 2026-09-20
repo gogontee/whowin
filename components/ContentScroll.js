@@ -4,12 +4,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Play, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../lib/supabase';
 
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const AUTO_SCROLL_PX_PER_SEC = 24;      // gentle pace
 const RESUME_AFTER_MS        = 5000;    // idle delay before auto-scroll resumes
