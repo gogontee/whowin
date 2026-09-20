@@ -125,6 +125,7 @@ export default function ProfilePage() {
   const onboardingCompletionPendingRef = useRef(false);
   const completionPopupShownRef = useRef(false);
 
+
   // =====================
   // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!
   // =====================
