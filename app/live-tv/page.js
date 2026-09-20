@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, Tv, Maximize, Minimize, Wifi, WifiOff } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function LiveTVPage() {
   const [isMuted, setIsMuted] = useState(false);
@@ -20,11 +20,6 @@ export default function LiveTVPage() {
   const videoRef = useRef(null);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchLiveVideo();

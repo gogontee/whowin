@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, User, Loader, Check, X, AlertCircle, Heart, Edit3, Upload, Gift, Award, Shield } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileBanner({ 
   profile, 
@@ -26,11 +26,6 @@ export default function ProfileBanner({
   const [giftCount, setGiftCount] = useState(0);
   const [loadingStats, setLoadingStats] = useState(false);
   const bannerInputRef = useRef(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Check if stats should be shown
   const shouldShowStats = () => {

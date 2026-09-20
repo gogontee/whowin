@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../../lib/supabase';
 import { 
   ChevronLeft, 
   Users, 
@@ -78,11 +78,6 @@ export default function MyVotersPage() {
     totalGiftAmount: 0,
     uniqueGiftSenders: 0
   });
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     checkUserAndFetchData();

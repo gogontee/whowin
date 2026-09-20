@@ -1,16 +1,10 @@
 // app/challenge/[username]/metadata.js
-import { createClient } from '@supabase/supabase-js';
+import { supabaseServer } from '../../../lib/supabase-server';
 
 export async function generateMetadata({ params }) {
   const username = params.username;
-  
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
-  // Fetch candidate profile
-  const { data: candidate } = await supabase
+  const { data: candidate } = await supabaseServer
     .from('profiles')
     .select('full_name, username, avatar_url, country')
     .eq('username', username)

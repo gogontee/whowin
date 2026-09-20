@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Search, X, ChevronRight, Eye, Calendar, AlertCircle } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function CandidatesPage() {
   const router = useRouter();
@@ -18,11 +18,6 @@ export default function CandidatesPage() {
   const [selectedCountry, setSelectedCountry] = useState('all');
   const [countries, setCountries] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchCandidates();

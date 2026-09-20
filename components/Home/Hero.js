@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const Hero = () => {
   const router = useRouter();
@@ -28,11 +28,6 @@ const Hero = () => {
       image: '/banner3.jpeg'
     }
   ];
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Fetch hero section images from who_win table
   useEffect(() => {
@@ -205,7 +200,7 @@ const Hero = () => {
               onClick={handleRegister}
               className="metallic-green font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm"
             >
-              <span className="text-white font-extrabold">Click here to Register</span>
+              <span className="text-white font-extrabold">Register Now</span>
             </button>
           )}
         </div>
@@ -225,7 +220,7 @@ const Hero = () => {
             onClick={handleRegister}
             className="w-full metallic-green font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
           >
-            <span className="text-white font-extrabold">Click here to Register</span>
+            <span className="text-white font-extrabold">Register Now</span>
           </button>
         )}
       </div>

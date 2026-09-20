@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Shield, Check, AlertCircle, LogIn, UserPlus, ChevronDown, ChevronUp, Info, AlertTriangle, FileText } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const TermsPage = () => {
   const router = useRouter();
@@ -20,11 +20,6 @@ const TermsPage = () => {
   const [expandedWarning, setExpandedWarning] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [contentLoading, setContentLoading] = useState(true);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Check if user is authenticated and get profile
   useEffect(() => {

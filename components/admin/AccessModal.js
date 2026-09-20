@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { KeyRound, LogIn, Loader, Eye, EyeOff } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function AccessModal({ onAccessGranted }) {
   const router = useRouter();
@@ -13,11 +13,6 @@ export default function AccessModal({ onAccessGranted }) {
   const [accessError, setAccessError] = useState('');
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Check if admin access is already stored in session
   useEffect(() => {

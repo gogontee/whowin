@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import NewsManagement from './NewsManagement';
 import ContentScrollManagement from './ContentScrollManagement';
 
@@ -46,6 +46,8 @@ export default function CelebMedia() {
   const fileInputRef = useRef(null);
   const [editingFeaturedItem, setEditingFeaturedItem] = useState(null);
   const [featuredFileInputRef, setFeaturedFileInputRef] = useState(null);
+  // NEW: single hidden input used by all inline edit forms
+  const editFileInputRef = useRef(null);
 
   // State for each column
   const [carousel, setCarousel] = useState([]);
@@ -54,11 +56,6 @@ export default function CelebMedia() {
   const [videos, setVideos] = useState([]);
   const [heroSection, setHeroSection] = useState([]);
   const [featuredPost, setFeaturedPost] = useState([]);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Fetch who_win data
   useEffect(() => {
@@ -78,7 +75,6 @@ export default function CelebMedia() {
 
       setWhoWinData(data);
       
-      // Initialize state with data or empty arrays
       setCarousel(data?.carousel || []);
       setTvVideos(data?.tv || []);
       setCelebGallery(data?.celeb_gallery || []);
@@ -105,7 +101,6 @@ export default function CelebMedia() {
 
       if (error) throw error;
       
-      // Update local state
       if (columnName === 'carousel') setCarousel(newData);
       if (columnName === 'tv') setTvVideos(newData);
       if (columnName === 'celeb_gallery') setCelebGallery(newData);
@@ -133,7 +128,7 @@ export default function CelebMedia() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('who_win_media')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -159,21 +154,25 @@ export default function CelebMedia() {
     }
   };
 
-  // Handle file selection for upload
-  const handleFileSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // Shared validator
+  const validateFile = (file) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
     if (!validTypes.includes(file.type)) {
       alert('Please select a valid image or video file (JPG, PNG, GIF, WEBP, MP4, WEBM)');
-      return;
+      return false;
     }
-
     if (file.size > 20 * 1024 * 1024) {
       alert('File size should be less than 20MB');
-      return;
+      return false;
     }
+    return true;
+  };
+
+  // Handle file selection for upload (Add modal - hero/carousel/tv/gallery)
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateFile(file)) return;
 
     const folder = addType === 'tv' ? 'videos' : 
                    addType === 'featured' ? 'featured' : 
@@ -185,25 +184,35 @@ export default function CelebMedia() {
     e.target.value = '';
   };
 
-  // Handle file selection for Featured Post upload
+  // Handle file selection for Featured Post upload (Add modal)
   const handleFeaturedFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
-    if (!validTypes.includes(file.type)) {
-      alert('Please select a valid image or video file (JPG, PNG, GIF, WEBP, MP4, WEBM)');
-      return;
-    }
-
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File size should be less than 20MB');
-      return;
-    }
+    if (!validateFile(file)) return;
 
     const url = await uploadFile(file, 'featured');
     if (url) {
       setAddForm({ ...addForm, url: url, file: null });
+    }
+    e.target.value = '';
+  };
+
+  // NEW: Upload handler for the INLINE edit forms (hero / carousel / tv / gallery)
+  // Determines the storage folder from `editingId` (e.g. "tv-0", "hero-2", ...)
+  const handleEditInlineUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateFile(file)) return;
+
+    let folder = 'images';
+    if (editingId?.startsWith('tv-')) folder = 'videos';
+    if (editingId?.startsWith('hero-')) folder = 'images';
+    if (editingId?.startsWith('carousel-')) folder = 'images';
+    if (editingId?.startsWith('gallery-')) folder = 'images';
+
+    const url = await uploadFile(file, folder);
+    if (url) {
+      setEditForm(prev => ({ ...prev, url }));
     }
     e.target.value = '';
   };
@@ -241,7 +250,6 @@ export default function CelebMedia() {
   // --- HERO SECTION HANDLERS ---
   const handleAddHeroItem = (itemData) => {
     if (!itemData.url?.trim()) return;
-    
     const newItem = { url: itemData.url.trim() };
     const updatedHero = [...heroSection, newItem];
     saveChanges('hero_section', updatedHero);
@@ -268,7 +276,6 @@ export default function CelebMedia() {
   // --- CAROUSEL HANDLERS ---
   const handleAddCarouselImage = (imageData) => {
     if (!imageData.url?.trim()) return;
-    
     const newImage = { url: imageData.url.trim() };
     const updatedCarousel = [...carousel, newImage];
     saveChanges('carousel', updatedCarousel);
@@ -295,7 +302,6 @@ export default function CelebMedia() {
   // --- TV HANDLERS ---
   const handleAddTvVideo = (videoData) => {
     if (!videoData.url?.trim()) return;
-    
     const newVideo = { url: videoData.url.trim() };
     const updatedTvVideos = [...tvVideos, newVideo];
     saveChanges('tv', updatedTvVideos);
@@ -322,7 +328,6 @@ export default function CelebMedia() {
   // --- GALLERY HANDLERS ---
   const handleAddGalleryImage = (imageData) => {
     if (!imageData.url?.trim()) return;
-    
     const newItem = {
       id: generateId(),
       type: 'image',
@@ -330,7 +335,6 @@ export default function CelebMedia() {
       caption: imageData.caption || '',
       created_at: new Date().toISOString()
     };
-    
     const updatedGallery = [...celebGallery, newItem];
     saveChanges('celeb_gallery', updatedGallery);
     setShowAddModal(false);
@@ -356,13 +360,11 @@ export default function CelebMedia() {
   // --- VIDEO HANDLERS (YouTube) ---
   const handleAddVideo = (videoData) => {
     if (!videoData.url?.trim()) return;
-    
     const processedVideo = processYouTubeUrl(videoData.url.trim());
     if (!processedVideo) {
       alert('Invalid YouTube URL. Please enter a valid YouTube link.');
       return;
     }
-    
     const newItem = {
       id: generateId(),
       type: 'video',
@@ -374,7 +376,6 @@ export default function CelebMedia() {
       caption: videoData.caption || '',
       created_at: new Date().toISOString()
     };
-    
     const updatedVideos = [...videos, newItem];
     saveChanges('video', updatedVideos);
     setShowAddModal(false);
@@ -383,7 +384,6 @@ export default function CelebMedia() {
 
   const handleUpdateVideo = (itemId, updates) => {
     let processedUpdates = { ...updates };
-    
     if (updates.url) {
       const processed = processYouTubeUrl(updates.url);
       if (processed) {
@@ -397,7 +397,6 @@ export default function CelebMedia() {
         return;
       }
     }
-    
     const updatedVideos = videos.map(item => 
       item.id === itemId ? { ...item, ...processedUpdates } : item
     );
@@ -415,19 +414,17 @@ export default function CelebMedia() {
 
   // --- FEATURED POST HANDLERS ---
   const handleAddFeaturedItem = (itemData) => {
-    if (!itemData.media || !itemData.media[0]?.url) {
-      alert('Please provide a valid image or video URL');
+    if (!itemData.url?.trim()) {
+      alert('Please upload a file or enter a URL');
       return;
     }
-
     const newItem = {
       id: generateId(),
       type: itemData.type || 'image',
-      media: [{ url: itemData.media[0].url.trim() }],
+      media: [{ url: itemData.url.trim() }],
       caption: itemData.caption || '',
       created_at: new Date().toISOString()
     };
-    
     const updatedFeatured = [...featuredPost, newItem];
     saveChanges('featured_post', updatedFeatured);
     setShowAddModal(false);
@@ -446,26 +443,35 @@ export default function CelebMedia() {
 
   const handleUpdateFeaturedItem = async () => {
     if (!editingFeaturedItem) return;
-    
     const updatedItem = {
       ...editingFeaturedItem,
       caption: editForm.caption || '',
       media: [{ url: editForm.url || editingFeaturedItem.media[0]?.url }]
     };
-
-    // If URL changed, update the media URL
     if (editForm.url && editForm.url !== editingFeaturedItem.media[0]?.url) {
       updatedItem.media = [{ url: editForm.url }];
     }
-
+    updatedItem.type = editForm.type || updatedItem.type;
     const updatedFeatured = featuredPost.map(item => 
       item.id === editingFeaturedItem.id ? updatedItem : item
     );
-    
     saveChanges('featured_post', updatedFeatured);
     setShowEditFeaturedModal(false);
     setEditingFeaturedItem(null);
     setEditForm({});
+  };
+
+  // NEW: Featured edit-modal upload (from device)
+  const handleFeaturedEditUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateFile(file)) return;
+
+    const url = await uploadFile(file, 'featured');
+    if (url) {
+      setEditForm(prev => ({ ...prev, url }));
+    }
+    e.target.value = '';
   };
 
   const handleDeleteFeaturedItem = (itemId) => {
@@ -572,6 +578,25 @@ export default function CelebMedia() {
                       >
                         {editingId === `hero-${index}` ? (
                           <div className="p-2 space-y-2">
+                            {/* NEW: upload from device */}
+                            <button
+                              type="button"
+                              onClick={() => editFileInputRef.current?.click()}
+                              disabled={uploading}
+                              className="w-full py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-[10px] text-blue-300 font-medium flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                            >
+                              {uploading ? (
+                                <>
+                                  <Loader className="w-3 h-3 animate-spin" />
+                                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  Upload File
+                                </>
+                              )}
+                            </button>
                             <input
                               type="text"
                               value={editForm.url || item.url}
@@ -587,7 +612,7 @@ export default function CelebMedia() {
                                 Save
                               </button>
                               <button
-                                onClick={() => setEditingId(null)}
+                                onClick={() => { setEditingId(null); setEditForm({}); }}
                                 className="flex-1 py-1 bg-red-500/20 text-red-400 rounded text-[10px] font-medium"
                               >
                                 X
@@ -653,6 +678,24 @@ export default function CelebMedia() {
                       >
                         {editingId === `carousel-${index}` ? (
                           <div className="p-2 space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => editFileInputRef.current?.click()}
+                              disabled={uploading}
+                              className="w-full py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-[10px] text-blue-300 font-medium flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                            >
+                              {uploading ? (
+                                <>
+                                  <Loader className="w-3 h-3 animate-spin" />
+                                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  Upload File
+                                </>
+                              )}
+                            </button>
                             <input
                               type="text"
                               value={editForm.url || item.url}
@@ -668,7 +711,7 @@ export default function CelebMedia() {
                                 Save
                               </button>
                               <button
-                                onClick={() => setEditingId(null)}
+                                onClick={() => { setEditingId(null); setEditForm({}); }}
                                 className="flex-1 py-1 bg-red-500/20 text-red-400 rounded text-[10px] font-medium"
                               >
                                 X
@@ -734,6 +777,24 @@ export default function CelebMedia() {
                       >
                         {editingId === `tv-${index}` ? (
                           <div className="p-2 space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => editFileInputRef.current?.click()}
+                              disabled={uploading}
+                              className="w-full py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-xs text-blue-300 font-medium flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                            >
+                              {uploading ? (
+                                <>
+                                  <Loader className="w-3 h-3 animate-spin" />
+                                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  Upload File
+                                </>
+                              )}
+                            </button>
                             <input
                               type="text"
                               value={editForm.url || item.url}
@@ -749,7 +810,7 @@ export default function CelebMedia() {
                                 Save
                               </button>
                               <button
-                                onClick={() => setEditingId(null)}
+                                onClick={() => { setEditingId(null); setEditForm({}); }}
                                 className="flex-1 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium"
                               >
                                 Cancel
@@ -808,14 +869,33 @@ export default function CelebMedia() {
                           <div className="p-2 space-y-2">
                             <input
                               type="text"
-                              value={editForm.caption || item.caption}
-                              onChange={(e) => setEditForm({ caption: e.target.value })}
+                              value={editForm.caption ?? item.caption}
+                              onChange={(e) => setEditForm({ ...editForm, caption: e.target.value })}
                               className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-[10px] text-white"
                               placeholder="Caption"
                             />
+                            {/* NEW: upload from device */}
+                            <button
+                              type="button"
+                              onClick={() => editFileInputRef.current?.click()}
+                              disabled={uploading}
+                              className="w-full py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded text-[10px] text-blue-300 font-medium flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                            >
+                              {uploading ? (
+                                <>
+                                  <Loader className="w-3 h-3 animate-spin" />
+                                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  Upload File
+                                </>
+                              )}
+                            </button>
                             <input
                               type="text"
-                              value={editForm.url || item.media[0]?.url || ''}
+                              value={editForm.url ?? item.media[0]?.url ?? ''}
                               onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
                               className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-[10px] text-white"
                               placeholder="Image URL"
@@ -835,7 +915,7 @@ export default function CelebMedia() {
                                 Save
                               </button>
                               <button
-                                onClick={() => setEditingId(null)}
+                                onClick={() => { setEditingId(null); setEditForm({}); }}
                                 className="flex-1 py-1 bg-red-500/20 text-red-400 rounded text-[10px] font-medium"
                               >
                                 X
@@ -929,7 +1009,7 @@ export default function CelebMedia() {
                                 Save
                               </button>
                               <button
-                                onClick={() => setEditingId(null)}
+                                onClick={() => { setEditingId(null); setEditForm({}); }}
                                 className="flex-1 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium"
                               >
                                 Cancel
@@ -981,7 +1061,7 @@ export default function CelebMedia() {
               </div>
             )}
 
-            {/* FEATURED POST SECTION - WITH SCROLL */}
+            {/* FEATURED POST SECTION */}
             {activeSection === 'featured' && (
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
@@ -1009,7 +1089,6 @@ export default function CelebMedia() {
                         animate={{ opacity: 1 }}
                         className="bg-white/5 rounded-lg border border-white/10 p-3 flex items-center gap-3 hover:bg-white/10 transition-colors"
                       >
-                        {/* Thumbnail */}
                         <div className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-800">
                           {item.type === 'video' ? (
                             <div className="w-full h-full bg-black/80 flex items-center justify-center">
@@ -1024,7 +1103,6 @@ export default function CelebMedia() {
                           )}
                         </div>
                         
-                        {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             {item.type === 'video' ? (
@@ -1041,7 +1119,6 @@ export default function CelebMedia() {
                           </p>
                         </div>
                         
-                        {/* Actions */}
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleEditFeaturedItem(item)}
@@ -1066,7 +1143,25 @@ export default function CelebMedia() {
         </>
       )}
 
-      {/* Add Modal - With Scroll */}
+      {/* HIDDEN INPUT for inline edit uploads (hero/carousel/tv/gallery) */}
+      <input
+        type="file"
+        ref={editFileInputRef}
+        onChange={handleEditInlineUpload}
+        accept="image/*,video/*"
+        className="hidden"
+      />
+
+      {/* HIDDEN INPUT for Featured edit modal upload */}
+      <input
+        type="file"
+        ref={featuredFileInputRef}
+        onChange={handleFeaturedEditUpload}
+        accept="image/*,video/*"
+        className="hidden"
+      />
+
+      {/* Add Modal - unchanged */}
       <AnimatePresence>
         {showAddModal && (
           <motion.div
@@ -1093,7 +1188,6 @@ export default function CelebMedia() {
               </h3>
 
               <div className="space-y-3 sm:space-y-4">
-                {/* File Upload for Hero, Carousel, TV, Gallery */}
                 {(addType === 'hero' || addType === 'carousel' || addType === 'tv' || addType === 'gallery') && (
                   <>
                     <div>
@@ -1135,7 +1229,6 @@ export default function CelebMedia() {
                       )}
                     </div>
 
-                    {/* Show preview */}
                     {addForm.url && (
                       <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10">
                         {addType === 'tv' ? (
@@ -1146,7 +1239,6 @@ export default function CelebMedia() {
                       </div>
                     )}
 
-                    {/* OR Divider */}
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-white/10"></div>
@@ -1169,7 +1261,6 @@ export default function CelebMedia() {
                   </>
                 )}
 
-                {/* Featured Post Upload - Direct file upload only, no URL validation */}
                 {addType === 'featured' && (
                   <>
                     <div>
@@ -1211,7 +1302,6 @@ export default function CelebMedia() {
                       )}
                     </div>
 
-                    {/* Show preview */}
                     {addForm.url && (
                       <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10">
                         {addForm.type === 'video' ? (
@@ -1224,7 +1314,6 @@ export default function CelebMedia() {
                   </>
                 )}
 
-                {/* YouTube URL - Only for videos section */}
                 {addType === 'videos' && (
                   <div>
                     <label className="block text-xs text-white/60 mb-1">YouTube URL *</label>
@@ -1238,7 +1327,6 @@ export default function CelebMedia() {
                   </div>
                 )}
 
-                {/* Caption for Gallery, Videos, and Featured */}
                 {(addType === 'gallery' || addType === 'videos' || addType === 'featured') && (
                   <div>
                     <label className="block text-xs text-white/60 mb-1">Caption (optional)</label>
@@ -1252,7 +1340,6 @@ export default function CelebMedia() {
                   </div>
                 )}
 
-                {/* Type selector for Featured */}
                 {addType === 'featured' && (
                   <div>
                     <label className="block text-xs text-white/60 mb-1">Type</label>
@@ -1302,7 +1389,7 @@ export default function CelebMedia() {
         )}
       </AnimatePresence>
 
-      {/* Edit Featured Modal - With Scroll */}
+      {/* Edit Featured Modal - scrollable, and with Upload button added above URL */}
       <AnimatePresence>
         {showEditFeaturedModal && editingFeaturedItem && (
           <motion.div
@@ -1327,7 +1414,6 @@ export default function CelebMedia() {
               </h3>
 
               <div className="space-y-3 sm:space-y-4">
-                {/* Preview */}
                 <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10 bg-gray-800">
                   {editingFeaturedItem.type === 'video' ? (
                     <video src={editForm.url || editingFeaturedItem.media[0]?.url} className="w-full h-full object-cover" controls />
@@ -1339,6 +1425,26 @@ export default function CelebMedia() {
                     />
                   )}
                 </div>
+
+                {/* NEW: Upload from device */}
+                <button
+                  type="button"
+                  onClick={() => featuredFileInputRef?.click()}
+                  disabled={uploading}
+                  className="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-sm text-blue-300 font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload from Device
+                    </>
+                  )}
+                </button>
 
                 <div>
                   <label className="block text-xs text-white/60 mb-1">Media URL</label>
@@ -1377,13 +1483,13 @@ export default function CelebMedia() {
                 <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 sticky bottom-0 bg-gray-900/95 py-3 -mb-3 border-t border-white/5">
                   <button
                     onClick={handleUpdateFeaturedItem}
-                    disabled={updating}
+                    disabled={updating || uploading}
                     className="flex-1 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
-                    {updating ? (
+                    {updating || uploading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader className="w-4 h-4 animate-spin" />
-                        Updating...
+                        {uploading ? 'Uploading...' : 'Updating...'}
                       </span>
                     ) : (
                       'Update'

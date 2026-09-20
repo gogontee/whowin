@@ -21,17 +21,13 @@ import {
   Users
 } from 'lucide-react';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import jsPDF from 'jspdf';
 
 export default function ShareModal({ isOpen, onClose, profile }) {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     if (!isOpen) {

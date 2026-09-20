@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileHeader({ 
   stats, 
@@ -24,10 +24,6 @@ export default function ProfileHeader({
   const [showVoteCount, setShowVoteCount] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Shared bronze-gold brand color.
   const goldColor = '#C58B2A';

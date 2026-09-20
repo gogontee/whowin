@@ -29,12 +29,16 @@ import {
   ExternalLink,
   Check,
   ChevronDown,
-  Shield
+  ChevronUp,
+  Shield,
+  Send,
+  Info,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileManagement() {
   const [profiles, setProfiles] = useState([]);
@@ -56,13 +60,12 @@ export default function ProfileManagement() {
   const [showBulkVerificationDropdown, setShowBulkVerificationDropdown] = useState(false);
   const [voteVisibilityOn, setVoteVisibilityOn] = useState(false);
   const [pendingBulkStatus, setPendingBulkStatus] = useState(null);
+  // Track which rows are expanded
+  const [expandedProfileId, setExpandedProfileId] = useState(null);
+  // Track which bio is being viewed in the popup
+  const [bioViewProfile, setBioViewProfile] = useState(null);
 
   const ITEMS_PER_PAGE = 10;
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   const accountStatusOptions = [
     { value: 'pending_verification', label: 'Pending Verification', color: 'yellow' },
@@ -113,13 +116,9 @@ export default function ProfileManagement() {
 
       if (error) throw error;
 
-      // Sort profiles: admins first, then others
       const sortedData = (data || []).sort((a, b) => {
-        // If a is admin and b is not, a comes first
         if (a.role === 'admin' && b.role !== 'admin') return -1;
-        // If b is admin and a is not, b comes first
         if (b.role === 'admin' && a.role !== 'admin') return 1;
-        // If both are admin or both are not, sort by created_at
         return new Date(b.created_at) - new Date(a.created_at);
       });
 
@@ -195,7 +194,6 @@ export default function ProfileManagement() {
     }
   };
 
-  // Direct status update - click to change
   const handleStatusClick = async (profileId, currentStatus) => {
     const options = accountStatusOptions;
     const currentIndex = options.findIndex(opt => opt.value === currentStatus);
@@ -228,7 +226,6 @@ export default function ProfileManagement() {
     }
   };
 
-  // Direct verification update - click to change
   const handleVerificationClick = async (profileId, currentLevel) => {
     const options = verificationLevelOptions;
     const currentIndex = options.findIndex(opt => opt.value === currentLevel);
@@ -268,6 +265,7 @@ export default function ProfileManagement() {
       full_name: profile.full_name,
       email: profile.email,
       phone: profile.phone || '',
+      telegram: profile.telegram || '',
       country: profile.country || '',
       state: profile.state || '',
       city: profile.city || '',
@@ -327,6 +325,7 @@ export default function ProfileManagement() {
           full_name: editForm.full_name,
           email: editForm.email,
           phone: editForm.phone || null,
+          telegram: editForm.telegram || null,
           country: editForm.country || null,
           state: editForm.state || null,
           city: editForm.city || null,
@@ -428,7 +427,6 @@ export default function ProfileManagement() {
     }
   };
 
-  // Bulk toggle controls with single switch
   const handleBulkToggleControl = async (controlName, value) => {
     if (profiles.length === 0) return;
 
@@ -449,9 +447,9 @@ export default function ProfileManagement() {
 
       setProfiles(profiles.map(p => ({ ...p, [controlName]: value })));
 
-      const label = controlName === 'social_control' ? 'Social' : 'Vote';
-      const state = value ? 'ON' : 'OFF';
-      alert(`✅ ${label} ${state} for all ${profiles.length} profiles`);
+      const label = controlName === 'social_control' ? 'Social' : controlName === 'vote_control' ? 'Vote' : 'Status';
+      const state = typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value;
+      alert(`✅ ${label} set to ${state} for all ${profiles.length} profiles`);
 
     } catch (error) {
       console.error(`Error bulk toggling ${controlName}:`, error);
@@ -511,7 +509,7 @@ export default function ProfileManagement() {
 
   const exportToCSV = () => {
     const headers = [
-      'Username', 'Full Name', 'Email', 'Phone', 'Country', 'State',
+      'Username', 'Full Name', 'Email', 'Phone', 'Telegram', 'Country', 'State',
       'City', 'Date of Birth', 'Account Status', 'Verification Level',
       'Role', 'Bio', 'Total Votes', 'Vote Amount (NGN)', 'Total Gifts', 'Gift Amount (NGN)', 'Social Control', 'Vote Control'
     ];
@@ -525,6 +523,7 @@ export default function ProfileManagement() {
         p.full_name,
         p.email,
         p.phone || '',
+        p.telegram || '',
         p.country || '',
         p.state || '',
         p.city || '',
@@ -615,7 +614,10 @@ export default function ProfileManagement() {
     };
   };
 
-  // Get all profiles on current page for bulk selection
+  const toggleExpand = (profileId) => {
+    setExpandedProfileId(prev => (prev === profileId ? null : profileId));
+  };
+
   const allCurrentPageIds = profiles.map(p => p.id);
 
   return (
@@ -696,7 +698,7 @@ export default function ProfileManagement() {
               </AnimatePresence>
             </div>
 
-            {/* Social Toggle - Single Switch */}
+            {/* Social Toggle */}
             <button
               onClick={() => {
                 const allOn = profiles.every(p => p.social_control === true);
@@ -713,7 +715,7 @@ export default function ProfileManagement() {
               <span>Social {profiles.length > 0 && profiles.every(p => p.social_control === true) ? 'ON' : 'OFF'}</span>
             </button>
 
-            {/* Vote Toggle - Single Switch */}
+            {/* Vote Toggle */}
             <button
               onClick={() => {
                 const allOn = profiles.every(p => p.vote_control === true);
@@ -939,6 +941,7 @@ export default function ProfileManagement() {
                         className="rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
                       />
                     </th>
+                    <th className="p-3 text-left text-xs font-medium text-white/40 w-8"></th>
                     <th className="p-3 text-left text-xs font-medium text-white/40">User</th>
                     <th className="p-3 text-left text-xs font-medium text-white/40">Contact</th>
                     <th className="p-3 text-left text-xs font-medium text-white/40">Location</th>
@@ -956,400 +959,536 @@ export default function ProfileManagement() {
                     const voteData = getVoteDisplay(profile.id);
                     const giftData = getGiftDisplay(profile.id);
                     const isAdmin = profile.role === 'admin';
+                    const isExpanded = expandedProfileId === profile.id;
 
                     return (
-                      <motion.tr
-                        key={profile.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className={`border-b border-white/10 hover:bg-white/5 transition-colors ${
-                          isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
-                        }`}
-                      >
-                        {editingId === profile.id ? (
-                          // Edit Mode
-                          <>
-                            <td className="p-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedProfiles.includes(profile.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedProfiles([...selectedProfiles, profile.id]);
-                                  } else {
-                                    setSelectedProfiles(selectedProfiles.filter(id => id !== profile.id));
-                                  }
-                                }}
-                                className="rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1">
+                      <>
+                        <motion.tr
+                          key={profile.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className={`border-b border-white/10 hover:bg-white/5 transition-colors ${
+                            isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
+                          }`}
+                        >
+                          {editingId === profile.id ? (
+                            <>
+                              <td className="p-3">
                                 <input
-                                  type="text"
-                                  value={editForm.username}
-                                  onChange={(e) => setEditForm({...editForm, username: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Username"
+                                  type="checkbox"
+                                  checked={selectedProfiles.includes(profile.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedProfiles([...selectedProfiles, profile.id]);
+                                    } else {
+                                      setSelectedProfiles(selectedProfiles.filter(id => id !== profile.id));
+                                    }
+                                  }}
+                                  className="rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
                                 />
-                                <input
-                                  type="text"
-                                  value={editForm.full_name}
-                                  onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Full Name"
-                                />
-                                <textarea
-                                  value={editForm.bio}
-                                  onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Bio"
-                                  rows="2"
-                                />
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1">
-                                <input
-                                  type="email"
-                                  value={editForm.email}
-                                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Email"
-                                />
-                                <input
-                                  type="tel"
-                                  value={editForm.phone}
-                                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Phone"
-                                />
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1">
-                                <input
-                                  type="text"
-                                  value={editForm.country}
-                                  onChange={(e) => setEditForm({...editForm, country: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="Country"
-                                />
-                                <input
-                                  type="text"
-                                  value={editForm.state}
-                                  onChange={(e) => setEditForm({...editForm, state: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="State"
-                                />
-                                <input
-                                  type="text"
-                                  value={editForm.city}
-                                  onChange={(e) => setEditForm({...editForm, city: e.target.value})}
-                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                                  placeholder="City"
-                                />
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <select
-                                value={editForm.account_status}
-                                onChange={(e) => setEditForm({...editForm, account_status: e.target.value})}
-                                className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                              >
-                                {accountStatusOptions.map(opt => (
-                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="p-3">
-                              <select
-                                value={editForm.verification_level}
-                                onChange={(e) => setEditForm({...editForm, verification_level: e.target.value})}
-                                className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                              >
-                                {verificationLevelOptions.map(opt => (
-                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="p-3">
-                              <select
-                                value={editForm.role}
-                                onChange={(e) => setEditForm({...editForm, role: e.target.value})}
-                                className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
-                              >
-                                <option value="user">User</option>
-                                <option value="celebrity">Celebrity</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-semibold text-burnt-orange-400">
-                                  {voteData.votes} votes
-                                </div>
-                                <div className="text-[10px] text-white/40">
-                                  ₦{voteData.amount.toLocaleString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-semibold text-pink-400">
-                                  {giftData.count} gifts
-                                </div>
-                                <div className="text-[10px] text-white/40">
-                                  ₦{giftData.amount.toLocaleString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-white/40">Social:</span>
-                                  <ControlToggle
-                                    profile={editForm}
-                                    controlName="social_control"
-                                    label="Social Links"
-                                    icon={Share2}
-                                    onToggle={(id, name, value) => {
-                                      setEditForm(prev => ({
-                                        ...prev,
-                                        [name]: !value
-                                      }));
-                                    }}
+                              </td>
+                              <td className="p-3"></td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    value={editForm.username}
+                                    onChange={(e) => setEditForm({...editForm, username: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Username"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editForm.full_name}
+                                    onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Full Name"
+                                  />
+                                  <textarea
+                                    value={editForm.bio}
+                                    onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Bio"
+                                    rows="2"
                                   />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-white/40">Votes:</span>
-                                  <ControlToggle
-                                    profile={editForm}
-                                    controlName="vote_control"
-                                    label="Votes"
-                                    icon={Vote}
-                                    onToggle={(id, name, value) => {
-                                      setEditForm(prev => ({
-                                        ...prev,
-                                        [name]: !value
-                                      }));
-                                    }}
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <input
+                                    type="email"
+                                    value={editForm.email}
+                                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Email"
+                                  />
+                                  <input
+                                    type="tel"
+                                    value={editForm.phone}
+                                    onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Phone"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editForm.telegram}
+                                    onChange={(e) => setEditForm({...editForm, telegram: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Telegram"
                                   />
                                 </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => handleSaveEdit(profile.id)}
-                                  disabled={updating}
-                                  className="p-1.5 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors"
-                                  title="Save"
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    value={editForm.country}
+                                    onChange={(e) => setEditForm({...editForm, country: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="Country"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editForm.state}
+                                    onChange={(e) => setEditForm({...editForm, state: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="State"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editForm.city}
+                                    onChange={(e) => setEditForm({...editForm, city: e.target.value})}
+                                    className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                    placeholder="City"
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <select
+                                  value={editForm.account_status}
+                                  onChange={(e) => setEditForm({...editForm, account_status: e.target.value})}
+                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
                                 >
-                                  <Save className="w-4 h-4 text-green-400" />
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
-                                  title="Cancel"
+                                  {accountStatusOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-3">
+                                <select
+                                  value={editForm.verification_level}
+                                  onChange={(e) => setEditForm({...editForm, verification_level: e.target.value})}
+                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
                                 >
-                                  <X className="w-4 h-4 text-red-400" />
+                                  {verificationLevelOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-3">
+                                <select
+                                  value={editForm.role}
+                                  onChange={(e) => setEditForm({...editForm, role: e.target.value})}
+                                  className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-xs text-white"
+                                >
+                                  <option value="user">User</option>
+                                  <option value="celebrity">Celebrity</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-0.5">
+                                  <div className="text-xs font-semibold text-burnt-orange-400">
+                                    {voteData.votes} votes
+                                  </div>
+                                  <div className="text-[10px] text-white/40">
+                                    ₦{voteData.amount.toLocaleString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-0.5">
+                                  <div className="text-xs font-semibold text-pink-400">
+                                    {giftData.count} gifts
+                                  </div>
+                                  <div className="text-[10px] text-white/40">
+                                    ₦{giftData.amount.toLocaleString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-white/40">Social:</span>
+                                    <ControlToggle
+                                      profile={editForm}
+                                      controlName="social_control"
+                                      label="Social Links"
+                                      icon={Share2}
+                                      onToggle={(id, name, value) => {
+                                        setEditForm(prev => ({
+                                          ...prev,
+                                          [name]: !value
+                                        }));
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-white/40">Votes:</span>
+                                    <ControlToggle
+                                      profile={editForm}
+                                      controlName="vote_control"
+                                      label="Votes"
+                                      icon={Vote}
+                                      onToggle={(id, name, value) => {
+                                        setEditForm(prev => ({
+                                          ...prev,
+                                          [name]: !value
+                                        }));
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleSaveEdit(profile.id)}
+                                    disabled={updating}
+                                    className="p-1.5 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors"
+                                    title="Save"
+                                  >
+                                    <Save className="w-4 h-4 text-green-400" />
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEdit}
+                                    className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <X className="w-4 h-4 text-red-400" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="p-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProfiles.includes(profile.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedProfiles([...selectedProfiles, profile.id]);
+                                    } else {
+                                      setSelectedProfiles(selectedProfiles.filter(id => id !== profile.id));
+                                    }
+                                  }}
+                                  className="rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <button
+                                  onClick={() => toggleExpand(profile.id)}
+                                  className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                                  title={isExpanded ? 'Collapse details' : 'Expand details'}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-4 h-4 text-burnt-orange-400" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-white/40" />
+                                  )}
                                 </button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          // View Mode
-                          <>
-                            <td className="p-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedProfiles.includes(profile.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedProfiles([...selectedProfiles, profile.id]);
-                                  } else {
-                                    setSelectedProfiles(selectedProfiles.filter(id => id !== profile.id));
-                                  }
-                                }}
-                                className="rounded border-white/20 bg-white/5 text-burnt-orange-500 focus:ring-burnt-orange-500"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-3">
-                                <div className="relative">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
-                                    {profile.avatar_url ? (
-                                      <Image
-                                        src={profile.avatar_url}
-                                        alt={profile.username}
-                                        width={32}
-                                        height={32}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <User className="w-4 h-4 text-white" />
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-burnt-orange-500 to-yellow-500 overflow-hidden flex-shrink-0">
+                                      {profile.avatar_url ? (
+                                        <Image
+                                          src={profile.avatar_url}
+                                          alt={profile.username}
+                                          width={32}
+                                          height={32}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <User className="w-4 h-4 text-white" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    {isAdmin && (
+                                      <div className="absolute -top-1 -right-1">
+                                        <Shield className="w-3.5 h-3.5 text-yellow-400" />
                                       </div>
                                     )}
                                   </div>
-                                  {isAdmin && (
-                                    <div className="absolute -top-1 -right-1">
-                                      <Shield className="w-3.5 h-3.5 text-yellow-400" />
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-white text-sm">{profile.full_name}</span>
+                                      {isAdmin && (
+                                        <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                          Admin
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-white/40">@{profile.username}</div>
+                                    {profile.bio && (
+                                      <button
+                                        onClick={() => setBioViewProfile(profile)}
+                                        className="text-xs text-white/60 hover:text-burnt-orange-300 mt-1 line-clamp-2 text-left transition-colors cursor-pointer underline-offset-2 hover:underline"
+                                        title="Click to read full bio"
+                                      >
+                                        {profile.bio}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <Mail className="w-3 h-3 text-white/40" />
+                                    <span className="text-white/80">{profile.email}</span>
+                                  </div>
+                                  {profile.phone && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Phone className="w-3 h-3 text-white/40" />
+                                      <span className="text-white/80">{profile.phone}</span>
+                                    </div>
+                                  )}
+                                  {profile.telegram && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Send className="w-3 h-3 text-sky-400" />
+                                      <span className="text-sky-300">@{profile.telegram.replace(/^@/, '')}</span>
                                     </div>
                                   )}
                                 </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-white text-sm">{profile.full_name}</span>
-                                    {isAdmin && (
-                                      <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                        Admin
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  {profile.country && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <MapPin className="w-3 h-3 text-white/40" />
+                                      <span className="text-white/80">{profile.country}</span>
+                                    </div>
+                                  )}
+                                  {(profile.state || profile.city) && (
+                                    <div className="text-xs text-white/60">
+                                      {[profile.city, profile.state].filter(Boolean).join(', ')}
+                                    </div>
+                                  )}
+                                  {profile.date_of_birth && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Calendar className="w-3 h-3 text-white/40" />
+                                      <span className="text-white/60">
+                                        {new Date(profile.date_of_birth).toLocaleDateString()}
                                       </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-white/40">@{profile.username}</div>
-                                  {profile.bio && (
-                                    <div className="text-xs text-white/60 mt-1 line-clamp-2">{profile.bio}</div>
+                                    </div>
                                   )}
                                 </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1 text-xs">
-                                  <Mail className="w-3 h-3 text-white/40" />
-                                  <span className="text-white/80">{profile.email}</span>
-                                </div>
-                                {profile.phone && (
-                                  <div className="flex items-center gap-1 text-xs">
-                                    <Phone className="w-3 h-3 text-white/40" />
-                                    <span className="text-white/80">{profile.phone}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1">
-                                {profile.country && (
-                                  <div className="flex items-center gap-1 text-xs">
-                                    <MapPin className="w-3 h-3 text-white/40" />
-                                    <span className="text-white/80">{profile.country}</span>
-                                  </div>
-                                )}
-                                {(profile.state || profile.city) && (
-                                  <div className="text-xs text-white/60">
-                                    {[profile.city, profile.state].filter(Boolean).join(', ')}
-                                  </div>
-                                )}
-                                {profile.date_of_birth && (
-                                  <div className="flex items-center gap-1 text-xs">
-                                    <Calendar className="w-3 h-3 text-white/40" />
-                                    <span className="text-white/60">
-                                      {new Date(profile.date_of_birth).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <button
-                                onClick={() => handleStatusClick(profile.id, profile.account_status)}
-                                disabled={updating}
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getStatusBadgeColor(profile.account_status)}`}
-                                title={`Click to change status (currently ${accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'})`}
-                              >
-                                {accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'}
-                                <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
-                              </button>
-                            </td>
-                            <td className="p-3">
-                              <button
-                                onClick={() => handleVerificationClick(profile.id, profile.verification_level)}
-                                disabled={updating}
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getVerificationBadgeColor(profile.verification_level)}`}
-                                title={`Click to change verification (currently ${verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'})`}
-                              >
-                                {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
-                                <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
-                              </button>
-                            </td>
-                            <td className="p-3">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
-                                isAdmin 
-                                  ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
-                                  : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                              }`}>
-                                {profile.role || 'user'}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-semibold text-burnt-orange-400">
-                                  {voteData.votes} votes
-                                </div>
-                                <div className="text-[10px] text-white/40">
-                                  ₦{voteData.amount.toLocaleString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-semibold text-pink-400">
-                                  {giftData.count} gifts
-                                </div>
-                                <div className="text-[10px] text-white/40">
-                                  ₦{giftData.amount.toLocaleString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="space-y-1.5">
-                                <ControlToggle
-                                  profile={profile}
-                                  controlName="social_control"
-                                  label="Social Links"
-                                  icon={Share2}
-                                  onToggle={handleToggleControl}
-                                />
-                                <ControlToggle
-                                  profile={profile}
-                                  controlName="vote_control"
-                                  label="Votes"
-                                  icon={Vote}
-                                  onToggle={handleToggleControl}
-                                />
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-1">
-                                <Link
-                                  href={`/${profile.username}`}
-                                  target="_blank"
-                                  className="p-1.5 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors"
-                                  title="View Profile"
-                                >
-                                  <ExternalLink className="w-4 h-4 text-green-400" />
-                                </Link>
+                              </td>
+                              <td className="p-3">
                                 <button
-                                  onClick={() => handleEdit(profile)}
-                                  className="p-1.5 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors"
-                                  title="Edit"
+                                  onClick={() => handleStatusClick(profile.id, profile.account_status)}
+                                  disabled={updating}
+                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getStatusBadgeColor(profile.account_status)}`}
+                                  title={`Click to change status (currently ${accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'})`}
                                 >
-                                  <Edit className="w-4 h-4 text-blue-400" />
+                                  {accountStatusOptions.find(opt => opt.value === profile.account_status)?.label || 'Unknown'}
+                                  <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
                                 </button>
+                              </td>
+                              <td className="p-3">
                                 <button
-                                  onClick={() => setShowDeleteConfirm(profile.id)}
-                                  className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
-                                  title="Delete"
+                                  onClick={() => handleVerificationClick(profile.id, profile.verification_level)}
+                                  disabled={updating}
+                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all ${getVerificationBadgeColor(profile.verification_level)}`}
+                                  title={`Click to change verification (currently ${verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'})`}
                                 >
-                                  <Trash2 className="w-4 h-4 text-red-400" />
+                                  {verificationLevelOptions.find(opt => opt.value === profile.verification_level)?.label || 'Unknown'}
+                                  <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
                                 </button>
-                              </div>
+                              </td>
+                              <td className="p-3">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                                  isAdmin 
+                                    ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                                    : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                                }`}>
+                                  {profile.role || 'user'}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-0.5">
+                                  <div className="text-xs font-semibold text-burnt-orange-400">
+                                    {voteData.votes} votes
+                                  </div>
+                                  <div className="text-[10px] text-white/40">
+                                    ₦{voteData.amount.toLocaleString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-0.5">
+                                  <div className="text-xs font-semibold text-pink-400">
+                                    {giftData.count} gifts
+                                  </div>
+                                  <div className="text-[10px] text-white/40">
+                                    ₦{giftData.amount.toLocaleString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1.5">
+                                  <ControlToggle
+                                    profile={profile}
+                                    controlName="social_control"
+                                    label="Social Links"
+                                    icon={Share2}
+                                    onToggle={handleToggleControl}
+                                  />
+                                  <ControlToggle
+                                    profile={profile}
+                                    controlName="vote_control"
+                                    label="Votes"
+                                    icon={Vote}
+                                    onToggle={handleToggleControl}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1">
+                                  <Link
+                                    href={`/${profile.username}`}
+                                    target="_blank"
+                                    className="p-1.5 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors"
+                                    title="View Profile"
+                                  >
+                                    <ExternalLink className="w-4 h-4 text-green-400" />
+                                  </Link>
+                                  <button
+                                    onClick={() => handleEdit(profile)}
+                                    className="p-1.5 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="w-4 h-4 text-blue-400" />
+                                  </button>
+                                  <button
+                                    onClick={() => setShowDeleteConfirm(profile.id)}
+                                    className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-400" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </motion.tr>
+
+                        {/* Expanded detail row */}
+                        {isExpanded && editingId !== profile.id && (
+                          <tr className="bg-black/40 border-b border-white/10">
+                            <td colSpan={12} className="p-0">
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {/* Full Bio */}
+                                  <div className="md:col-span-2 bg-white/5 rounded-lg border border-white/10 p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Info className="w-3.5 h-3.5 text-burnt-orange-400" />
+                                        Full Bio
+                                      </h4>
+                                      {profile.bio && (
+                                        <button
+                                          onClick={() => setBioViewProfile(profile)}
+                                          className="text-[10px] text-burnt-orange-300 hover:text-burnt-orange-200 flex items-center gap-1 transition-colors"
+                                        >
+                                          <BookOpen className="w-3 h-3" />
+                                          Open reader
+                                        </button>
+                                      )}
+                                    </div>
+                                    {profile.bio ? (
+                                      <p className="text-sm text-white/80 whitespace-pre-wrap leading-relaxed">
+                                        {profile.bio}
+                                      </p>
+                                    ) : (
+                                      <p className="text-sm text-white/40 italic">No bio provided.</p>
+                                    )}
+                                  </div>
+
+                                  {/* Contact details */}
+                                  <div className="bg-white/5 rounded-lg border border-white/10 p-4">
+                                    <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
+                                      Full Contact & Details
+                                    </h4>
+                                    <div className="space-y-2 text-xs">
+                                      <div className="flex items-start gap-2">
+                                        <Mail className="w-3.5 h-3.5 text-white/40 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">Email</div>
+                                          <div className="text-white/80 break-all">{profile.email || '—'}</div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <Phone className="w-3.5 h-3.5 text-white/40 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">Phone / WhatsApp</div>
+                                          <div className="text-white/80">{profile.phone || '—'}</div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <Send className="w-3.5 h-3.5 text-sky-400 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">Telegram</div>
+                                          <div className="text-sky-300 break-all">
+                                            {profile.telegram ? `@${profile.telegram.replace(/^@/, '')}` : '—'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="w-3.5 h-3.5 text-white/40 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">Location</div>
+                                          <div className="text-white/80">
+                                            {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || '—'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <Calendar className="w-3.5 h-3.5 text-white/40 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">Date of Birth</div>
+                                          <div className="text-white/80">
+                                            {profile.date_of_birth
+                                              ? new Date(profile.date_of_birth).toLocaleDateString()
+                                              : '—'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <User className="w-3.5 h-3.5 text-white/40 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <div className="text-white/40 text-[10px] uppercase">User ID</div>
+                                          <div className="text-white/50 font-mono text-[10px] break-all">{profile.id}</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
                             </td>
-                          </>
+                          </tr>
                         )}
-                      </motion.tr>
+                      </>
                     );
                   })}
                 </tbody>
@@ -1357,12 +1496,13 @@ export default function ProfileManagement() {
             </div>
           </div>
 
-          {/* Tablet & Mobile Views - Keep existing but update status/verification click handlers */}
+          {/* Tablet View */}
           <div className="hidden sm:block lg:hidden">
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
               const isAdmin = profile.role === 'admin';
+              const isExpanded = expandedProfileId === profile.id;
 
               return (
                 <motion.div
@@ -1374,7 +1514,6 @@ export default function ProfileManagement() {
                   }`}
                 >
                   {editingId === profile.id ? (
-                    // Edit Mode
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium text-white">Edit Profile</h3>
@@ -1413,6 +1552,13 @@ export default function ProfileManagement() {
                           onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
                           className="px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
                           placeholder="Phone"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.telegram}
+                          onChange={(e) => setEditForm({...editForm, telegram: e.target.value})}
+                          className="px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
+                          placeholder="Telegram"
                         />
                         <input
                           type="text"
@@ -1511,7 +1657,6 @@ export default function ProfileManagement() {
                       </button>
                     </div>
                   ) : (
-                    // View Mode
                     <>
                       <div className="flex items-start gap-3 mb-3">
                         <input
@@ -1586,7 +1731,18 @@ export default function ProfileManagement() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-start">
+                          <button
+                            onClick={() => toggleExpand(profile.id)}
+                            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                            title={isExpanded ? 'Collapse details' : 'Expand details'}
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-burnt-orange-400" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-white/60" />
+                            )}
+                          </button>
                           <Link
                             href={`/${profile.username}`}
                             target="_blank"
@@ -1609,6 +1765,7 @@ export default function ProfileManagement() {
                           </button>
                         </div>
                       </div>
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex items-center gap-1">
                           <Mail className="w-3 h-3 text-white/40" />
@@ -1620,7 +1777,73 @@ export default function ProfileManagement() {
                             <span className="text-white/80 truncate">{profile.phone}</span>
                           </div>
                         )}
+                        {profile.telegram && (
+                          <div className="flex items-center gap-1 col-span-2">
+                            <Send className="w-3 h-3 text-sky-400" />
+                            <span className="text-sky-300 truncate">@{profile.telegram.replace(/^@/, '')}</span>
+                          </div>
+                        )}
+                        {profile.bio && (
+                          <button
+                            onClick={() => setBioViewProfile(profile)}
+                            className="col-span-2 text-left text-white/60 hover:text-burnt-orange-300 text-xs line-clamp-2 transition-colors underline-offset-2 hover:underline"
+                            title="Click to read full bio"
+                          >
+                            {profile.bio}
+                          </button>
+                        )}
                       </div>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden mt-3 pt-3 border-t border-white/10"
+                          >
+                            <div className="space-y-2">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="text-[10px] text-white/40 uppercase tracking-wider">Full Bio</div>
+                                  {profile.bio && (
+                                    <button
+                                      onClick={() => setBioViewProfile(profile)}
+                                      className="text-[10px] text-burnt-orange-300 hover:text-burnt-orange-200 flex items-center gap-1"
+                                    >
+                                      <BookOpen className="w-3 h-3" />
+                                      Open reader
+                                    </button>
+                                  )}
+                                </div>
+                                {profile.bio ? (
+                                  <p className="text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                                    {profile.bio}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-white/40 italic">No bio provided.</p>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Full Location</div>
+                                <p className="text-xs text-white/80">
+                                  {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || '—'}
+                                </p>
+                              </div>
+                              {profile.date_of_birth && (
+                                <div>
+                                  <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Date of Birth</div>
+                                  <p className="text-xs text-white/80">
+                                    {new Date(profile.date_of_birth).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-white/10">
                         <div>
                           <div className="text-[10px] text-white/40">Votes</div>
@@ -1656,12 +1879,13 @@ export default function ProfileManagement() {
             })}
           </div>
 
-          {/* Mobile Card View - Keep existing but update with clickable status/verification */}
+          {/* Mobile Card View */}
           <div className="sm:hidden space-y-3">
             {profiles.map((profile) => {
               const voteData = getVoteDisplay(profile.id);
               const giftData = getGiftDisplay(profile.id);
               const isAdmin = profile.role === 'admin';
+              const isExpanded = expandedProfileId === profile.id;
 
               return (
                 <motion.div
@@ -1672,9 +1896,7 @@ export default function ProfileManagement() {
                     isAdmin ? 'bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-yellow-500/10 border-l-2 border-l-yellow-500' : ''
                   }`}
                 >
-                  {/* Mobile View - Keeping it clean and simple */}
                   {editingId === profile.id ? (
-                    // Mobile Edit Mode
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-medium text-white">Edit Profile</h3>
@@ -1713,6 +1935,13 @@ export default function ProfileManagement() {
                           onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
                           className="w-full px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
                           placeholder="Phone"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.telegram}
+                          onChange={(e) => setEditForm({...editForm, telegram: e.target.value})}
+                          className="w-full px-2 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
+                          placeholder="Telegram (without @)"
                         />
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -1819,7 +2048,6 @@ export default function ProfileManagement() {
                       </div>
                     </div>
                   ) : (
-                    // Mobile View Mode
                     <>
                       <div className="flex items-start gap-3 mb-2">
                         <input
@@ -1867,7 +2095,18 @@ export default function ProfileManagement() {
                           </div>
                           <div className="text-xs text-white/40 truncate">@{profile.username}</div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-wrap">
+                          <button
+                            onClick={() => toggleExpand(profile.id)}
+                            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                            title={isExpanded ? 'Collapse' : 'Expand'}
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-burnt-orange-400" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-white/60" />
+                            )}
+                          </button>
                           <Link
                             href={`/${profile.username}`}
                             target="_blank"
@@ -1902,7 +2141,84 @@ export default function ProfileManagement() {
                             <span className="text-white/80 truncate">{profile.phone}</span>
                           </div>
                         )}
+                        {profile.telegram && (
+                          <div className="flex items-center gap-1 col-span-2">
+                            <Send className="w-3 h-3 text-sky-400" />
+                            <span className="text-sky-300 truncate">@{profile.telegram.replace(/^@/, '')}</span>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Bio preview (clickable) on mobile */}
+                      {profile.bio && (
+                        <button
+                          onClick={() => setBioViewProfile(profile)}
+                          className="mt-2 w-full text-left text-xs text-white/60 hover:text-burnt-orange-300 line-clamp-3 transition-colors underline-offset-2 hover:underline"
+                          title="Click to read full bio"
+                        >
+                          {profile.bio}
+                        </button>
+                      )}
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden mt-2 pt-2 border-t border-white/10"
+                          >
+                            <div className="space-y-2">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="text-[10px] text-white/40 uppercase tracking-wider">Full Bio</div>
+                                  {profile.bio && (
+                                    <button
+                                      onClick={() => setBioViewProfile(profile)}
+                                      className="text-[10px] text-burnt-orange-300 hover:text-burnt-orange-200 flex items-center gap-1"
+                                    >
+                                      <BookOpen className="w-3 h-3" />
+                                      Open reader
+                                    </button>
+                                  )}
+                                </div>
+                                {profile.bio ? (
+                                  <p className="text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                                    {profile.bio}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-white/40 italic">No bio provided.</p>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Full Location</div>
+                                <p className="text-xs text-white/80">
+                                  {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || '—'}
+                                </p>
+                              </div>
+                              {profile.date_of_birth && (
+                                <div>
+                                  <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Date of Birth</div>
+                                  <p className="text-xs text-white/80">
+                                    {new Date(profile.date_of_birth).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              )}
+                              <div>
+                                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Telegram</div>
+                                <p className="text-xs text-sky-300 break-all">
+                                  {profile.telegram ? `@${profile.telegram.replace(/^@/, '')}` : '—'}
+                                </p>
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">User ID</div>
+                                <p className="text-[10px] text-white/50 font-mono break-all">{profile.id}</p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                       <div className="flex flex-wrap gap-1 mt-2">
                         <button
@@ -1967,6 +2283,105 @@ export default function ProfileManagement() {
               );
             })}
           </div>
+
+          {/* ===== BIO READER POPUP ===== */}
+          <AnimatePresence>
+            {bioViewProfile && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+                onClick={() => setBioViewProfile(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gradient-to-b from-gray-900 to-black rounded-2xl border border-burnt-orange-500/30 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+                >
+                  {/* Reader header */}
+                  <div className="flex items-center justify-between p-5 border-b border-white/10 bg-gradient-to-r from-burnt-orange-500/10 to-yellow-500/10 flex-shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-burnt-orange-500 to-yellow-500 flex-shrink-0 flex items-center justify-center">
+                        {bioViewProfile.avatar_url ? (
+                          <Image
+                            src={bioViewProfile.avatar_url}
+                            alt={bioViewProfile.username}
+                            width={44}
+                            height={44}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-white text-base truncate">
+                            {bioViewProfile.full_name || `@${bioViewProfile.username}`}
+                          </h3>
+                          {bioViewProfile.role === 'admin' && (
+                            <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-white/40 truncate">@{bioViewProfile.username}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setBioViewProfile(null)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                      title="Close reader"
+                    >
+                      <X className="w-5 h-5 text-white/60" />
+                    </button>
+                  </div>
+
+                  {/* Reader body */}
+                  <div className="overflow-y-auto p-6 flex-1">
+                    <div className="flex items-center gap-2 mb-4">
+                      <BookOpen className="w-4 h-4 text-burnt-orange-400" />
+                      <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                        Full Bio
+                      </span>
+                    </div>
+                    <div className="prose prose-invert max-w-none">
+                      <p className="text-[15px] leading-7 text-white/85 whitespace-pre-wrap font-[400]">
+                        {bioViewProfile.bio}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Reader footer */}
+                  <div className="p-4 border-t border-white/10 bg-black/40 flex items-center justify-between flex-shrink-0">
+                    <p className="text-[10px] text-white/30">
+                      Press ESC or click outside to close
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/${bioViewProfile.username}`}
+                        target="_blank"
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        View Profile
+                      </Link>
+                      <button
+                        onClick={() => setBioViewProfile(null)}
+                        className="px-4 py-1.5 bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Bulk Status Warning Modal */}
           <AnimatePresence>

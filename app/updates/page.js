@@ -14,7 +14,7 @@ import {
   X,
   ChevronRight
 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 // Simplified date formatter - memoized for performance
 const formatDate = (() => {
@@ -39,11 +39,6 @@ export default function UpdatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Optimized fetch with caching
   useEffect(() => {

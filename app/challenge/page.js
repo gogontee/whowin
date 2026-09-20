@@ -20,7 +20,7 @@ import {
   MoveRight,
   Loader
 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function ChallengePage() {
   const router = useRouter();
@@ -30,11 +30,6 @@ export default function ChallengePage() {
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     const checkAuth = async () => {

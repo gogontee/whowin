@@ -6,18 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Shield, Check, AlertCircle, ChevronDown, ChevronUp, FileText, Info, ArrowLeft, Users, Heart, Gift, DollarSign, Lock, AlertTriangle } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const PolicyPage = () => {
   const router = useRouter();
   const [policy, setPolicy] = useState('');
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     const fetchPolicy = async () => {

@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import {
   Plus,
   Pencil,
@@ -16,11 +16,6 @@ import {
 } from 'lucide-react';
 
 const BUCKET = 'who_win_media';
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 export default function ContentScrollManagement() {
   const [items, setItems] = useState([]);

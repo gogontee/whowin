@@ -23,15 +23,8 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../lib/supabase';
 
-// ============================================
-// SUPABASE CLIENT - CREATED ONCE OUTSIDE COMPONENT
-// ============================================
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 // ============================================
 // GLOBAL NAVIGATION COMPONENT
@@ -258,13 +251,13 @@ const GlobalNavigation = () => {
   // ============================================
   // NAVIGATION ITEMS
   // ============================================
+  // Explore removed from mobile dropdown — already present in bottom nav
   const mobileMenuItems = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
     { id: 'previous-seasons', label: 'Season 1', icon: Clapperboard, href: '/previous-seasons' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
-    { id: 'explore', label: 'Explore', icon: Flame, href: '/vote' },
     { id: 'about', label: 'About', icon: Info, href: '/about' },
   ];
 

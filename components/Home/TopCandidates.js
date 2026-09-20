@@ -4,17 +4,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Info, ChevronRight, Eye } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const TopCandidates = () => {
   const router = useRouter();
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchTopCandidates();
@@ -102,7 +97,7 @@ const TopCandidates = () => {
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <div className="w-20"></div>
           <div className="text-center">
-            <h2 className="text-xl md:text-2xl font-bold text-white">Top 4 Candidates</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-white">Housemates</h2>
           </div>
           <div className="w-20"></div>
         </div>

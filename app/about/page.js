@@ -17,7 +17,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 export default function AboutPage() {
   const router = useRouter();
@@ -61,11 +61,6 @@ Now in its 1st season, the show brings together exceptional young people from ac
     '/banner2.jpeg',
     '/banner3.jpg',
   ];
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   // Fetch about data
   useEffect(() => {

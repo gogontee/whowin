@@ -29,7 +29,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 
 const ICON_OPTIONS = [
   { value: 'Users', label: 'Users' },
@@ -90,11 +90,6 @@ export default function AboutMetaManagement() {
   const [hasDraft, setHasDraft] = useState(false);
   const draftHydrated = useRef(false);
   const DRAFT_KEY = 'whowin_about_meta_draft';
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
 
   useEffect(() => {
     fetchAboutData();

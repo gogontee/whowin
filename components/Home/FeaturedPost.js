@@ -1,10 +1,10 @@
 // components/Home/FeaturedPost.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Share2, Image as ImageIcon, Video, Play, ChevronRight, ChevronLeft } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '../../lib/supabase';
 import Image from 'next/image';
 
 const formatTimeAgo = (dateString) => {
@@ -40,11 +40,10 @@ export default function FeaturedPost() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageErrors, setImageErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  // Overlay visibility (auto-hides on video play, reappears on hover/touch)
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const hideTimerRef = useRef(null);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -101,8 +100,8 @@ export default function FeaturedPost() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Who Win Show',
-          text: item.caption || 'Check out this highlight from the Who Win show!',
+          title: 'Who Wins Show',
+          text: item.caption || 'Check out this highlight from the Who Wins show!',
           url: window.location.origin,
         });
       } catch (error) {
@@ -129,6 +128,52 @@ export default function FeaturedPost() {
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % featuredContent.length);
   };
+
+  // ===== Overlay auto-hide logic =====
+  const clearHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const scheduleHide = () => {
+    clearHideTimer();
+    hideTimerRef.current = setTimeout(() => {
+      setOverlayVisible(false);
+    }, 3000);
+  };
+
+  const showOverlay = () => {
+    setOverlayVisible(true);
+    // Only re-hide if a video is playing
+    const currentItem = getCurrentItem();
+    if (currentItem?.type === 'video' && videoRef.current && !videoRef.current.paused) {
+      scheduleHide();
+    }
+  };
+
+  const handleVideoPlay = () => {
+    scheduleHide();
+  };
+
+  const handleVideoPause = () => {
+    clearHideTimer();
+    setOverlayVisible(true);
+  };
+
+  // Reset overlay when the current item changes (e.g. carousel autoplay)
+  useEffect(() => {
+    clearHideTimer();
+    setOverlayVisible(true);
+    // If the new item is a video, schedule a hide once it's playing
+    const item = getCurrentItem();
+    if (item?.type === 'video') {
+      // The video's onPlay handler will actually trigger the hide.
+    }
+    return () => clearHideTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
 
   if (loading) {
     return (
@@ -175,7 +220,12 @@ export default function FeaturedPost() {
         <div className="flex gap-4">
           {/* Main Content - Left (70%) */}
           <div className="flex-1">
-            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group">
+            <div 
+              className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group"
+              onMouseEnter={showOverlay}
+              onMouseMove={showOverlay}
+              onTouchStart={showOverlay}
+            >
               <div className="relative aspect-[16/9] overflow-hidden">
                 {currentItem.type === 'image' ? (
                   <div className="relative w-full h-full">
@@ -195,74 +245,79 @@ export default function FeaturedPost() {
                 ) : (
                   <div className="relative w-full h-full bg-black">
                     <video
+                      ref={videoRef}
                       src={currentItem.media[0]?.url}
                       className="w-full h-full object-cover"
                       autoPlay
                       muted
                       loop
                       playsInline
-                      controls={false}
+                      controls
+                      onPlay={handleVideoPlay}
+                      onPause={handleVideoPause}
                       onError={() => handleImageError(currentItem.id)}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                        <Play className="w-6 h-6 text-white" fill="white" />
-                      </div>
-                    </div>
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+                {/* Overlay wrapper — auto-hides for videos, always visible for images */}
+                <div
+                  className={`absolute inset-0 transition-opacity duration-500 ${
+                    currentItem.type === 'video' && !overlayVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
 
-                {/* Content overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    {currentItem.type === 'image' ? (
-                      <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3" />
-                        PHOTO
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
-                        <Video className="w-3 h-3" />
-                        VIDEO
-                      </span>
+                  {/* Content overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      {currentItem.type === 'image' ? (
+                        <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                          <ImageIcon className="w-3 h-3" />
+                          PHOTO
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                          <Video className="w-3 h-3" />
+                          VIDEO
+                        </span>
+                      )}
+                      <span className="text-white/50 text-xs">•</span>
+                      <span className="text-white/50 text-xs">Who Wins Show</span>
+                    </div>
+                    {currentItem.caption && (
+                      <h3 className="text-lg md:text-xl font-bold text-white line-clamp-2">
+                        {currentItem.caption}
+                      </h3>
                     )}
-                    <span className="text-white/50 text-xs">•</span>
-                    <span className="text-white/50 text-xs">Who Win Show</span>
                   </div>
-                  {currentItem.caption && (
-                    <h3 className="text-lg md:text-xl font-bold text-white line-clamp-2">
-                      {currentItem.caption}
-                    </h3>
+
+                  {/* Share button */}
+                  <button 
+                    onClick={() => handleShare(currentItem)}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                  >
+                    <Share2 className="w-4 h-4 text-white" />
+                  </button>
+
+                  {/* Navigation arrows */}
+                  {featuredContent.length > 1 && (
+                    <>
+                      <button
+                        onClick={handlePrev}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        onClick={handleNext}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+                      >
+                        <ChevronRight className="w-5 h-5 text-white" />
+                      </button>
+                    </>
                   )}
                 </div>
-
-                {/* Share button */}
-                <button 
-                  onClick={() => handleShare(currentItem)}
-                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
-                >
-                  <Share2 className="w-4 h-4 text-white" />
-                </button>
-
-                {/* Navigation arrows */}
-                {featuredContent.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePrev}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
-                    >
-                      <ChevronRight className="w-5 h-5 text-white" />
-                    </button>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -350,7 +405,11 @@ export default function FeaturedPost() {
         </button>
       </div>
 
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group">
+      <div 
+        className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900/50 to-black/50 border border-white/10 group"
+        onTouchStart={showOverlay}
+        onClick={showOverlay}
+      >
         <div className="relative aspect-[16/9] overflow-hidden">
           {currentItem.type === 'image' ? (
             <div className="relative w-full h-full">
@@ -370,54 +429,59 @@ export default function FeaturedPost() {
           ) : (
             <div className="relative w-full h-full bg-black">
               <video
+                ref={videoRef}
                 src={currentItem.media[0]?.url}
                 className="w-full h-full object-cover"
                 autoPlay
                 muted
                 loop
                 playsInline
-                controls={false}
+                controls
+                onPlay={handleVideoPlay}
+                onPause={handleVideoPause}
                 onError={() => handleImageError(currentItem.id)}
               />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                  <Play className="w-5 h-5 text-white" fill="white" />
-                </div>
-              </div>
             </div>
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <div className="flex items-center gap-2 mb-1">
-              {currentItem.type === 'image' ? (
-                <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" />
-                  PHOTO
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
-                  <Video className="w-3 h-3" />
-                  VIDEO
-                </span>
-              )}
-              <span className="text-white/50 text-xs">•</span>
-              <span className="text-white/50 text-xs">Who Win Show</span>
-            </div>
-            {currentItem.caption && (
-              <h3 className="text-sm font-bold text-white line-clamp-2">
-                {currentItem.caption}
-              </h3>
-            )}
-          </div>
-
-          <button 
-            onClick={() => handleShare(currentItem)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+          {/* Overlay wrapper — auto-hides for videos, always visible for images */}
+          <div
+            className={`absolute inset-0 transition-opacity duration-500 ${
+              currentItem.type === 'video' && !overlayVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
           >
-            <Share2 className="w-4 h-4 text-white" />
-          </button>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="flex items-center gap-2 mb-1">
+                {currentItem.type === 'image' ? (
+                  <span className="px-2 py-0.5 bg-orange-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                    <ImageIcon className="w-3 h-3" />
+                    PHOTO
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-green-500/80 rounded-full text-white text-[10px] font-medium flex items-center gap-1">
+                    <Video className="w-3 h-3" />
+                    VIDEO
+                  </span>
+                )}
+                <span className="text-white/50 text-xs">•</span>
+                <span className="text-white/50 text-xs">Who Wins Show</span>
+              </div>
+              {currentItem.caption && (
+                <h3 className="text-sm font-bold text-white line-clamp-2">
+                  {currentItem.caption}
+                </h3>
+              )}
+            </div>
+
+            <button 
+              onClick={() => handleShare(currentItem)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm border border-white/10"
+            >
+              <Share2 className="w-4 h-4 text-white" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation dots */}
