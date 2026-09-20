@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const Hero = () => {
@@ -12,6 +13,8 @@ const Hero = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
+  // NEW: track registration navigation in progress
+  const [registering, setRegistering] = useState(false);
 
   // Fallback slides - using local banner images
   const FALLBACK_SLIDES = [
@@ -28,6 +31,13 @@ const Hero = () => {
       image: '/banner3.jpeg'
     }
   ];
+
+  // NEW: prefetch the signup route as soon as the Hero mounts
+  // so navigation feels instant even on poor networks
+  useEffect(() => {
+    router.prefetch('/auth/signup');
+    router.prefetch('/auth/login');
+  }, [router]);
 
   // Fetch hero section images from who_win table
   useEffect(() => {
@@ -47,14 +57,12 @@ const Hero = () => {
         }
 
         if (data?.hero_section && Array.isArray(data.hero_section) && data.hero_section.length > 0) {
-          // Map database images to slide format
           const mappedSlides = data.hero_section.map((item, index) => ({
             id: index + 1,
             image: item.url
           }));
           setSlides(mappedSlides);
         } else {
-          // No images in database, use fallback
           setSlides(FALLBACK_SLIDES);
         }
       } catch (error) {
@@ -87,7 +95,6 @@ const Hero = () => {
 
     getUser();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
         setUser(session.user);
@@ -126,8 +133,16 @@ const Hero = () => {
   };
 
   // Handle register click
+  // NEW: show instant loading state, disable button, then navigate.
+  // The small timeout lets React paint the loading state first, so on
+  // a slow network the user still sees immediate feedback.
   const handleRegister = () => {
-    router.push('/auth/signup');
+    if (registering) return; // guard against double-click
+    setRegistering(true);
+    // Let the browser paint the loading state before we navigate
+    setTimeout(() => {
+      router.push('/auth/signup');
+    }, 50);
   };
 
   // Show loading state
@@ -156,7 +171,6 @@ const Hero = () => {
               index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
           >
-            {/* Background image with landscape fit */}
             <div 
               className="absolute inset-0 bg-cover bg-center"
               style={{ 
@@ -198,9 +212,22 @@ const Hero = () => {
           ) : (
             <button 
               onClick={handleRegister}
-              className="metallic-green font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 text-sm"
+              disabled={registering}
+              aria-busy={registering}
+              className={`metallic-green font-bold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 text-sm flex items-center justify-center gap-2 min-w-[150px] ${
+                registering
+                  ? 'opacity-70 cursor-wait pointer-events-none'
+                  : 'hover:shadow-xl hover:-translate-y-0.5'
+              }`}
             >
-              <span className="text-white font-extrabold">Register Now</span>
+              {registering ? (
+                <>
+                  <Loader className="w-4 h-4 animate-spin text-white" />
+                  <span className="text-white font-extrabold">Loading…</span>
+                </>
+              ) : (
+                <span className="text-white font-extrabold">Register Now</span>
+              )}
             </button>
           )}
         </div>
@@ -218,9 +245,22 @@ const Hero = () => {
         ) : (
           <button 
             onClick={handleRegister}
-            className="w-full metallic-green font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
+            disabled={registering}
+            aria-busy={registering}
+            className={`w-full metallic-green font-bold py-3 rounded-xl shadow-lg transition-all duration-300 text-sm flex items-center justify-center gap-2 ${
+              registering
+                ? 'opacity-70 cursor-wait pointer-events-none'
+                : 'hover:shadow-xl'
+            }`}
           >
-            <span className="text-white font-extrabold">Register Now</span>
+            {registering ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin text-white" />
+                <span className="text-white font-extrabold">Loading…</span>
+              </>
+            ) : (
+              <span className="text-white font-extrabold">Register Now</span>
+            )}
           </button>
         )}
       </div>
