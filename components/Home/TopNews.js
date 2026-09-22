@@ -106,7 +106,7 @@ export default function TopNews() {
 
   if (loading) {
     return (
-      <section className="container mx-auto px-4 py-8 md:py-12">
+      <section className="container mx-auto px-4 pt-0 pb-8 md:pt-0 md:pb-12">
         {/* Section header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -147,7 +147,7 @@ export default function TopNews() {
   if (news.length === 0) return null;
 
   return (
-    <section className="container mx-auto px-4 py-8 md:py-12">
+    <section className="container mx-auto px-4 pt-0 pb-8 md:pt-0 md:pb-12">
       {/* Section header */}
       <div className="flex items-center justify-between mb-6">
         <div>

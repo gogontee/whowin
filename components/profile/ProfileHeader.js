@@ -1,7 +1,7 @@
 // components/profile/ProfileHeader.jsx
 import { Settings, Users, Gift, Eye, Heart, Share2 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
@@ -16,6 +16,7 @@ export default function ProfileHeader({
   onShareClick
 }) {
   const params = useParams();
+  const router = useRouter();
   const username = params.username;
   const [supportersCount, setSupportersCount] = useState(0);
   const [loadingSupporters, setLoadingSupporters] = useState(false);
@@ -142,6 +143,12 @@ export default function ProfileHeader({
     } finally {
       setLoadingSupporters(false);
     }
+  };
+
+  // Share button — navigates to the candidate's voteprofile page
+  const handleShareClick = () => {
+    if (!username) return;
+    router.push(`/${username}/voteprofile`);
   };
 
   return (
@@ -296,9 +303,9 @@ export default function ProfileHeader({
         </div>
       )}
 
-      {/* Share Button - Before Settings */}
+      {/* Share Button - Opens candidate's voteprofile page */}
       <button
-        onClick={onShareClick}
+        onClick={handleShareClick}
         className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all hover:scale-105 flex-1 sm:flex-none min-w-[100px] sm:min-w-[120px] justify-center"
         style={{
           background: `linear-gradient(135deg, ${goldColor}20, ${goldColor}10)`,
