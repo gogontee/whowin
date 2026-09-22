@@ -254,7 +254,7 @@ I so much appreciate your support and I hope it will help me emerge as one of th
     <div className="w-full">
       <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-gray-900">
         <Image
-          src="/bulkvote.jpeg"
+          src="/bulkvote.png"
           alt="Bulk vote"
           width={1200}
           height={800}

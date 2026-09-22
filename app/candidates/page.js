@@ -19,12 +19,16 @@ export default function CandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
+  // Bulk vote image visibility (from who_win.bulk_vote_display)
+  const [showBulkVote, setShowBulkVote] = useState(false);
+
   // Modals
   const [voteModalProfile, setVoteModalProfile] = useState(null);
   const [giftModalProfile, setGiftModalProfile] = useState(null);
 
   useEffect(() => {
     fetchCandidates();
+    fetchBulkVoteFlag();
   }, []);
 
   // Re-run filter whenever the applied searchQuery changes
@@ -52,6 +56,28 @@ export default function CandidatesPage() {
 
     setFilteredCandidates(results);
   }, [searchQuery, candidates, allProfiles]);
+
+  // ===== Fetch who_win.bulk_vote_display =====
+  const fetchBulkVoteFlag = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('who_win')
+        .select('bulk_vote_display')
+        .eq('id', 1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Could not fetch bulk_vote_display:', error.message);
+        setShowBulkVote(false);
+        return;
+      }
+
+      setShowBulkVote(data?.bulk_vote_display === true);
+    } catch (err) {
+      console.warn('Bulk vote fetch error:', err?.message || err);
+      setShowBulkVote(false);
+    }
+  };
 
   const fetchCandidates = async () => {
     try {
@@ -342,18 +368,31 @@ export default function CandidatesPage() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : isSearching ? (
           <div className="text-center py-12">
-            <Search className="w-12 h-12 mx-auto text-white/20 mb-4 flex-shrink-0" />
             <h3 className="text-lg font-medium text-white mb-2">
-              {searchQuery ? 'No candidate found' : 'Search for your candidate'}
+              No candidate found
             </h3>
             <p className="text-white/60 text-sm">
-              {searchQuery
-                ? `No results found for "${searchQuery}". Try a different search term.`
-                : 'No candidates are currently displayed. Search by name or Nickname to find your candidate.'
-              }
+              No results found for "{searchQuery}". Try a different search term.
             </p>
+          </div>
+        ) : null}
+
+        {/* ===== Bulk Vote image — only when who_win.bulk_vote_display === true ===== */}
+        {showBulkVote && (
+          <div className="mt-10 md:mt-14 flex justify-center">
+            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md rounded-2xl overflow-hidden border border-white/10 bg-gray-900">
+              <Image
+                src="/bulkvote.png"
+                alt="Bulk vote"
+                width={600}
+                height={800}
+                className="w-full h-auto object-contain"
+                loading="lazy"
+                sizes="(max-width: 640px) 320px, (max-width: 768px) 384px, 448px"
+              />
+            </div>
           </div>
         )}
       </div>
