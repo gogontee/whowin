@@ -18,6 +18,7 @@ import {
   Share2,
   Loader
 } from 'lucide-react';
+import Image from 'next/image';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -26,20 +27,22 @@ import { supabase } from '../lib/supabase';
  * A dismissable modal that shows a quick tutorial explaining how to vote.
  *
  * Props:
- *   - isOpen: boolean         → controls visibility
- *   - onClose: () => void     → called when the user closes the modal
- *   - candidateName?: string  → optional display name (shows in the intro)
- *   - videoUrl?: string       → optional override URL. If not provided, the
- *                               component reads `how_to_vote_video` from the
- *                               `who_win` table (id = 1). Supports both
- *                               YouTube links and direct MP4/WEBM files.
- *   - onVoteNow?: () => void  → optional. If provided, a "Vote Now" button is
- *                               shown at the bottom that calls this.
+ *   - isOpen: boolean           → controls visibility
+ *   - onClose: () => void       → called when the user closes the modal
+ *   - candidateName?: string    → optional display name (shows in the intro + header)
+ *   - candidateAvatar?: string  → optional avatar URL (shows in the header)
+ *   - videoUrl?: string         → optional override URL. If not provided, the
+ *                                 component reads `how_to_vote_video` from the
+ *                                 `who_win` table (id = 1). Supports both
+ *                                 YouTube links and direct MP4/WEBM files.
+ *   - onVoteNow?: () => void    → optional. If provided, a "Vote Now" button is
+ *                                 shown at the bottom that calls this.
  */
 export default function HowToVote({
   isOpen,
   onClose,
   candidateName = '',
+  candidateAvatar = '',
   videoUrl: videoUrlProp = null,
   onVoteNow = null
 }) {
@@ -113,7 +116,6 @@ export default function HowToVote({
           setVideoUrl(data.how_to_vote_video);
           setIsYouTube(detectProvider(data.how_to_vote_video));
         } else {
-          // No video configured → fall back to the step guide only
           setVideoUrl(null);
         }
       } catch (err) {
@@ -186,7 +188,7 @@ export default function HowToVote({
     {
       icon: CreditCard,
       title: 'Choose votes & payment',
-      desc: 'Pick how many votes you want (50, 100, 300, or a custom amount), then select NGN (Paystack) or USD (PayPal).'
+      desc: 'Pick how many votes you want to cast (50, 100, 300, or more), then select NGN (Paystack).'
     },
     {
       icon: Gift,
@@ -196,7 +198,7 @@ export default function HowToVote({
     {
       icon: Share2,
       title: 'Share the love',
-      desc: 'Use the share bar to copy the link or post to WhatsApp, Facebook, or Instagram and get your friends voting too.'
+      desc: 'Use the "copy vote link" to share and get your friends voting too.'
     }
   ];
 
@@ -220,10 +222,25 @@ export default function HowToVote({
           >
             {/* ===== Header ===== */}
             <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0 bg-gradient-to-r from-[#C58B2A]/10 to-yellow-500/5">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[#C58B2A]/20 flex items-center justify-center flex-shrink-0">
-                  <HelpCircle className="w-4 h-4 text-[#C58B2A]" />
-                </div>
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Candidate avatar (or fallback icon) */}
+                {candidateAvatar ? (
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#C58B2A]/50 flex-shrink-0 bg-gray-800">
+                    <Image
+                      src={candidateAvatar}
+                      alt={candidateName || 'Candidate'}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                      priority
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-[#C58B2A]/20 flex items-center justify-center flex-shrink-0 border border-[#C58B2A]/30">
+                    <HelpCircle className="w-5 h-5 text-[#C58B2A]" />
+                  </div>
+                )}
+
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-white truncate">
                     How To Vote

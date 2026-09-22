@@ -11,11 +11,7 @@ import {
   Gift,
   Copy,
   Check,
-  MessageCircle,
-  Facebook,
-  Instagram,
   HelpCircle,
-  ArrowRight,
   Loader,
   User as UserIcon,
   ChevronLeft
@@ -69,7 +65,7 @@ export default function VoteProfileClient() {
   }, [username]);
 
   // ============================================================
-  // Share helpers
+  // Share helpers — copy vote link only
   // ============================================================
   const getShareUrl = () => {
     if (typeof window === 'undefined') return '';
@@ -81,11 +77,7 @@ export default function VoteProfileClient() {
     return `Hello, I am participating in the Who Wins Reality Show Season 2.
 Please help vote for me — I need votes to qualify.
 
-HOW TO VOTE:
-1. Click this link to vote or visit whowinshow.com
-2. CLICK ON THE VOTE BUTTON
-3. TYPE MY NAME: ${name}
-4. MY PHOTO WILL SHOW UP — then you can vote or send a gift by clicking the Vote or Gift button.
+Click the link below to vote
 
 I so much appreciate your support and I hope it will help me emerge as one of the housemates on Who Wins 2026 Edition.`;
   };
@@ -98,29 +90,6 @@ I so much appreciate your support and I hope it will help me emerge as one of th
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Copy failed:', err);
-    }
-  };
-
-  const handleShareWhatsApp = () => {
-    const fullText = `${getShareMessage()}\n\n${getShareUrl()}`;
-    const text = encodeURIComponent(fullText);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-  };
-
-  const handleShareFacebook = () => {
-    // Facebook's sharer only accepts the URL — the preview comes from OG tags
-    const url = encodeURIComponent(getShareUrl());
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-  };
-
-  const handleShareInstagram = async () => {
-    try {
-      const fullText = `${getShareMessage()}\n\n${getShareUrl()}`;
-      await navigator.clipboard.writeText(fullText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Instagram share (copy) failed:', err);
     }
   };
 
@@ -162,7 +131,7 @@ I so much appreciate your support and I hope it will help me emerge as one of th
 
   // ---- Shared pieces used in both layouts ----
 
-  // Compact profile card
+  // Compact profile card (country badge removed)
   const ProfileCard = (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -177,7 +146,7 @@ I so much appreciate your support and I hope it will help me emerge as one of th
         </h1>
       </div>
 
-      {/* Profile photo (smaller aspect-square) */}
+      {/* Profile photo */}
       <div className="px-4">
         <div className="relative w-full aspect-square max-h-[280px] md:max-h-[320px] rounded-2xl overflow-hidden bg-gray-800 border border-white/10">
           {profile.avatar_url ? (
@@ -192,14 +161,6 @@ I so much appreciate your support and I hope it will help me emerge as one of th
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#C58B2A]/20 to-yellow-500/10">
               <UserIcon className="w-16 h-16 text-white/30" />
-            </div>
-          )}
-
-          {profile.country && (
-            <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/70 backdrop-blur-sm border border-white/10">
-              <span className="text-[10px] font-medium text-white/90">
-                {profile.country}
-              </span>
             </div>
           )}
         </div>
@@ -226,128 +187,81 @@ I so much appreciate your support and I hope it will help me emerge as one of th
     </motion.div>
   );
 
-  // Share bar — horizontal on mobile, stacked vertical on desktop right column
-  const ShareBarDesktop = (
-    <div className="bg-white/5 rounded-2xl border border-white/10 p-3">
-      <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2 px-1">
-        Share
-      </p>
-      <div className="space-y-2">
+  // ---- DESKTOP action bar: Copy on left, How to Vote on right ----
+  const ActionBarDesktop = (
+    <div className="bg-white/5 rounded-2xl border border-white/10 p-3 flex items-center justify-between gap-3">
+      <button
+        onClick={handleCopyLink}
+        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-medium transition-colors"
+      >
+        {copied ? (
+          <>
+            <Check className="w-4 h-4 text-green-400" />
+            <span className="text-green-400">Copied!</span>
+          </>
+        ) : (
+          <>
+            <Copy className="w-4 h-4" />
+            <span>Copy Vote Link</span>
+          </>
+        )}
+      </button>
+
+      <button
+        onClick={() => setShowHowToVote(true)}
+        className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#C58B2A] to-yellow-500 text-black text-xs font-bold hover:opacity-90 transition-opacity"
+      >
+        <HelpCircle className="w-4 h-4" />
+        <span>How to Vote</span>
+      </button>
+    </div>
+  );
+
+  // ---- MOBILE action bar: stacked ----
+  const ActionBarMobile = (
+    <div className="w-full border-y border-white/10 bg-black/60 backdrop-blur-sm">
+      <div className="max-w-3xl mx-auto px-3 py-2.5 space-y-2">
         <button
           onClick={handleCopyLink}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-medium transition-colors"
         >
           {copied ? (
             <>
-              <Check className="w-4 h-4 text-green-400" />
+              <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
               <span className="text-green-400">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4" />
-              <span>Copy Link</span>
+              <Copy className="w-4 h-4 flex-shrink-0" />
+              <span>Copy Vote Link</span>
             </>
           )}
         </button>
 
         <button
-          onClick={handleShareWhatsApp}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-green-500/15 hover:bg-green-500/25 border border-green-500/30 text-green-400 text-xs font-medium transition-colors"
+          onClick={() => setShowHowToVote(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-gradient-to-r from-[#C58B2A] to-yellow-500 text-black text-xs font-bold hover:opacity-90 transition-opacity"
         >
-          <MessageCircle className="w-4 h-4" />
-          <span>WhatsApp</span>
-        </button>
-
-        <button
-          onClick={handleShareFacebook}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 text-xs font-medium transition-colors"
-        >
-          <Facebook className="w-4 h-4" />
-          <span>Facebook</span>
-        </button>
-
-        <button
-          onClick={handleShareInstagram}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-400 text-xs font-medium transition-colors"
-        >
-          <Instagram className="w-4 h-4" />
-          <span>Instagram</span>
+          <HelpCircle className="w-4 h-4 flex-shrink-0" />
+          <span>How to Vote</span>
         </button>
       </div>
     </div>
   );
 
-  const ShareBarMobile = (
-    <div className="w-full border-y border-white/10 bg-black/60 backdrop-blur-sm">
-      <div className="max-w-3xl mx-auto px-3 py-2.5">
-        <div className="flex items-center justify-between gap-1.5">
-          <button
-            onClick={handleCopyLink}
-            className="flex-1 flex items-center justify-center gap-1 py-2 px-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-medium transition-colors min-w-0"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
-                <span className="truncate text-green-400">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">Copy</span>
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={handleShareWhatsApp}
-            className="flex-1 flex items-center justify-center gap-1 py-2 px-1 rounded-lg bg-green-500/15 hover:bg-green-500/25 border border-green-500/30 text-green-400 text-[10px] font-medium transition-colors min-w-0"
-          >
-            <MessageCircle className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">WhatsApp</span>
-          </button>
-
-          <button
-            onClick={handleShareFacebook}
-            className="flex-1 flex items-center justify-center gap-1 py-2 px-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 text-[10px] font-medium transition-colors min-w-0"
-          >
-            <Facebook className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Facebook</span>
-          </button>
-
-          <button
-            onClick={handleShareInstagram}
-            className="flex-1 flex items-center justify-center gap-1 py-2 px-1 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-400 text-[10px] font-medium transition-colors min-w-0"
-          >
-            <Instagram className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Instagram</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // How-to-vote CTA card
-  const HowToVoteCard = (
-    <div className="bg-gradient-to-br from-[#C58B2A]/10 to-yellow-500/5 rounded-2xl border border-[#C58B2A]/20 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-[#C58B2A]/20 flex items-center justify-center flex-shrink-0">
-          <HelpCircle className="w-5 h-5 text-[#C58B2A]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm md:text-base font-bold text-white mb-1 leading-snug">
-            Do you want to see how to vote or send Gift to your favorite?
-          </h3>
-          <p className="text-xs text-white/60 mb-3 leading-relaxed">
-            See a quick guide on how to cast your vote for {displayName}.
-          </p>
-          <button
-            onClick={() => setShowHowToVote(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-[#C58B2A] to-yellow-500 text-black text-xs font-bold hover:opacity-90 transition-opacity"
-          >
-            Click Here
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+  // ---- Bulk vote image ----
+  const BulkVoteImage = (
+    <div className="w-full">
+      <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-gray-900">
+        <Image
+          src="/bulkvote.jpeg"
+          alt="Bulk vote"
+          width={1200}
+          height={800}
+          className="w-full h-auto object-contain"
+          priority
+          sizes="(max-width: 768px) 100vw, 500px"
+        />
       </div>
     </div>
   );
@@ -358,15 +272,15 @@ I so much appreciate your support and I hope it will help me emerge as one of th
       <div className="hidden md:block">
         <div className="container mx-auto px-6 pt-8 pb-10 max-w-5xl">
           <div className="grid grid-cols-2 gap-6 items-start">
-            {/* Left column — profile card */}
-            <div>
+            {/* LEFT column — profile card + action bar */}
+            <div className="space-y-4">
               {ProfileCard}
+              {ActionBarDesktop}
             </div>
 
-            {/* Right column — share + how-to-vote */}
-            <div className="space-y-4">
-              {ShareBarDesktop}
-              {HowToVoteCard}
+            {/* RIGHT column — bulk vote image */}
+            <div>
+              {BulkVoteImage}
             </div>
           </div>
         </div>
@@ -379,11 +293,11 @@ I so much appreciate your support and I hope it will help me emerge as one of th
         </div>
 
         <div className="mt-3">
-          {ShareBarMobile}
+          {ActionBarMobile}
         </div>
 
-        <div className="container mx-auto px-4 py-4">
-          {HowToVoteCard}
+        <div className="container mx-auto px-4 mt-3">
+          {BulkVoteImage}
         </div>
       </div>
 
