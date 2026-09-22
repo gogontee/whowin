@@ -26,6 +26,8 @@ export default function HomePage() {
   const [shortDescription, setShortDescription] = useState('');
   const [quickTips, setQuickTips] = useState('');
   const [season1Images, setSeason1Images] = useState([]);
+  // Controls whether TopCandidates section renders (from who_win.show_top_candidate)
+  const [showTopCandidate, setShowTopCandidate] = useState(false);
 
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
@@ -81,16 +83,20 @@ export default function HomePage() {
 
         const { data: whoWin, error: whoWinError } = await supabase
           .from('who_win')
-          .select('carousel, tv')
+          .select('carousel, tv, show_top_candidate')
           .eq('id', 1)
           .single();
 
         if (whoWinError) {
           setHasHomeFeaturedContent(false);
+          setShowTopCandidate(false);
         } else {
           const hasCarousel = whoWin?.carousel && Array.isArray(whoWin.carousel) && whoWin.carousel.length > 0;
           const hasTv = whoWin?.tv && Array.isArray(whoWin.tv) && whoWin.tv.length > 0;
           setHasHomeFeaturedContent(hasCarousel || hasTv);
+
+          // Only true when explicitly set to boolean true
+          setShowTopCandidate(whoWin?.show_top_candidate === true);
         }
 
         const { data: catalogueData, error: catalogueError } = await supabase
@@ -112,6 +118,7 @@ export default function HomePage() {
         setShortDescription(FALLBACK_DESCRIPTION);
         setQuickTips(FALLBACK_QUICK_TIPS);
         setSeason1Images([]);
+        setShowTopCandidate(false);
       } finally {
         setLoading(false);
       }
@@ -252,11 +259,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {hasCandidates && <TopCandidates />}
+      {/* Top Candidates — only when show_top_candidate is true AND candidates exist */}
+      {hasCandidates && showTopCandidate && <TopCandidates />}
 
       {hasHomeFeaturedContent && <HomeFeaturedPost />}
 
-      {/* Footer CTA — trimmed top padding */}
+      {/* Footer CTA */}
       <div className="container mx-auto px-4 pt-2 pb-4 md:pt-3 md:pb-6">
         {renderCTA()}
       </div>

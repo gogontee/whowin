@@ -15,10 +15,8 @@ export default function CandidatesPage() {
   const [allProfiles, setAllProfiles] = useState([]);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState(''); // what the user types
-  const [searchQuery, setSearchQuery] = useState(''); // what is actually searched
-  const [selectedCountry, setSelectedCountry] = useState('all');
-  const [countries, setCountries] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
   // Modals
@@ -29,19 +27,14 @@ export default function CandidatesPage() {
     fetchCandidates();
   }, []);
 
-  // Re-run filter whenever the applied searchQuery or country changes
+  // Re-run filter whenever the applied searchQuery changes
   useEffect(() => {
     const query = searchQuery.toLowerCase().trim();
 
     if (query === '') {
       setIsSearching(false);
-
       const verified = candidates.filter(c => c.verification_level === 'fully_verified');
-      let filtered = verified;
-      if (selectedCountry !== 'all') {
-        filtered = filtered.filter(item => item.country === selectedCountry);
-      }
-      setFilteredCandidates(filtered);
+      setFilteredCandidates(verified);
       return;
     }
 
@@ -53,21 +46,12 @@ export default function CandidatesPage() {
 
       const username = profile.username?.toLowerCase() || '';
       const fullName = profile.full_name?.toLowerCase() || '';
-      const country = profile.country?.toLowerCase() || '';
 
-      return (
-        username.includes(query) ||
-        fullName.includes(query) ||
-        country.includes(query)
-      );
+      return username.includes(query) || fullName.includes(query);
     });
 
-    let filtered = results;
-    if (selectedCountry !== 'all') {
-      filtered = filtered.filter(item => item.country === selectedCountry);
-    }
-    setFilteredCandidates(filtered);
-  }, [searchQuery, selectedCountry, candidates, allProfiles]);
+    setFilteredCandidates(results);
+  }, [searchQuery, candidates, allProfiles]);
 
   const fetchCandidates = async () => {
     try {
@@ -127,14 +111,7 @@ export default function CandidatesPage() {
       setCandidates(sortedCandidates);
 
       const verified = sortedCandidates.filter(c => c.verification_level === 'fully_verified');
-      let initialFiltered = verified;
-      if (selectedCountry !== 'all') {
-        initialFiltered = initialFiltered.filter(item => item.country === selectedCountry);
-      }
-      setFilteredCandidates(initialFiltered);
-
-      const uniqueCountries = [...new Set(verified.map(c => c.country).filter(Boolean))];
-      setCountries(uniqueCountries);
+      setFilteredCandidates(verified);
     } catch (error) {
       console.error('Error fetching candidates:', error);
       setCandidates([]);
@@ -155,12 +132,10 @@ export default function CandidatesPage() {
     return votes.toString();
   };
 
-  // Card click → voteprofile page
   const handleCardClick = (username) => {
     router.push(`/${username}/voteprofile`);
   };
 
-  // Search button / Enter key
   const handleSearchSubmit = () => {
     setSearchQuery(searchInput);
   };
@@ -176,13 +151,8 @@ export default function CandidatesPage() {
     setSearchInput('');
     setSearchQuery('');
     setIsSearching(false);
-
     const verified = candidates.filter(c => c.verification_level === 'fully_verified');
-    let filtered = verified;
-    if (selectedCountry !== 'all') {
-      filtered = filtered.filter(item => item.country === selectedCountry);
-    }
-    setFilteredCandidates(filtered);
+    setFilteredCandidates(verified);
   };
 
   if (loading) {
@@ -270,38 +240,6 @@ export default function CandidatesPage() {
           )}
         </div>
 
-        {/* Country Filters */}
-        {countries.length > 0 && !isSearching && (
-          <div className="flex flex-wrap justify-center gap-1.5 mb-8">
-            <button
-              onClick={() => setSelectedCountry('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                selectedCountry === 'all'
-                  ? 'metallic-gold text-black'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
-              }`}
-            >
-              All ({candidates.filter(c => c.verification_level === 'fully_verified').length})
-            </button>
-            {countries.map(country => {
-              const count = candidates.filter(c => c.country === country && c.verification_level === 'fully_verified').length;
-              return (
-                <button
-                  key={country}
-                  onClick={() => setSelectedCountry(country)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    selectedCountry === country
-                      ? 'metallic-gold text-black'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                  }`}
-                >
-                  {country} ({count})
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {/* Results Info */}
         {isSearching && (
           <div className="flex items-center justify-between mb-6">
@@ -354,15 +292,6 @@ export default function CandidatesPage() {
                       <div className="absolute top-2 left-2">
                         <div className="px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-orange-400/30">
                           <span className="text-[10px] font-bold text-[#F6D77A]">#{candidate.rank}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Country Badge */}
-                    {candidate.country && (
-                      <div className="absolute top-2 right-2">
-                        <div className="px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/10">
-                          <span className="text-[8px] font-medium text-white/80">{candidate.country}</span>
                         </div>
                       </div>
                     )}
