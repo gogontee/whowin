@@ -84,6 +84,7 @@ export default function ProfilePage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
@@ -260,7 +261,6 @@ export default function ProfilePage() {
       let nextStep = -1;
 
       if (allCompleted) {
-        // ✅ FIX: Check if success popup has already been shown
         const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profileData.id}`);
         console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
         
@@ -358,7 +358,6 @@ export default function ProfilePage() {
     let nextStep = -1;
 
     if (allCompleted) {
-      // ✅ FIX: Check if success popup has already been shown
       const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profile.id}`);
       console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
       
@@ -525,6 +524,10 @@ export default function ProfilePage() {
 
   // =====================
   // CHECK AUTH - OPTIONAL, NON-BLOCKING
+  // Now enforces role-based access:
+  //   - Profile owner can view
+  //   - Admin can view
+  //   - Everyone else → redirected to /[username]/voteprofile
   // =====================
   const checkCurrentUser = async () => {
     try {
@@ -532,11 +535,14 @@ export default function ProfilePage() {
       
       setAuthChecked(true);
       
+      // No user logged in → check against profile ownership (they can't be owner)
       if (userError || !user) {
-        console.log('Viewing as guest');
+        console.log('Guest — redirecting to voteprofile');
         setIsOwner(false);
+        setIsAdmin(false);
         setCurrentUser(null);
         setIsFollowing(false);
+        router.replace(`/${username}/voteprofile`);
         return;
       }
 
@@ -546,6 +552,30 @@ export default function ProfilePage() {
         const isProfileOwner = user.id === profile.id;
         setIsOwner(isProfileOwner);
 
+        // Fetch the current user's role to determine admin access
+        let userRole = null;
+        try {
+          const { data: roleData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          userRole = roleData?.role || null;
+        } catch (roleErr) {
+          console.warn('Could not fetch user role:', roleErr?.message);
+        }
+
+        const isUserAdmin = userRole === 'admin';
+        setIsAdmin(isUserAdmin);
+
+        // Access control: only owner or admin can view this page
+        if (!isProfileOwner && !isUserAdmin) {
+          console.log('Not owner or admin — redirecting to voteprofile');
+          router.replace(`/${username}/voteprofile`);
+          return;
+        }
+
+        // If the viewer is not the owner, check following state
         if (!isProfileOwner) {
           const { data: followData } = await supabase
             .from('followers')
@@ -559,15 +589,21 @@ export default function ProfilePage() {
           setIsFollowing(false);
         }
       } else {
+        // Should not happen — profile is always loaded before this runs,
+        // but keep the safety net for the edge case.
         setIsOwner(false);
+        setIsAdmin(false);
         setIsFollowing(false);
+        router.replace(`/${username}/voteprofile`);
       }
     } catch (error) {
-      console.log('Auth check failed - viewing as guest');
+      console.log('Auth check failed — redirecting to voteprofile');
       setIsOwner(false);
+      setIsAdmin(false);
       setCurrentUser(null);
       setIsFollowing(false);
       setAuthChecked(true);
+      router.replace(`/${username}/voteprofile`);
     }
   };
 

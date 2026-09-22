@@ -1,9 +1,9 @@
 // /components/profile/GiftModal.js
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader, Check, AlertCircle, CreditCard, DollarSign, ChevronRight, Gift, Heart, Sparkles, Crown, Diamond, Trophy, Flower, Star } from 'lucide-react';
+import { X, Loader, Check, AlertCircle, Gift, Heart, Crown, Diamond, Trophy, Flower } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '../../lib/supabase';
 
@@ -120,16 +120,6 @@ const GIFTS = [
     icon: Diamond
   },
 ];
-const PaymentIcon = ({ provider }) => {
-  switch(provider) {
-    case 'paystack':
-      return <span className="text-green-400 font-bold text-base">₦</span>;
-    case 'paypal':
-      return <span className="text-blue-400 font-bold text-base">$</span>;
-    default:
-      return <CreditCard className="w-4 h-4" />;
-  }
-};
 
 export default function GiftModal({ 
   isOpen, 
@@ -139,17 +129,12 @@ export default function GiftModal({
   onGiftError 
 }) {
   const [selectedGift, setSelectedGift] = useState(null);
-  const [showCurrencySelection, setShowCurrencySelection] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [guestInfo, setGuestInfo] = useState({ email: '', name: '' });
   const [currentUser, setCurrentUser] = useState(null);
   const [paymentStep, setPaymentStep] = useState('selection');
   const [error, setError] = useState('');
-  const [shouldScroll, setShouldScroll] = useState(false);
   const [paystackLoaded, setPaystackLoaded] = useState(false);
-  const [paypalReady, setPaypalReady] = useState(false);
-  const [paypalLoading, setPaypalLoading] = useState(false);
   
   const [paymentError, setPaymentError] = useState({
     show: false,
@@ -158,14 +143,7 @@ export default function GiftModal({
     suggestion: ''
   });
 
-  const currencySelectionRef = useRef(null);
-  const proceedButtonRef = useRef(null);
-  const paypalButtonContainerRef = useRef(null);
-
   const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
-  const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-
-  const USD_TO_NGN = 1500;
 
   useEffect(() => {
     const checkUser = async () => {
@@ -178,8 +156,9 @@ export default function GiftModal({
     }
   }, [isOpen, supabase]);
 
+  // Load Paystack script
   useEffect(() => {
-    if (isOpen && !paystackLoaded && selectedCurrency === 'NGN') {
+    if (isOpen && !paystackLoaded) {
       if (window.PaystackPop) {
         setPaystackLoaded(true);
         return;
@@ -197,156 +176,23 @@ export default function GiftModal({
       
       document.head.appendChild(script);
     }
-  }, [isOpen, paystackLoaded, selectedCurrency]);
+  }, [isOpen, paystackLoaded]);
 
-  useEffect(() => {
-    if (isOpen && selectedCurrency === 'USD' && !paypalReady && !paypalLoading) {
-      loadPayPalScript();
-    }
-  }, [isOpen, selectedCurrency, paypalReady, paypalLoading]);
-
-  const loadPayPalScript = () => {
-    if (window.paypal) {
-      setPaypalReady(true);
-      return;
-    }
-
-    setPaypalLoading(true);
-    
-    const existingScript = document.getElementById('paypal-sdk');
-    if (existingScript) {
-      existingScript.remove();
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
-    script.async = true;
-    script.id = 'paypal-sdk';
-    
-    script.onload = () => {
-      setPaypalReady(true);
-      setPaypalLoading(false);
-    };
-    
-    script.onerror = () => {
-      setError('Failed to load PayPal. Please try again.');
-      setPaypalLoading(false);
-    };
-    
-    document.head.appendChild(script);
-  };
-
-  useEffect(() => {
-    if (paypalReady && selectedCurrency === 'USD' && paypalButtonContainerRef.current && selectedGift) {
-      paypalButtonContainerRef.current.innerHTML = '';
-      
-      const totalAmountUSD = (selectedGift.amount / USD_TO_NGN).toFixed(2);
-      const email = currentUser?.email || guestInfo.email || 'guest@example.com';
-      const reference = `GIFT_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-      try {
-        window.paypal.Buttons({
-          style: {
-            layout: 'vertical',
-            color: 'gold',
-            shape: 'rect',
-            label: 'pay',
-            height: 45
-          },
-          createOrder: (data, actions) => {
-            return actions.order.create({
-              purchase_units: [{
-                description: `${selectedGift.emoji} ${selectedGift.name} gift for @${profile?.username}`,
-                amount: {
-                  currency_code: 'USD',
-                  value: totalAmountUSD
-                },
-                custom_id: reference,
-                invoice_id: reference
-              }],
-              application_context: {
-                shipping_preference: 'NO_SHIPPING',
-                user_action: 'PAY_NOW'
-              }
-            });
-          },
-          onApprove: async (data, actions) => {
-            setProcessing(true);
-            try {
-              const order = await actions.order.capture();
-              const totalAmountUSD = parseFloat(order.purchase_units[0].amount.value);
-              const totalAmountNGN = totalAmountUSD * USD_TO_NGN;
-              
-              await handlePaymentSuccess(
-                { reference: order.id },
-                totalAmountNGN,
-                email,
-                guestInfo.name || 'Guest',
-                'paypal',
-                'paypal',
-                { paypal_response: order }
-              );
-            } catch (err) {
-              handlePayPalError(err);
-            }
-          },
-          onError: (err) => {
-            handlePayPalError(err);
-          },
-          onCancel: () => {
-            setPaymentError({
-              show: true,
-              type: 'cancelled',
-              message: 'Payment was cancelled.',
-              suggestion: 'You can try again or choose a different payment method.'
-            });
-            setProcessing(false);
-          }
-        }).render(paypalButtonContainerRef.current);
-        
-      } catch (error) {
-        setPaymentError({
-          show: true,
-          type: 'processing',
-          message: 'Failed to initialize payment.',
-          suggestion: 'Please refresh and try again.'
-        });
-      }
-    }
-  }, [paypalReady, selectedCurrency, selectedGift, profile, currentUser, guestInfo]);
-
-  const handlePayPalError = (err) => {
-    console.error('Full PayPal error:', err);
+  const handlePaystackError = (err) => {
+    console.error('Paystack error:', err);
     setProcessing(false);
     
-    const errorString = JSON.stringify(err).toLowerCase();
+    const errorString = JSON.stringify(err || {}).toLowerCase();
     
     let errorType = 'processing';
     let userMessage = 'Payment failed. Please try again.';
-    let suggestion = 'Try a different payment method or card.';
+    let suggestion = 'Try again or contact support if the issue persists.';
     
-    if (errorString.includes('declined') || 
-        errorString.includes('payment_denied') ||
-        errorString.includes('instrument_declined')) {
+    if (errorString.includes('declined') || errorString.includes('denied')) {
       errorType = 'declined';
       userMessage = 'Your card was declined.';
-      suggestion = 'Please try a different card or use your PayPal balance.';
-    }
-    else if (errorString.includes('card_type') || 
-             errorString.includes('unsupported')) {
-      errorType = 'card_type';
-      userMessage = 'This card type is not supported.';
-      suggestion = 'Please use Visa, Mastercard, or American Express.';
-    }
-    else if (errorString.includes('account') || 
-             errorString.includes('restricted') ||
-             errorString.includes('verify')) {
-      errorType = 'account';
-      userMessage = 'There is an issue with the merchant account.';
-      suggestion = 'Please try again later or contact support.';
-    }
-    else if (errorString.includes('network') || 
-             errorString.includes('connection')) {
+      suggestion = 'Please try a different card or check with your bank.';
+    } else if (errorString.includes('network') || errorString.includes('connection')) {
       errorType = 'network';
       userMessage = 'Network error occurred.';
       suggestion = 'Please check your internet connection and try again.';
@@ -362,48 +208,8 @@ export default function GiftModal({
     setError(userMessage);
   };
 
-  useEffect(() => {
-    if (shouldScroll && !showCurrencySelection && proceedButtonRef.current) {
-      const timer = setTimeout(() => {
-        proceedButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setShouldScroll(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-    
-    if (shouldScroll && showCurrencySelection && currencySelectionRef.current) {
-      const timer = setTimeout(() => {
-        currencySelectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setShouldScroll(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [shouldScroll, showCurrencySelection]);
-
   const handleGiftSelect = (gift) => {
     setSelectedGift(gift);
-    setError('');
-    setTimeout(() => setShouldScroll(true), 200);
-  };
-
-  const handleProceedToCurrency = () => {
-    if (!selectedGift) {
-      setError('Please select a gift');
-      return;
-    }
-    setShowCurrencySelection(true);
-    setError('');
-    setTimeout(() => setShouldScroll(true), 100);
-  };
-
-  const handleCurrencySelect = (currency) => {
-    setSelectedCurrency(currency);
-    setError('');
-  };
-
-  const handleBackToGiftSelection = () => {
-    setShowCurrencySelection(false);
-    setSelectedCurrency(null);
     setError('');
   };
 
@@ -440,7 +246,7 @@ export default function GiftModal({
           ],
         },
         callback: (response) => {
-          handlePaymentSuccess(response, selectedGift.amount, email, name, 'paystack', 'paystack');
+          handlePaymentSuccess(response, selectedGift.amount, email, name);
         },
         onClose: () => {
           setProcessing(false);
@@ -450,12 +256,11 @@ export default function GiftModal({
 
       handler.openIframe();
     } catch (error) {
-      setError('Failed to initialize payment.');
-      setProcessing(false);
+      handlePaystackError(error);
     }
   };
 
-  const handlePaymentSuccess = async (response, totalAmount, email, name, provider, method, additionalData = {}) => {
+  const handlePaymentSuccess = async (response, totalAmount, email, name) => {
     setPaymentStep('processing');
     
     try {
@@ -468,14 +273,13 @@ export default function GiftModal({
         gift_name: selectedGift.name,
         gift_emoji: selectedGift.emoji,
         amount: totalAmount,
-        payment_method: method,
-        payment_provider: provider,
-        payment_id: response.reference || response.order_id || response.id,
-        reference: response.reference || response.order_id || response.id,
+        payment_method: 'paystack',
+        payment_provider: 'paystack',
+        payment_id: response.reference || response.id,
+        reference: response.reference || response.id,
         status: 'completed',
         metadata: {
-          currency: provider === 'paypal' ? 'USD' : 'NGN',
-          ...additionalData,
+          currency: 'NGN',
         },
       };
 
@@ -488,9 +292,7 @@ export default function GiftModal({
       setPaymentStep('success');
       setProcessing(false);
 
-      const totalFormatted = provider === 'paypal' 
-        ? `$${(totalAmount / USD_TO_NGN).toFixed(2)}` 
-        : `₦${totalAmount.toLocaleString()}`;
+      const totalFormatted = `₦${totalAmount.toLocaleString()}`;
 
       if (onGiftSuccess) {
         onGiftSuccess(selectedGift, totalFormatted);
@@ -510,33 +312,29 @@ export default function GiftModal({
   };
 
   const processPayment = () => {
-    if (!selectedCurrency) {
-      setError('Please select a currency');
+    if (!selectedGift) {
+      setError('Please select a gift');
       return;
     }
 
-    if (selectedCurrency === 'NGN') {
-      if (!currentUser && !guestInfo.email) {
-        setError('Please enter your email address');
-        return;
-      }
-
-      if (!paystackLoaded) {
-        setError('Payment system is loading. Please wait...');
-        return;
-      }
-
-      setProcessing(true);
-      setError('');
-      setPaymentStep('processing');
-      processPaystackPayment();
+    if (!currentUser && !guestInfo.email) {
+      setError('Please enter your email address');
+      return;
     }
+
+    if (!paystackLoaded) {
+      setError('Payment system is loading. Please wait...');
+      return;
+    }
+
+    setProcessing(true);
+    setError('');
+    setPaymentStep('processing');
+    processPaystackPayment();
   };
 
   const resetModal = () => {
     setSelectedGift(null);
-    setShowCurrencySelection(false);
-    setSelectedCurrency(null);
     setGuestInfo({ email: '', name: '' });
     setError('');
     setPaymentStep('selection');
@@ -549,14 +347,6 @@ export default function GiftModal({
     onClose();
   };
 
-  // Get gift color classes
-  const getGiftColorClasses = (gift, isSelected) => {
-    if (isSelected) {
-      return `border-transparent ring-2 ring-${gift.color.split('-')[1]}-500`;
-    }
-    return `border-white/10 hover:border-${gift.color.split('-')[1]}-500/50`;
-  };
-
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-NG', {
@@ -567,7 +357,6 @@ export default function GiftModal({
     }).format(amount);
   };
 
-  const totalUSD = selectedGift ? (selectedGift.amount / USD_TO_NGN).toFixed(2) : '0.00';
   const totalNGN = selectedGift ? selectedGift.amount.toLocaleString() : '0';
 
   return (
@@ -588,14 +377,14 @@ export default function GiftModal({
             className="w-full max-w-md bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 overflow-hidden my-auto"
           >
             {/* Header */}
-            <div className="p-3 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-gold-500/20 to-yellow-500/20 sticky top-0 z-10">
+            <div className="p-3 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-yellow-500/20 to-yellow-400/10 sticky top-0 z-10">
               <h2 className="text-base font-bold text-white flex items-center gap-1.5">
                 <Gift className="w-4 h-4 text-yellow-400" />
                 Send a Gift to @{profile?.username}
               </h2>
               
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-gold-500 border-2 border-white/30">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-amber-500 border-2 border-white/30">
                   {profile?.avatar_url ? (
                     <Image
                       src={profile.avatar_url}
@@ -637,182 +426,8 @@ export default function GiftModal({
                   </p>
                   <div className="bg-white/5 rounded-lg p-2">
                     <p className="text-yellow-400 font-semibold text-sm">
-                      Total: {selectedCurrency === 'USD' ? `$${totalUSD}` : `₦${totalNGN}`}
+                      Total: ₦{totalNGN}
                     </p>
-                  </div>
-                </div>
-              ) : showCurrencySelection ? (
-                <div ref={currencySelectionRef}>
-                  {/* Gift Summary */}
-                  <div className="p-3 border-b border-white/10">
-                    <div className="bg-white/5 rounded-lg p-3 text-center">
-                      <p className="text-4xl mb-1">{selectedGift?.emoji}</p>
-                      <p className="text-lg font-bold text-white mb-0.5">{selectedGift?.name}</p>
-                      <p className="text-xs text-white/60">
-                        {formatCurrency(selectedGift?.amount || 0)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Currency Selection */}
-                  <div className="p-3 border-b border-white/10">
-                    <label className="block text-xs font-medium text-white/80 mb-2">
-                      Choose your currency
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => handleCurrencySelect('NGN')}
-                        className={`p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
-                          selectedCurrency === 'NGN'
-                            ? 'border-yellow-500 bg-yellow-500/10'
-                            : 'border-white/10 hover:border-white/20 bg-white/5'
-                        }`}
-                      >
-                        <span className={`text-xl font-bold ${selectedCurrency === 'NGN' ? 'text-yellow-500' : 'text-white/60'}`}>₦</span>
-                        <span className="font-bold text-white text-sm">Naira</span>
-                        <span className="text-xs text-white/40">₦{totalNGN}</span>
-                      </button>
-                      <button
-                        onClick={() => handleCurrencySelect('USD')}
-                        className={`p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
-                          selectedCurrency === 'USD'
-                            ? 'border-yellow-500 bg-yellow-500/10'
-                            : 'border-white/10 hover:border-white/20 bg-white/5'
-                        }`}
-                      >
-                        <DollarSign className={`w-6 h-6 ${selectedCurrency === 'USD' ? 'text-yellow-500' : 'text-white/60'}`} />
-                        <span className="font-bold text-white text-sm">US Dollar</span>
-                        <span className="text-xs text-white/40">${totalUSD}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* NGN Payment */}
-                  {selectedCurrency === 'NGN' && (
-                    <>
-                      {!currentUser && (
-                        <div className="p-3 border-b border-white/10 space-y-2">
-                          <label className="block text-xs font-medium text-white/80">
-                            Your Information
-                          </label>
-                          <input
-                            type="email"
-                            placeholder="Email address *"
-                            value={guestInfo.email}
-                            onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
-                            required
-                          />
-                          <input
-                            type="text"
-                            placeholder="Your name (optional)"
-                            value={guestInfo.name}
-                            onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
-                          />
-                        </div>
-                      )}
-
-                      <div className="px-3 py-1">
-                        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2">
-                          <span className="text-green-400 text-xs">✓ Pay with Paystack</span>
-                        </div>
-                      </div>
-
-                      {error && (
-                        <div className="px-3 py-1">
-                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                            <p className="text-xs text-red-400">{error}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="p-3">
-                        <button
-                          onClick={processPayment}
-                          disabled={processing || (!currentUser && !guestInfo.email)}
-                          className="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                        >
-                          {processing ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <Loader className="w-4 h-4 animate-spin" />
-                              Processing...
-                            </span>
-                          ) : (
-                            `Pay ₦${totalNGN} with Paystack`
-                          )}
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  {/* USD Payment */}
-                  {selectedCurrency === 'USD' && (
-                    <div className="p-3 border-b border-white/10">
-                      {!currentUser && (
-                        <div className="mb-3 space-y-2">
-                          <input
-                            type="email"
-                            placeholder="Email (optional)"
-                            value={guestInfo.email}
-                            onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Your name (optional)"
-                            value={guestInfo.name}
-                            onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
-                          />
-                        </div>
-                      )}
-
-                      {paypalLoading ? (
-                        <div className="flex items-center justify-center py-6">
-                          <Loader className="w-5 h-5 text-yellow-500 animate-spin" />
-                          <span className="text-xs text-white/60 ml-2">Loading PayPal...</span>
-                        </div>
-                      ) : paypalReady ? (
-                        <>
-                          <div 
-                            ref={paypalButtonContainerRef} 
-                            className="min-h-[100px] w-full"
-                          />
-                          <p className="text-xs text-white/40 text-center mt-2">
-                            Pay with PayPal account or credit/debit card
-                          </p>
-                        </>
-                      ) : (
-                        <div className="text-center py-4">
-                          <p className="text-xs text-red-400">PayPal failed to load.</p>
-                          <button
-                            onClick={loadPayPalScript}
-                            className="mt-2 text-xs text-yellow-400 hover:underline"
-                          >
-                            Retry
-                          </button>
-                        </div>
-                      )}
-
-                      {error && (
-                        <div className="mt-3 px-3 py-1">
-                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                            <p className="text-xs text-red-400">{error}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Back Button */}
-                  <div className="p-3">
-                    <button
-                      onClick={handleBackToGiftSelection}
-                      className="w-full py-2 bg-white/5 text-white rounded-lg text-xs hover:bg-white/10 transition-colors"
-                    >
-                      ← Back to Gift Selection
-                    </button>
                   </div>
                 </div>
               ) : (
@@ -825,19 +440,18 @@ export default function GiftModal({
                     <div className="grid grid-cols-3 gap-2">
                       {GIFTS.map((gift) => {
                         const isSelected = selectedGift?.id === gift.id;
-                        const IconComponent = gift.icon;
                         return (
                           <button
                             key={gift.id}
                             onClick={() => handleGiftSelect(gift)}
                             className={`p-3 rounded-xl border transition-all relative group ${
                               isSelected
-                                ? `border-transparent ring-2 ring-${gift.color.split('-')[1]}-500 bg-${gift.color.split('-')[1]}-500/10`
+                                ? `border-transparent ring-2 ring-yellow-400 bg-yellow-500/10`
                                 : `${gift.bgColor} ${gift.borderColor} hover:bg-white/10`
                             }`}
                           >
                             <div className="text-2xl mb-1">{gift.emoji}</div>
-                            <div className={`text-xs font-medium text-white/80 ${isSelected ? 'text-white' : ''}`}>
+                            <div className="text-xs font-medium text-white/80">
                               {gift.name}
                             </div>
                             <div className={`text-[8px] ${gift.textColor}`}>
@@ -869,6 +483,40 @@ export default function GiftModal({
                     </div>
                   )}
 
+                  {/* Guest Info (email only shown for guests) */}
+                  {selectedGift && !currentUser && (
+                    <div className="p-3 border-b border-white/10 space-y-2">
+                      <label className="block text-xs font-medium text-white/80">
+                        Your Information
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="Email address *"
+                        value={guestInfo.email}
+                        onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Your name (optional)"
+                        value={guestInfo.name}
+                        onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-yellow-500 focus:outline-none transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  {/* Paystack Badge */}
+                  {selectedGift && (
+                    <div className="px-3 py-2">
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2">
+                        <span className="text-green-400 text-xs">✓ Secure payment via Paystack</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error */}
                   {error && (
                     <div className="px-3 py-1">
                       <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
@@ -877,21 +525,25 @@ export default function GiftModal({
                     </div>
                   )}
 
-                  {/* Proceed Button */}
-                  <div ref={proceedButtonRef} className="p-3">
+                  {/* Pay Button */}
+                  <div className="p-3">
                     <button
-                      onClick={handleProceedToCurrency}
-                      disabled={!selectedGift}
-                      className={`w-full py-3 rounded-lg text-sm font-semibold transition-opacity flex items-center justify-center gap-1 group ${
-                        selectedGift
-                          ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-black hover:opacity-90'
-                          : 'bg-white/10 text-white/40 cursor-not-allowed'
-                      }`}
+                      onClick={processPayment}
+                      disabled={processing || !selectedGift || (!currentUser && !guestInfo.email)}
+                      className="w-full py-3 rounded-lg text-sm font-semibold transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black hover:opacity-90"
                     >
-                      <span>Proceed to Payment</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      {processing ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : selectedGift ? (
+                        `Pay ₦${totalNGN} with Paystack`
+                      ) : (
+                        'Select a Gift'
+                      )}
                     </button>
-                    
+
                     <p className="text-[10px] text-white/40 text-center mt-2">
                       By proceeding, you agree to our Terms of Service
                     </p>
@@ -909,7 +561,7 @@ export default function GiftModal({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-                onClick={() => setPaymentError({...paymentError, show: false})}
+                onClick={() => setPaymentError({ ...paymentError, show: false })}
               >
                 <motion.div
                   initial={{ scale: 0.95, y: 20 }}
@@ -926,20 +578,6 @@ export default function GiftModal({
                         </svg>
                       </div>
                     )}
-                    {paymentError.type === 'card_type' && (
-                      <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                    )}
-                    {paymentError.type === 'account' && (
-                      <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                    )}
                     {paymentError.type === 'network' && (
                       <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
                         <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -947,52 +585,38 @@ export default function GiftModal({
                         </svg>
                       </div>
                     )}
-                    {paymentError.type === 'cancelled' && (
-                      <div className="w-16 h-16 bg-gray-500/20 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    {paymentError.type === 'processing' && (
+                      <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center">
+                        <AlertCircle className="w-8 h-8 text-purple-400" />
                       </div>
                     )}
                   </div>
-                  
+
                   <h3 className="text-lg font-bold text-white text-center mb-2">
                     Payment Failed
                   </h3>
-                  
+
                   <p className="text-white/80 text-center mb-4">
                     {paymentError.message}
                   </p>
-                  
+
                   <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-6">
                     <p className="text-sm text-white/60 text-center">
                       💡 {paymentError.suggestion}
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-col gap-2">
                     <button
-                      onClick={() => setPaymentError({...paymentError, show: false})}
+                      onClick={() => setPaymentError({ ...paymentError, show: false })}
                       className="w-full py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black rounded-lg font-semibold hover:opacity-90 transition-opacity"
                     >
                       Try Again
                     </button>
-                    
-                    {paymentError.type !== 'account' && (
-                      <button
-                        onClick={() => {
-                          setPaymentError({...paymentError, show: false});
-                          handleBackToGiftSelection();
-                        }}
-                        className="w-full py-2 bg-white/5 text-white rounded-lg text-sm hover:bg-white/10 transition-colors"
-                      >
-                        Choose Different Payment Method
-                      </button>
-                    )}
-                    
+
                     <button
                       onClick={() => {
-                        setPaymentError({...paymentError, show: false});
+                        setPaymentError({ ...paymentError, show: false });
                         handleClose();
                       }}
                       className="w-full py-2 text-sm text-white/40 hover:text-white/60 transition-colors"
