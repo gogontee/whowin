@@ -25,7 +25,6 @@ export default function HomePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [shortDescription, setShortDescription] = useState('');
   const [quickTips, setQuickTips] = useState('');
-  const [season1Images, setSeason1Images] = useState([]);
   // Controls whether TopCandidates section renders (from who_win.show_top_candidate)
   const [showTopCandidate, setShowTopCandidate] = useState(false);
 
@@ -99,25 +98,12 @@ export default function HomePage() {
           setShowTopCandidate(whoWin?.show_top_candidate === true);
         }
 
-        const { data: catalogueData, error: catalogueError } = await supabase
-          .from('catalogue')
-          .select('id, image_url')
-          .not('image_url', 'is', null)
-          .limit(4);
-
-        if (catalogueError) {
-          setSeason1Images([]);
-        } else {
-          setSeason1Images(catalogueData || []);
-        }
-
       } catch (error) {
         console.error('Error checking content:', error);
         setHasCandidates(false);
         setHasHomeFeaturedContent(false);
         setShortDescription(FALLBACK_DESCRIPTION);
         setQuickTips(FALLBACK_QUICK_TIPS);
-        setSeason1Images([]);
         setShowTopCandidate(false);
       } finally {
         setLoading(false);
@@ -272,60 +258,18 @@ export default function HomePage() {
       {/* TopNews */}
       <TopNews />
 
-      {/* ===== Season 1 Section ===== */}
-      {season1Images.length > 0 && (
-        <section className="container mx-auto px-4 pt-2 pb-8 md:pt-4 md:pb-12">
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <div>
-              <div className="text-orange-400 text-sm font-medium tracking-wider mb-1">
-                PREVIOUS
-              </div>
-              <h2 className="text-xl md:text-2xl font-bold text-white">
-                Season 1 Highlights
-              </h2>
-            </div>
-
-            <button
-              onClick={handleViewSeason1}
-              className="hidden md:flex items-center gap-2 text-white/80 hover:text-white group"
-            >
-              <span className="text-xs font-medium">VIEW MORE FROM SEASON 1</span>
-              <div className="w-5 h-5 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
-                <ChevronRight className="w-3 h-3 flex-shrink-0" />
-              </div>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {season1Images.map((item) => (
-              <div
-                key={item.id}
-                className="relative aspect-square rounded-xl overflow-hidden bg-gray-800 border border-white/10 hover:border-[#C58B2A]/50 transition-colors duration-300 group cursor-pointer"
-                onClick={handleViewSeason1}
-              >
-                <Image
-                  src={item.image_url}
-                  alt="Season 1"
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-700"
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="md:hidden mt-4 flex justify-center">
-            <button
-              onClick={handleViewSeason1}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white text-sm font-medium transition-colors"
-            >
-              View More from Season 1
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </section>
-      )}
+      {/* ===== Season 1 Highlight Button ===== */}
+      <section className="container mx-auto px-4 pt-2 pb-8 md:pt-4 md:pb-12">
+        <div className="flex justify-center">
+          <button
+            onClick={handleViewSeason1}
+            className="inline-flex items-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold text-sm md:text-base shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 group"
+          >
+            <span>View Season 1 Highlight</span>
+            <ChevronRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
