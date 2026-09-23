@@ -4,8 +4,8 @@ import GlobalNavigation from '../components/GlobalNavigation';
 import { Providers } from './providers';
 
 export const metadata = {
-  title: 'Who Wins Reality Show - Vote for Your Favorite star',
-  description: 'Vote, rank, and follow your favorite candidate',
+  title: 'Who Wins Reality Show - An exceptional event for young creators',
+  description: 'Nigerias premier show for young Talented Creators',
 };
 
 export default function RootLayout({ children }) {
