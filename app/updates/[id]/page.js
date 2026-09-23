@@ -52,6 +52,73 @@ const formatTimeAgo = (dateString) => {
   return formatDate(dateString);
 };
 
+// Check if a string contains HTML tags
+const containsHTML = (str) => {
+  if (!str) return false;
+  return /<\/?[a-z][\s\S]*>/i.test(str);
+};
+
+// Strip HTML tags and convert to clean text with paragraph breaks
+const htmlToText = (html) => {
+  if (!html) return '';
+  
+  let text = html;
+  
+  // Replace block-level elements with line breaks
+  text = text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ');
+  
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, '');
+  
+  // Decode common HTML entities
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '…')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"');
+  
+  // Clean up whitespace
+  text = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+  
+  return text;
+};
+
+// Parse content into an array of paragraphs/blocks for rendering
+const parseContent = (content) => {
+  if (!content) return [];
+  
+  // If content has HTML, convert to clean text first
+  const cleanText = containsHTML(content) ? htmlToText(content) : content;
+  
+  // Split into paragraphs by double newlines
+  const blocks = cleanText
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0);
+  
+  return blocks;
+};
+
 export default function NewsDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -207,6 +274,11 @@ export default function NewsDetailPage() {
     );
   }
 
+  // Parse content once for rendering
+  const contentBlocks = parseContent(news.content);
+  // Also clean the excerpt if it has HTML
+  const cleanExcerpt = containsHTML(news.excerpt) ? htmlToText(news.excerpt) : news.excerpt;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-900">
       <div className="container mx-auto px-4 py-4 md:py-8">
@@ -297,11 +369,11 @@ export default function NewsDetailPage() {
                 </div>
 
                 {/* Title overlay */}
-<div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4">
-  <h1 className="!text-base md:!text-3xl font-bold text-white line-clamp-2 md:line-clamp-none">
-    {news.title}
-  </h1>
-</div>
+                <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4">
+                  <h1 className="!text-base md:!text-3xl font-bold text-white line-clamp-2 md:line-clamp-none">
+                    {news.title}
+                  </h1>
+                </div>
               </motion.div>
 
               {/* Meta information */}
@@ -333,14 +405,16 @@ export default function NewsDetailPage() {
                 className="prose prose-invert max-w-none"
               >
                 {/* Excerpt */}
-                <p className="text-xs md:text-xl text-white/80 mb-3 md:mb-6 italic border-l-2 md:border-l-4 border-orange-500 pl-2 md:pl-4">
-                  {news.excerpt}
-                </p>
+                {cleanExcerpt && (
+                  <p className="text-xs md:text-xl text-white/80 mb-3 md:mb-6 italic border-l-2 md:border-l-4 border-orange-500 pl-2 md:pl-4">
+                    {cleanExcerpt}
+                  </p>
+                )}
                 
                 {/* Full content */}
                 <div className="text-white/70 text-[10px] md:text-base space-y-2 md:space-y-4 leading-relaxed">
-                  {news.content.split('\n\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
+                  {contentBlocks.map((block, index) => (
+                    <p key={index}>{block}</p>
                   ))}
                 </div>
               </motion.div>
