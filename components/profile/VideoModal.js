@@ -18,7 +18,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
   const [validationMessage, setValidationMessage] = useState('');
   const fileInputRef = useRef(null);
 
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  const MAX_FILE_SIZE = 90 * 1024 * 1024; // 90MB
   const MAX_DURATION = 60; // 60 seconds
 
   const handleFileSelect = (e) => {
@@ -36,7 +36,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setValidationMessage('Videos exceeding 50MB are not allowed. Please reduce the video size and try again.');
+      setValidationMessage('Videos exceeding 90MB are not allowed. Please reduce the video size and try again.');
       e.target.value = '';
       return;
     }
@@ -322,7 +322,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
                       </span>
                       <span className="flex items-center gap-1">
                         <HardDrive className="w-3 h-3" />
-                        50MB max
+                        90MB max
                       </span>
                     </div>
                   </div>
@@ -412,7 +412,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
           </button>
 
           <div className="text-center text-[10px] text-white/20">
-            Upload short videos (max 60s, 50MB) • Videos will appear in your profile
+            Upload short videos (max 60s, 90MB) • Videos will appear in your profile
           </div>
         </form>
 
