@@ -25,7 +25,6 @@ export default function HomePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [shortDescription, setShortDescription] = useState('');
   const [quickTips, setQuickTips] = useState('');
-  // Controls whether TopCandidates section renders (from who_win.show_top_candidate)
   const [showTopCandidate, setShowTopCandidate] = useState(false);
 
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
@@ -93,8 +92,6 @@ export default function HomePage() {
           const hasCarousel = whoWin?.carousel && Array.isArray(whoWin.carousel) && whoWin.carousel.length > 0;
           const hasTv = whoWin?.tv && Array.isArray(whoWin.tv) && whoWin.tv.length > 0;
           setHasHomeFeaturedContent(hasCarousel || hasTv);
-
-          // Only true when explicitly set to boolean true
           setShowTopCandidate(whoWin?.show_top_candidate === true);
         }
 
@@ -211,21 +208,40 @@ export default function HomePage() {
       <Hero />
       <Stats />
 
-      {/* About WhoWin Show Text Section — trimmed */}
+      {/* About WhoWin Show Text Section */}
       <div className="container mx-auto px-4 pt-1 pb-2 md:pt-2 md:pb-3">
         <div className="max-w-3xl mx-auto text-center">
-          {/* Metallic greenish outline wrapper */}
-          <div className="relative inline-block rounded-2xl p-[2px] bg-[linear-gradient(135deg,#0f5132_0%,#2ecc71_25%,#a8e6cf_50%,#2ecc71_75%,#0f5132_100%)] shadow-[0_0_20px_rgba(46,204,113,0.25)]">
-            <div className="rounded-2xl bg-gradient-to-b from-gray-900/95 to-black/95 px-5 py-5 md:px-8 md:py-6 backdrop-blur-sm">
+          {/* Metallic white/silver rim — FORCED inline styles */}
+          <div
+            className="relative inline-block rounded-2xl p-[2px]"
+            style={{
+              background: 'linear-gradient(135deg, #555555 0%, #999999 20%, #e0e0e0 40%, #ffffff 50%, #e0e0e0 60%, #999999 80%, #555555 100%)',
+              boxShadow: '0 0 20px rgba(255, 255, 255, 0.2)',
+            }}
+          >
+            <div
+              className="rounded-2xl px-5 py-5 md:px-8 md:py-6"
+              style={{
+                background: 'linear-gradient(to bottom, rgba(17, 24, 39, 0.95), rgba(0, 0, 0, 0.95))',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
               <p className="text-white/80 text-sm md:text-base leading-relaxed">
                 {shortDescription}
               </p>
 
-              {/* Small compact Learn More button — metallic green style */}
+              {/* Small compact Learn More button — metallic white/silver FORCED inline */}
               <div className="mt-3 md:mt-4">
                 <Link
                   href="/about"
-                  className="metallic-green inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-semibold text-xs shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-semibold text-xs transition-all duration-300 hover:-translate-y-0.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #6b6b6b 0%, #a8a8a8 20%, #e8e8e8 40%, #ffffff 50%, #e8e8e8 60%, #a8a8a8 80%, #6b6b6b 100%)',
+                    color: '#1a1a1a',
+                    border: '1px solid rgba(255, 255, 255, 0.6)',
+                    textShadow: '0 1px 0 rgba(255, 255, 255, 0.4)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  }}
                 >
                   Learn More
                   <ArrowRight className="w-3 h-3" />
@@ -233,7 +249,12 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="w-12 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 mx-auto mt-3 rounded-full"></div>
+          <div
+            className="w-12 h-0.5 mx-auto mt-3 rounded-full"
+            style={{
+              background: 'linear-gradient(to right, #999999 0%, #ffffff 50%, #999999 100%)',
+            }}
+          ></div>
         </div>
       </div>
 
