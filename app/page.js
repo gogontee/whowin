@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Hero from '../components/Home/Hero';
 import Stats from '../components/Home/Stats';
@@ -23,9 +23,12 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [shortDescription, setShortDescription] = useState('');
   const [quickTips, setQuickTips] = useState('');
   // Controls whether TopCandidates section renders (from who_win.show_top_candidate)
   const [showTopCandidate, setShowTopCandidate] = useState(false);
+
+  const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
   const FALLBACK_QUICK_TIPS = 'STRATEGY || ALLIANCE || COMPETITIVENESS';
 
@@ -34,14 +37,16 @@ export default function HomePage() {
       try {
         const { data: aboutData, error: aboutError } = await supabase
           .from('about_meta')
-          .select('quick_tips')
+          .select('short_description, quick_tips')
           .eq('id', 1)
           .maybeSingle();
 
         if (aboutError) {
           console.warn('Error fetching about data:', aboutError.message);
+          setShortDescription(FALLBACK_DESCRIPTION);
           setQuickTips(FALLBACK_QUICK_TIPS);
         } else {
+          setShortDescription(aboutData?.short_description || FALLBACK_DESCRIPTION);
           setQuickTips(aboutData?.quick_tips || FALLBACK_QUICK_TIPS);
         }
 
@@ -97,6 +102,7 @@ export default function HomePage() {
         console.error('Error checking content:', error);
         setHasCandidates(false);
         setHasHomeFeaturedContent(false);
+        setShortDescription(FALLBACK_DESCRIPTION);
         setQuickTips(FALLBACK_QUICK_TIPS);
         setShowTopCandidate(false);
       } finally {
@@ -205,22 +211,29 @@ export default function HomePage() {
       <Hero />
       <Stats />
 
-      {/* About WhoWin Show — Image Section */}
-      <div className="container mx-auto px-4 pt-2 pb-3 md:pt-4 md:pb-6">
-        <div className="w-[70%] md:w-[30%] mx-auto">
-          <Link href="/about" className="block group">
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-lg border border-white/10 transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-0.5 cursor-pointer">
-              <Image
-                src="/about.jpeg"
-                alt="About WhoWin"
-                width={1200}
-                height={675}
-                className="w-full h-auto object-cover"
-                priority
-                sizes="(max-width: 768px) 70vw, 30vw"
-              />
+      {/* About WhoWin Show Text Section — trimmed */}
+      <div className="container mx-auto px-4 pt-1 pb-2 md:pt-2 md:pb-3">
+        <div className="max-w-3xl mx-auto text-center">
+          {/* Metallic greenish outline wrapper */}
+          <div className="relative inline-block rounded-2xl p-[2px] bg-[linear-gradient(135deg,#0f5132_0%,#2ecc71_25%,#a8e6cf_50%,#2ecc71_75%,#0f5132_100%)] shadow-[0_0_20px_rgba(46,204,113,0.25)]">
+            <div className="rounded-2xl bg-gradient-to-b from-gray-900/95 to-black/95 px-5 py-5 md:px-8 md:py-6 backdrop-blur-sm">
+              <p className="text-white/80 text-sm md:text-base leading-relaxed">
+                {shortDescription}
+              </p>
+
+              {/* Small compact Learn More button — metallic green style */}
+              <div className="mt-3 md:mt-4">
+                <Link
+                  href="/about"
+                  className="metallic-green inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-semibold text-xs shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                >
+                  Learn More
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
             </div>
-          </Link>
+          </div>
+          <div className="w-12 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 mx-auto mt-3 rounded-full"></div>
         </div>
       </div>
 
