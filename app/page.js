@@ -18,7 +18,6 @@ import { supabase } from '../lib/supabase';
 export default function HomePage() {
   const router = useRouter();
   const [hasCandidates, setHasCandidates] = useState(null);
-  const [hasHomeFeaturedContent, setHasHomeFeaturedContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -81,24 +80,19 @@ export default function HomePage() {
 
         const { data: whoWin, error: whoWinError } = await supabase
           .from('who_win')
-          .select('carousel, tv, show_top_candidate')
+          .select('show_top_candidate')
           .eq('id', 1)
           .single();
 
         if (whoWinError) {
-          setHasHomeFeaturedContent(false);
           setShowTopCandidate(false);
         } else {
-          const hasCarousel = whoWin?.carousel && Array.isArray(whoWin.carousel) && whoWin.carousel.length > 0;
-          const hasTv = whoWin?.tv && Array.isArray(whoWin.tv) && whoWin.tv.length > 0;
-          setHasHomeFeaturedContent(hasCarousel || hasTv);
           setShowTopCandidate(whoWin?.show_top_candidate === true);
         }
 
       } catch (error) {
         console.error('Error checking content:', error);
         setHasCandidates(false);
-        setHasHomeFeaturedContent(false);
         setShortDescription(FALLBACK_DESCRIPTION);
         setQuickTips(FALLBACK_QUICK_TIPS);
         setShowTopCandidate(false);
@@ -285,7 +279,8 @@ export default function HomePage() {
       {/* Top Candidates — only when show_top_candidate is true AND candidates exist */}
       {hasCandidates && showTopCandidate && <TopCandidates />}
 
-      {hasHomeFeaturedContent && <HomeFeaturedPost />}
+      {/* Featured Post — always rendered, component self-hides if empty */}
+      <HomeFeaturedPost />
 
       {/* Footer CTA */}
       <div className="container mx-auto px-4 pt-2 pb-4 md:pt-3 md:pb-6">
