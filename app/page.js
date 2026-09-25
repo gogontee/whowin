@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Hero from '../components/Home/Hero';
 import Stats from '../components/Home/Stats';
@@ -152,7 +152,7 @@ export default function HomePage() {
               </button>
               <button
                 onClick={handleLearnAboutShowClick}
-                className="bg-transparent hover:bg-white/10 text-white font-semibold px-5 py-2.5 md:px-6 md:py-3 rounded-xl text-sm border border-white/30 hover:border-white/50 transition-all duration-300"
+                className="bg-transparent hover:bg-white/10 text-white font-semibold px-5 py-2 md:px-6 md:py-2.5 rounded-xl text-sm border border-white/30 hover:border-white/50 transition-all duration-300"
               >
                 Learn About the Show
               </button>
@@ -179,12 +179,12 @@ export default function HomePage() {
           >
             Register Here
           </button>
-          <button
-            onClick={handleLearnMoreClick}
-            className="bg-transparent hover:bg-white/10 text-white font-semibold px-5 py-2.5 md:px-6 md:py-3 rounded-xl text-sm border border-white/30 hover:border-white/50 transition-all duration-300"
+          <Link
+            href="/about"
+            className="bg-transparent hover:bg-white/10 text-white font-semibold px-5 py-2 md:px-6 md:py-2.5 rounded-xl text-sm border border-white/30 hover:border-white/50 transition-all duration-300 inline-flex items-center justify-center"
           >
             LEARN MORE
-          </button>
+          </Link>
         </div>
       </div>
     );
@@ -214,10 +214,26 @@ export default function HomePage() {
       {/* About WhoWin Show Text Section — trimmed */}
       <div className="container mx-auto px-4 pt-1 pb-2 md:pt-2 md:pb-3">
         <div className="max-w-3xl mx-auto text-center">
-          <p className="text-white/70 text-sm md:text-base leading-relaxed">
-            {shortDescription}
-          </p>
-          <div className="w-12 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 mx-auto mt-2 rounded-full"></div>
+          {/* Metallic greenish outline wrapper */}
+          <div className="relative inline-block rounded-2xl p-[2px] bg-[linear-gradient(135deg,#0f5132_0%,#2ecc71_25%,#a8e6cf_50%,#2ecc71_75%,#0f5132_100%)] shadow-[0_0_20px_rgba(46,204,113,0.25)]">
+            <div className="rounded-2xl bg-gradient-to-b from-gray-900/95 to-black/95 px-5 py-5 md:px-8 md:py-6 backdrop-blur-sm">
+              <p className="text-white/80 text-sm md:text-base leading-relaxed">
+                {shortDescription}
+              </p>
+
+              {/* Small compact Learn More button — metallic green style */}
+              <div className="mt-3 md:mt-4">
+                <Link
+                  href="/about"
+                  className="metallic-green inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-semibold text-xs shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                >
+                  Learn More
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className="w-12 h-0.5 bg-gradient-to-r from-green-500 to-emerald-400 mx-auto mt-3 rounded-full"></div>
         </div>
       </div>
 
