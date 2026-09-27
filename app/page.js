@@ -460,9 +460,6 @@ export default function HomePage() {
               <p className="text-[#C58B2A] text-sm md:text-base font-medium mb-1">
                 Are you here to participate?
               </p>
-              <p className="text-white/50 text-xs md:text-sm mb-6 max-w-xs mx-auto leading-relaxed">
-                Tap <span className="text-[#C58B2A] font-semibold">Yes</span> to hear a short introduction from us.
-              </p>
 
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -484,10 +481,6 @@ export default function HomePage() {
                 </motion.button>
               </div>
 
-              {/* Footer note */}
-              <p className="text-white/25 text-[10px] mt-5">
-                This message shows once per session.
-              </p>
             </motion.div>
           </motion.div>
         )}
