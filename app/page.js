@@ -189,8 +189,8 @@ export default function HomePage() {
     hasPlayedRef.current = true;
 
     // Force the browser to begin buffering both files right away.
-    v1.volume = 0.5;
-    v2.volume = 0.5;
+    v1.volume = 0.8;
+    v2.volume = 0.8;
     try { v1.load(); } catch (e) {}
     try { v2.load(); } catch (e) {}
 
@@ -206,7 +206,7 @@ export default function HomePage() {
       secondVoiceTimerRef.current = setTimeout(() => {
         if (registerClickedRef.current) return;
         if (!bgAudio2Ref.current) return;
-        bgAudio2Ref.current.volume = 0.5;
+        bgAudio2Ref.current.volume = 0.8;
         bgAudio2Ref.current.play().catch(() => {});
       }, 8000);
     };

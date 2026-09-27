@@ -332,7 +332,7 @@ export default function SignupPage() {
     // Start the target from the beginning
     try {
       target.currentTime = 0;
-      target.volume = 0.5;
+      target.volume = 0.8;
       target.play().catch(() => {});
       activeVoiceRef.current = target;
     } catch (e) {}
@@ -418,7 +418,7 @@ export default function SignupPage() {
         p.then(() => {
           voice1PlayedRef.current = true;
           activeVoiceRef.current = v1;
-          v1.volume = 0.5;
+          v1.volume = 0.8;
           cleanupActionListeners();
         }).catch(() => {
           // Blocked — will retry on interaction
@@ -444,7 +444,7 @@ export default function SignupPage() {
         p.then(() => {
           voice1PlayedRef.current = true;
           activeVoiceRef.current = v1;
-          v1.volume = 0.5;
+          v1.volume = 0.8;
           cleanupActionListeners();
         }).catch(() => {
           // Still blocked — keep listeners attached

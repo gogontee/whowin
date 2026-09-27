@@ -190,7 +190,7 @@ export default function ProfilePage() {
     ) {
       videoVoicePlayedRef.current = true;
       if (videoVoiceRef.current) {
-        videoVoiceRef.current.volume = 0.5;
+        videoVoiceRef.current.volume = 0.8;
         videoVoiceRef.current.play().catch(() => {});
       }
     }
@@ -202,7 +202,7 @@ export default function ProfilePage() {
     ) {
       telegramVoicePlayedRef.current = true;
       if (telegramVoiceRef.current) {
-        telegramVoiceRef.current.volume = 0.5;
+        telegramVoiceRef.current.volume = 0.8;
         telegramVoiceRef.current.play().catch(() => {});
       }
     }
