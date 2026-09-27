@@ -304,11 +304,12 @@ export default function SignupPage() {
   const voice1Ref = useRef(null);
   const voice2Ref = useRef(null);
   const voice3Ref = useRef(null);
-  // Guards
+  // Guards — each voice plays only once per page load
   const voice1PlayedRef = useRef(false);
   const voice3PlayedRef = useRef(false);
+  const voice2ScheduledRef = useRef(false);
   const voice2TimerRef = useRef(null);
-  // Track whether the user has already interacted anywhere on the page
+  // Track whether the user has already interacted with the page
   const userInteractedRef = useRef(false);
 
   // Auto-rotate example images
@@ -369,19 +370,25 @@ export default function SignupPage() {
   // ===== SIGNUP VOICE SEQUENCE =====
   // Voice 1 plays on page load. When it ends, wait 10s then play Voice 2.
   // Voice 3 plays the first time the password field is focused.
-  // All three should play regardless of auth state — this is the signup page.
+  // Plays for EVERYONE — no auth check, no first-time check.
+  //
+  // Playback strategy:
+  //  - Try to play immediately on mount.
+  //  - If the browser blocks autoplay (no user interaction yet),
+  //    resume on ANY of: scroll, tap, click, keydown, touchstart,
+  //    input focus, input change, pointerdown, mousemove.
   useEffect(() => {
     if (voice1PlayedRef.current) return;
     if (!voice1Ref.current) return;
 
-    voice1PlayedRef.current = true;
     const v1 = voice1Ref.current;
     v1.volume = 0.5;
 
-    const handleVoice1Ended = () => {
-      if (voice2TimerRef.current) {
-        clearTimeout(voice2TimerRef.current);
-      }
+    // ---- Schedule voice 2 ----
+    const scheduleVoice2 = () => {
+      if (voice2ScheduledRef.current) return;
+      voice2ScheduledRef.current = true;
+      if (voice2TimerRef.current) clearTimeout(voice2TimerRef.current);
       voice2TimerRef.current = setTimeout(() => {
         if (!voice2Ref.current) return;
         voice2Ref.current.volume = 0.5;
@@ -389,33 +396,88 @@ export default function SignupPage() {
       }, 10000);
     };
 
+    const handleVoice1Ended = () => {
+      scheduleVoice2();
+    };
+
     v1.addEventListener('ended', handleVoice1Ended);
 
-    // Try to play. If blocked by browser autoplay policy, defer until first user interaction.
-    const tryPlay = () => {
+    // ---- Resume on ANY user action ----
+    // The moment the user scrolls, taps, types, clicks, or focuses any
+    // input, we retry voice 1 if it never started.
+    const tryPlayVoice1 = () => {
+      if (voice1PlayedRef.current) return;
       const p = v1.play();
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => {
-          const resumeOnInteraction = () => {
-            // Only retry voice 1 if it hasn't been played yet AND hasn't finished
-            if (v1.paused && v1.currentTime === 0) {
-              v1.play().catch(() => {});
-            }
-            document.removeEventListener('pointerdown', resumeOnInteraction);
-            document.removeEventListener('keydown', resumeOnInteraction);
-            document.removeEventListener('touchstart', resumeOnInteraction);
-          };
-          document.addEventListener('pointerdown', resumeOnInteraction, { once: true });
-          document.addEventListener('keydown', resumeOnInteraction, { once: true });
-          document.addEventListener('touchstart', resumeOnInteraction, { once: true });
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          voice1PlayedRef.current = true;
+        }).catch(() => {
+          // Blocked — will retry on interaction
         });
       }
     };
 
-    tryPlay();
+    const resumeOnAction = () => {
+      if (voice1PlayedRef.current) return;
+      // If voice 1 already ended while waiting, jump straight to scheduling voice 2.
+      if (v1.ended) {
+        voice1PlayedRef.current = true;
+        scheduleVoice2();
+        cleanupActionListeners();
+        return;
+      }
+      // If it's already playing, mark as played and stop listening.
+      if (!v1.paused && v1.currentTime > 0) {
+        voice1PlayedRef.current = true;
+        cleanupActionListeners();
+        return;
+      }
+      const p = v1.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          voice1PlayedRef.current = true;
+          cleanupActionListeners();
+        }).catch(() => {
+          // Still blocked — keep listeners attached
+        });
+      }
+    };
+
+    // Attach a wide net of interaction listeners
+    const events = [
+      'pointerdown',
+      'touchstart',
+      'keydown',
+      'click',
+      'input',
+      'focusin',
+      'change',
+    ];
+
+    const attachActionListeners = () => {
+      events.forEach((evt) => {
+        document.addEventListener(evt, resumeOnAction, { passive: true });
+      });
+      window.addEventListener('scroll', resumeOnAction, { passive: true });
+      document.addEventListener('wheel', resumeOnAction, { passive: true });
+    };
+
+    const cleanupActionListeners = () => {
+      events.forEach((evt) => {
+        document.removeEventListener(evt, resumeOnAction);
+      });
+      window.removeEventListener('scroll', resumeOnAction);
+      document.removeEventListener('wheel', resumeOnAction);
+    };
+
+    attachActionListeners();
+
+    // Kick off the initial attempt
+    tryPlayVoice1();
 
     return () => {
       v1.removeEventListener('ended', handleVoice1Ended);
+      cleanupActionListeners();
       if (voice2TimerRef.current) {
         clearTimeout(voice2TimerRef.current);
         voice2TimerRef.current = null;
@@ -431,24 +493,6 @@ export default function SignupPage() {
     voice3Ref.current.volume = 0.5;
     voice3Ref.current.play().catch(() => {});
   };
-
-  // Track first user interaction (used as a fallback for autoplay-blocked voices)
-  useEffect(() => {
-    const onFirstInteraction = () => {
-      userInteractedRef.current = true;
-      window.removeEventListener('pointerdown', onFirstInteraction);
-      window.removeEventListener('keydown', onFirstInteraction);
-      window.removeEventListener('touchstart', onFirstInteraction);
-    };
-    window.addEventListener('pointerdown', onFirstInteraction, { once: true });
-    window.addEventListener('keydown', onFirstInteraction, { once: true });
-    window.addEventListener('touchstart', onFirstInteraction, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', onFirstInteraction);
-      window.removeEventListener('keydown', onFirstInteraction);
-      window.removeEventListener('touchstart', onFirstInteraction);
-    };
-  }, []);
 
   const fetchStates = async () => {
     setLoadingStates(true);
@@ -1087,10 +1131,10 @@ export default function SignupPage() {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
-      {/* Hidden background audio — signup page voices */}
-      <audio ref={voice1Ref} src="/signupvoice.MP3" preload="auto" loop={false} />
-      <audio ref={voice2Ref} src="/signupvoice2.MP3" preload="auto" loop={false} />
-      <audio ref={voice3Ref} src="/signupvoice3.MP3" preload="auto" loop={false} />
+      {/* Hidden background audio — signup page voices (always mounted) */}
+      <audio ref={voice1Ref} src="/signupvoice.MP3" preload="auto" playsInline loop={false} />
+      <audio ref={voice2Ref} src="/signupvoice2.MP3" preload="auto" playsInline loop={false} />
+      <audio ref={voice3Ref} src="/signupvoice3.MP3" preload="auto" playsInline loop={false} />
 
       {/* Background decor - gold/yellow sparks */}
       {Array.from({ length: 15 }, (_, index) => ({

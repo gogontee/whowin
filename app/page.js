@@ -31,9 +31,11 @@ export default function HomePage() {
   const bgAudio2Ref = useRef(null);
 
   // Guard refs
-  const hasPlayedRef = useRef(false);        // has the first voice already fired?
-  const secondVoiceTimerRef = useRef(null);  // timer for the second voice
-  const registerClickedRef = useRef(false);  // did the user click Register Now?
+  const hasPlayedRef = useRef(false);
+  const secondVoiceTimerRef = useRef(null);
+  const registerClickedRef = useRef(false);
+  // Track whether voice 1 has *finished* playing (so voice 2 can be scheduled)
+  const voice1EndedRef = useRef(false);
 
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
@@ -123,26 +125,42 @@ export default function HomePage() {
     checkContent();
   }, [supabase]);
 
-  // ===== Background audio #1: play once on first successful load (GUESTS ONLY) =====
+  // ============================================================
+  // Background audio sequence (GUESTS ONLY)
+  // - Voice 1 attempts to play on load.
+  // - If blocked by autoplay policy, resume on the first user
+  //   interaction anywhere on the page.
+  // - When voice 1 ends, start an 8s timer → play voice 2.
+  // - If Register is clicked at any point, cancel voice 2.
+  // ============================================================
   useEffect(() => {
-    if (loading) return;
-    if (!authChecked) return;         // wait until we know the auth state
-    if (currentUser) return;          // logged-in users: no background voices
+    // Wait until auth has resolved — don't start for logged-in users.
+    if (!authChecked) return;
+    if (currentUser) return;
     if (hasPlayedRef.current) return;
-    if (!bgAudioRef.current) return;
+
+    const v1 = bgAudioRef.current;
+    const v2 = bgAudio2Ref.current;
+    if (!v1 || !v2) return;
 
     hasPlayedRef.current = true;
-    const audio = bgAudioRef.current;
-    audio.volume = 0.5;
 
-    // When the first voice ENDS, start the 8-second countdown for the second voice.
-    const handleFirstVoiceEnded = () => {
+    // Force the browser to begin buffering both files right away.
+    // This is what makes playback feel instant when triggered.
+    v1.volume = 0.5;
+    v2.volume = 0.5;
+    try { v1.load(); } catch (e) {}
+    try { v2.load(); } catch (e) {}
+
+    // -------- Voice 2 scheduler --------
+    const scheduleVoice2 = () => {
       if (registerClickedRef.current) return;
+      if (voice1EndedRef.current) return; // only schedule once
+      voice1EndedRef.current = true;
 
       if (secondVoiceTimerRef.current) {
         clearTimeout(secondVoiceTimerRef.current);
       }
-
       secondVoiceTimerRef.current = setTimeout(() => {
         if (registerClickedRef.current) return;
         if (!bgAudio2Ref.current) return;
@@ -151,31 +169,68 @@ export default function HomePage() {
       }, 8000);
     };
 
-    audio.addEventListener('ended', handleFirstVoiceEnded);
+    // -------- Voice 1 end handler --------
+    const handleVoice1Ended = () => {
+      scheduleVoice2();
+    };
 
-    const tryPlay = () => {
-      const p = audio.play();
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => {
-          const resumeOnInteraction = () => {
-            audio.play().catch(() => {});
-            document.removeEventListener('pointerdown', resumeOnInteraction);
-            document.removeEventListener('keydown', resumeOnInteraction);
-            document.removeEventListener('touchstart', resumeOnInteraction);
-          };
-          document.addEventListener('pointerdown', resumeOnInteraction, { once: true });
-          document.addEventListener('keydown', resumeOnInteraction, { once: true });
-          document.addEventListener('touchstart', resumeOnInteraction, { once: true });
+    // -------- Voice 1 play attempt --------
+    const tryPlayVoice1 = () => {
+      const p = v1.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          // Playing — nothing more to do; 'ended' will fire naturally.
+        }).catch(() => {
+          // Blocked by autoplay policy — wait for the first interaction.
+          attachResumeListeners();
         });
       }
     };
 
-    tryPlay();
+    // -------- Resume on first user interaction --------
+    const resumeOnInteraction = () => {
+      removeResumeListeners();
+      // If voice 1 already ended while we were waiting, don't replay it —
+      // just start voice 2.
+      if (v1.ended || voice1EndedRef.current) {
+        scheduleVoice2();
+        return;
+      }
+      // If voice 1 is already playing (started by another path), do nothing.
+      if (!v1.paused && v1.currentTime > 0) {
+        return;
+      }
+      v1.play().catch(() => {});
+    };
+
+    const attachResumeListeners = () => {
+      document.addEventListener('pointerdown', resumeOnInteraction, { once: true, passive: true });
+      document.addEventListener('keydown', resumeOnInteraction, { once: true });
+      document.addEventListener('touchstart', resumeOnInteraction, { once: true, passive: true });
+      document.addEventListener('click', resumeOnInteraction, { once: true, passive: true });
+    };
+
+    const removeResumeListeners = () => {
+      document.removeEventListener('pointerdown', resumeOnInteraction);
+      document.removeEventListener('keydown', resumeOnInteraction);
+      document.removeEventListener('touchstart', resumeOnInteraction);
+      document.removeEventListener('click', resumeOnInteraction);
+    };
+
+    v1.addEventListener('ended', handleVoice1Ended);
+
+    // Kick off
+    tryPlayVoice1();
 
     return () => {
-      audio.removeEventListener('ended', handleFirstVoiceEnded);
+      v1.removeEventListener('ended', handleVoice1Ended);
+      removeResumeListeners();
+      if (secondVoiceTimerRef.current) {
+        clearTimeout(secondVoiceTimerRef.current);
+        secondVoiceTimerRef.current = null;
+      }
     };
-  }, [loading, authChecked, currentUser]);
+  }, [authChecked, currentUser]);
 
   // ===== Cancel second voice if user clicks Register =====
   const cancelSecondVoice = () => {
@@ -291,24 +346,24 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-900">
-      {/* Hidden background audio #1 — voice on first load (guests only) */}
+      {/* Hidden background audio — always mounted for guests */}
       {!currentUser && (
-        <audio
-          ref={bgAudioRef}
-          src="/homepagevoice.MP3"
-          preload="auto"
-          loop={false}
-        />
-      )}
-
-      {/* Hidden background audio #2 — plays 8s after voice #1 ends, unless Register clicked (guests only) */}
-      {!currentUser && (
-        <audio
-          ref={bgAudio2Ref}
-          src="/homepagevoice2.MP3"
-          preload="auto"
-          loop={false}
-        />
+        <>
+          <audio
+            ref={bgAudioRef}
+            src="/homepagevoice.MP3"
+            preload="auto"
+            playsInline
+            loop={false}
+          />
+          <audio
+            ref={bgAudio2Ref}
+            src="/homepagevoice2.MP3"
+            preload="auto"
+            playsInline
+            loop={false}
+          />
+        </>
       )}
 
       <Hero />
