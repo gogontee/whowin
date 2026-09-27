@@ -300,6 +300,16 @@ export default function SignupPage() {
   const [uploadError, setUploadError] = useState(null);
   const [formInitialized, setFormInitialized] = useState(false);
 
+  // ===== Voice refs =====
+  const voice1Ref = useRef(null);
+  const voice2Ref = useRef(null);
+  const voice3Ref = useRef(null);
+  // Guards
+  const voice1PlayedRef = useRef(false);
+  const voice3PlayedRef = useRef(false);
+  const voice2TimerRef = useRef(null);
+  // Track whether the user has already interacted anywhere on the page
+  const userInteractedRef = useRef(false);
 
   // Auto-rotate example images
   useEffect(() => {
@@ -354,6 +364,90 @@ export default function SignupPage() {
   // Fetch states on mount
   useEffect(() => {
     fetchStates();
+  }, []);
+
+  // ===== SIGNUP VOICE SEQUENCE =====
+  // Voice 1 plays on page load. When it ends, wait 10s then play Voice 2.
+  // Voice 3 plays the first time the password field is focused.
+  // All three should play regardless of auth state — this is the signup page.
+  useEffect(() => {
+    if (voice1PlayedRef.current) return;
+    if (!voice1Ref.current) return;
+
+    voice1PlayedRef.current = true;
+    const v1 = voice1Ref.current;
+    v1.volume = 0.5;
+
+    const handleVoice1Ended = () => {
+      if (voice2TimerRef.current) {
+        clearTimeout(voice2TimerRef.current);
+      }
+      voice2TimerRef.current = setTimeout(() => {
+        if (!voice2Ref.current) return;
+        voice2Ref.current.volume = 0.5;
+        voice2Ref.current.play().catch(() => {});
+      }, 10000);
+    };
+
+    v1.addEventListener('ended', handleVoice1Ended);
+
+    // Try to play. If blocked by browser autoplay policy, defer until first user interaction.
+    const tryPlay = () => {
+      const p = v1.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          const resumeOnInteraction = () => {
+            // Only retry voice 1 if it hasn't been played yet AND hasn't finished
+            if (v1.paused && v1.currentTime === 0) {
+              v1.play().catch(() => {});
+            }
+            document.removeEventListener('pointerdown', resumeOnInteraction);
+            document.removeEventListener('keydown', resumeOnInteraction);
+            document.removeEventListener('touchstart', resumeOnInteraction);
+          };
+          document.addEventListener('pointerdown', resumeOnInteraction, { once: true });
+          document.addEventListener('keydown', resumeOnInteraction, { once: true });
+          document.addEventListener('touchstart', resumeOnInteraction, { once: true });
+        });
+      }
+    };
+
+    tryPlay();
+
+    return () => {
+      v1.removeEventListener('ended', handleVoice1Ended);
+      if (voice2TimerRef.current) {
+        clearTimeout(voice2TimerRef.current);
+        voice2TimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // ===== Voice 3: play on first password field focus =====
+  const handlePasswordFocus = () => {
+    if (voice3PlayedRef.current) return;
+    voice3PlayedRef.current = true;
+    if (!voice3Ref.current) return;
+    voice3Ref.current.volume = 0.5;
+    voice3Ref.current.play().catch(() => {});
+  };
+
+  // Track first user interaction (used as a fallback for autoplay-blocked voices)
+  useEffect(() => {
+    const onFirstInteraction = () => {
+      userInteractedRef.current = true;
+      window.removeEventListener('pointerdown', onFirstInteraction);
+      window.removeEventListener('keydown', onFirstInteraction);
+      window.removeEventListener('touchstart', onFirstInteraction);
+    };
+    window.addEventListener('pointerdown', onFirstInteraction, { once: true });
+    window.addEventListener('keydown', onFirstInteraction, { once: true });
+    window.addEventListener('touchstart', onFirstInteraction, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onFirstInteraction);
+      window.removeEventListener('keydown', onFirstInteraction);
+      window.removeEventListener('touchstart', onFirstInteraction);
+    };
   }, []);
 
   const fetchStates = async () => {
@@ -492,9 +586,7 @@ export default function SignupPage() {
     setFormData(prev => ({ ...prev, password }));
     checkPasswordStrength(password);
     
-    // Clear alert when user types
     if (passwordAlert) {
-      // Only clear if the issue is fixed
       if (password.length > 0) {
         const hasUpper = /[A-Z]/.test(password);
         const hasLower = /[a-z]/.test(password);
@@ -588,7 +680,6 @@ export default function SignupPage() {
     if (action === 'home') {
       router.push('/');
     } else if (action === 'contest') {
-      // Switch to candidate registration
       setSelectedRole('candidate');
       setFormData(prev => ({
         ...prev,
@@ -604,7 +695,6 @@ export default function SignupPage() {
 
   // Handle role switch
   const handleRoleSwitch = (role) => {
-    // If fan is selected, show disabled modal
     if (role === 'fan') {
       setShowFanDisabledModal(true);
       return;
@@ -624,7 +714,7 @@ export default function SignupPage() {
     setTimeout(() => setSwitchingRole(false), 300);
   };
 
-  // Handle dismissing WhatsApp notice - FIXED function name
+  // Handle dismissing WhatsApp notice
   const handleDismissWhatsapp = () => {
     setWhatsappNoticeDismissed(true);
     setShowWhatsappNotice(false);
@@ -721,12 +811,10 @@ export default function SignupPage() {
     }
   };
 
-  // Handle avatar upload button click - show guidance first
   const handleAvatarUploadClick = () => {
     setShowAvatarGuidance(true);
   };
 
-  // Handle avatar upload from guidance modal
   const handleAvatarUploadFromGuidance = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -756,7 +844,6 @@ export default function SignupPage() {
     setErrors(prev => ({ ...prev, avatar: '' }));
   };
 
-  // Upload avatar to storage
   const uploadAvatar = async (file, userId) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -886,7 +973,6 @@ export default function SignupPage() {
         throw new Error('Profile creation failed. Please try again.');
       }
 
-      // Update profile with accept_terms if not already set
       if (formData.agreeTerms) {
         const { error: updateError } = await supabase
           .from('profiles')
@@ -1001,6 +1087,11 @@ export default function SignupPage() {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
+      {/* Hidden background audio — signup page voices */}
+      <audio ref={voice1Ref} src="/signupvoice.MP3" preload="auto" loop={false} />
+      <audio ref={voice2Ref} src="/signupvoice2.MP3" preload="auto" loop={false} />
+      <audio ref={voice3Ref} src="/signupvoice3.MP3" preload="auto" loop={false} />
+
       {/* Background decor - gold/yellow sparks */}
       {Array.from({ length: 15 }, (_, index) => ({
         id: index,
@@ -1139,7 +1230,6 @@ export default function SignupPage() {
               </p>
             </motion.div>
 
-            {/* Auto-save indicator */}
             {formInitialized && !success && (
               <div className="flex items-center justify-center gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#C58B2A]/50 animate-pulse flex-shrink-0"></div>
@@ -1586,6 +1676,7 @@ export default function SignupPage() {
                     value={formData.password}
                     onChange={handlePasswordChange}
                     onBlur={handlePasswordBlur}
+                    onFocus={handlePasswordFocus}
                     required
                     disabled={cooldownSeconds > 0}
                   />
@@ -1600,7 +1691,6 @@ export default function SignupPage() {
                   </button>
                 </div>
                 
-                {/* Password alert message - shown below input */}
                 {passwordAlert && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                     <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
@@ -2022,7 +2112,6 @@ export default function SignupPage() {
                 </p>
               </div>
 
-              {/* Example Images Carousel */}
               <div className="relative mb-4">
                 <div className="relative w-40 h-40 mx-auto rounded-full overflow-hidden border-2 border-[#C58B2A]/30 shadow-lg shadow-[#C58B2A]/20">
                   <AnimatePresence mode="wait">
@@ -2043,7 +2132,6 @@ export default function SignupPage() {
                     </motion.div>
                   </AnimatePresence>
                   
-                  {/* Image counter */}
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1">
                     <span className="text-[10px] text-white/80">
                       {currentExampleIndex + 1} / {exampleImages.length}
@@ -2051,7 +2139,6 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                {/* Navigation dots */}
                 <div className="flex justify-center gap-2 mt-3">
                   {exampleImages.map((_, index) => (
                     <button
@@ -2067,7 +2154,6 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Tips */}
               <div className="space-y-1.5 mb-4">
                 <div className="flex items-start gap-2 text-xs text-white/70">
                   <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
@@ -2087,7 +2173,6 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="flex flex-col gap-2">
                 <label className="cursor-pointer w-full">
                   <div className="w-full py-2.5 px-4 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-semibold rounded-xl text-center transition-all hover:shadow-lg hover:shadow-[#C58B2A]/30">

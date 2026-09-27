@@ -1,7 +1,7 @@
 // app/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, ArrowRight } from 'lucide-react';
@@ -26,9 +26,28 @@ export default function HomePage() {
   const [quickTips, setQuickTips] = useState('');
   const [showTopCandidate, setShowTopCandidate] = useState(false);
 
+  // Refs to the hidden background audio elements
+  const bgAudioRef = useRef(null);
+  const bgAudio2Ref = useRef(null);
+
+  // Guard refs
+  const hasPlayedRef = useRef(false);        // has the first voice already fired?
+  const secondVoiceTimerRef = useRef(null);  // timer for the second voice
+  const registerClickedRef = useRef(false);  // did the user click Register Now?
+
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
   const FALLBACK_QUICK_TIPS = 'STRATEGY || ALLIANCE || COMPETITIVENESS';
+
+  // Cleanup any pending timers on unmount
+  useEffect(() => {
+    return () => {
+      if (secondVoiceTimerRef.current) {
+        clearTimeout(secondVoiceTimerRef.current);
+        secondVoiceTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const checkContent = async () => {
@@ -104,7 +123,80 @@ export default function HomePage() {
     checkContent();
   }, [supabase]);
 
-  const handleRegisterClick = () => router.push('/auth/signup');
+  // ===== Background audio #1: play once on first successful load (GUESTS ONLY) =====
+  useEffect(() => {
+    if (loading) return;
+    if (!authChecked) return;         // wait until we know the auth state
+    if (currentUser) return;          // logged-in users: no background voices
+    if (hasPlayedRef.current) return;
+    if (!bgAudioRef.current) return;
+
+    hasPlayedRef.current = true;
+    const audio = bgAudioRef.current;
+    audio.volume = 0.5;
+
+    // When the first voice ENDS, start the 8-second countdown for the second voice.
+    const handleFirstVoiceEnded = () => {
+      if (registerClickedRef.current) return;
+
+      if (secondVoiceTimerRef.current) {
+        clearTimeout(secondVoiceTimerRef.current);
+      }
+
+      secondVoiceTimerRef.current = setTimeout(() => {
+        if (registerClickedRef.current) return;
+        if (!bgAudio2Ref.current) return;
+        bgAudio2Ref.current.volume = 0.5;
+        bgAudio2Ref.current.play().catch(() => {});
+      }, 8000);
+    };
+
+    audio.addEventListener('ended', handleFirstVoiceEnded);
+
+    const tryPlay = () => {
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          const resumeOnInteraction = () => {
+            audio.play().catch(() => {});
+            document.removeEventListener('pointerdown', resumeOnInteraction);
+            document.removeEventListener('keydown', resumeOnInteraction);
+            document.removeEventListener('touchstart', resumeOnInteraction);
+          };
+          document.addEventListener('pointerdown', resumeOnInteraction, { once: true });
+          document.addEventListener('keydown', resumeOnInteraction, { once: true });
+          document.addEventListener('touchstart', resumeOnInteraction, { once: true });
+        });
+      }
+    };
+
+    tryPlay();
+
+    return () => {
+      audio.removeEventListener('ended', handleFirstVoiceEnded);
+    };
+  }, [loading, authChecked, currentUser]);
+
+  // ===== Cancel second voice if user clicks Register =====
+  const cancelSecondVoice = () => {
+    registerClickedRef.current = true;
+    if (secondVoiceTimerRef.current) {
+      clearTimeout(secondVoiceTimerRef.current);
+      secondVoiceTimerRef.current = null;
+    }
+    if (bgAudio2Ref.current) {
+      try {
+        bgAudio2Ref.current.pause();
+        bgAudio2Ref.current.currentTime = 0;
+      } catch (e) {}
+    }
+  };
+
+  const handleRegisterClick = () => {
+    cancelSecondVoice();
+    router.push('/auth/signup');
+  };
+
   const handleLearnMoreClick = () => router.push('/about');
   const handleMyProfileClick = () => {
     if (userProfile?.username) {
@@ -199,6 +291,26 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-900">
+      {/* Hidden background audio #1 — voice on first load (guests only) */}
+      {!currentUser && (
+        <audio
+          ref={bgAudioRef}
+          src="/homepagevoice.MP3"
+          preload="auto"
+          loop={false}
+        />
+      )}
+
+      {/* Hidden background audio #2 — plays 8s after voice #1 ends, unless Register clicked (guests only) */}
+      {!currentUser && (
+        <audio
+          ref={bgAudio2Ref}
+          src="/homepagevoice2.MP3"
+          preload="auto"
+          loop={false}
+        />
+      )}
+
       <Hero />
       <Stats />
 

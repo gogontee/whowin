@@ -126,6 +126,12 @@ export default function ProfilePage() {
   const onboardingCompletionPendingRef = useRef(false);
   const completionPopupShownRef = useRef(false);
 
+  // ===== Voice refs for onboarding step voices =====
+  const videoVoiceRef = useRef(null);
+  const telegramVoiceRef = useRef(null);
+  // Guards: only play each voice once per page session
+  const videoVoicePlayedRef = useRef(false);
+  const telegramVoicePlayedRef = useRef(false);
 
   // =====================
   // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!
@@ -167,6 +173,40 @@ export default function ProfilePage() {
       }
     };
   }, [isOwner, profile]);
+
+  // =====================
+  // VOICE TRIGGERS - Play onboarding voices when specific steps appear
+  // Voice 2 plays on "Audition Video Needed" step, but ONLY if profile has no video
+  // Voice 3 plays on "Telegram Number Needed" step
+  // =====================
+  useEffect(() => {
+    if (!showOnboarding || !isOwner || !profile) return;
+
+    // Voice 2 — "Audition Video Needed" (step index 3)
+    if (
+      onboardingStep === 3 &&
+      !videoVoicePlayedRef.current &&
+      !(Array.isArray(profile.video_url) && profile.video_url.length > 0)
+    ) {
+      videoVoicePlayedRef.current = true;
+      if (videoVoiceRef.current) {
+        videoVoiceRef.current.volume = 0.5;
+        videoVoiceRef.current.play().catch(() => {});
+      }
+    }
+
+    // Voice 3 — "Telegram Number Needed" (step index 5)
+    if (
+      onboardingStep === 5 &&
+      !telegramVoicePlayedRef.current
+    ) {
+      telegramVoicePlayedRef.current = true;
+      if (telegramVoiceRef.current) {
+        telegramVoiceRef.current.volume = 0.5;
+        telegramVoiceRef.current.play().catch(() => {});
+      }
+    }
+  }, [showOnboarding, onboardingStep, isOwner, profile]);
 
   // =====================
   // SILENT REFRESH FUNCTION - Fetches profile without reloading the page
@@ -524,10 +564,6 @@ export default function ProfilePage() {
 
   // =====================
   // CHECK AUTH - OPTIONAL, NON-BLOCKING
-  // Now enforces role-based access:
-  //   - Profile owner can view
-  //   - Admin can view
-  //   - Everyone else → redirected to /[username]/voteprofile
   // =====================
   const checkCurrentUser = async () => {
     try {
@@ -535,7 +571,6 @@ export default function ProfilePage() {
       
       setAuthChecked(true);
       
-      // No user logged in → check against profile ownership (they can't be owner)
       if (userError || !user) {
         console.log('Guest — redirecting to voteprofile');
         setIsOwner(false);
@@ -552,7 +587,6 @@ export default function ProfilePage() {
         const isProfileOwner = user.id === profile.id;
         setIsOwner(isProfileOwner);
 
-        // Fetch the current user's role to determine admin access
         let userRole = null;
         try {
           const { data: roleData } = await supabase
@@ -568,14 +602,12 @@ export default function ProfilePage() {
         const isUserAdmin = userRole === 'admin';
         setIsAdmin(isUserAdmin);
 
-        // Access control: only owner or admin can view this page
         if (!isProfileOwner && !isUserAdmin) {
           console.log('Not owner or admin — redirecting to voteprofile');
           router.replace(`/${username}/voteprofile`);
           return;
         }
 
-        // If the viewer is not the owner, check following state
         if (!isProfileOwner) {
           const { data: followData } = await supabase
             .from('followers')
@@ -589,8 +621,6 @@ export default function ProfilePage() {
           setIsFollowing(false);
         }
       } else {
-        // Should not happen — profile is always loaded before this runs,
-        // but keep the safety net for the edge case.
         setIsOwner(false);
         setIsAdmin(false);
         setIsFollowing(false);
@@ -928,7 +958,6 @@ export default function ProfilePage() {
 
   const shouldRenderProfileHeader = () => {
   if (!profile) return false;
-  // Only show ProfileHeader if account status is 'active'
   const status = profile.account_status;
   return status === 'active';
 };
@@ -1136,6 +1165,10 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
+      {/* Hidden background audio — onboarding voices */}
+      <audio ref={videoVoiceRef} src="/profilevoice2.MP3" preload="auto" loop={false} />
+      <audio ref={telegramVoiceRef} src="/profilevoice3.MP3" preload="auto" loop={false} />
+
       <div className="max-w-4xl mx-auto px-4 py-4 md:py-6">
         <ProfileBanner
           profile={profile}
