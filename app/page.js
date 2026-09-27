@@ -14,6 +14,7 @@ import FeaturedPost from '../components/FeaturedPost';
 import ContentScroll from '../components/ContentScroll';
 import TopNews from '../components/Home/TopNews';
 import { supabase } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HomePage() {
   const router = useRouter();
@@ -26,6 +27,13 @@ export default function HomePage() {
   const [quickTips, setQuickTips] = useState('');
   const [showTopCandidate, setShowTopCandidate] = useState(false);
 
+  // ===== Welcome onboarding state (guests only) =====
+  // The modal shows once per session for guests. If they tap "Yes",
+  // we consider it a user gesture → audio is unlocked and voice 1 plays.
+  // If they tap "Not yet", we don't play any voices.
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+
   // Refs to the hidden background audio elements
   const bgAudioRef = useRef(null);
   const bgAudio2Ref = useRef(null);
@@ -34,8 +42,9 @@ export default function HomePage() {
   const hasPlayedRef = useRef(false);
   const secondVoiceTimerRef = useRef(null);
   const registerClickedRef = useRef(false);
-  // Track whether voice 1 has *finished* playing (so voice 2 can be scheduled)
   const voice1EndedRef = useRef(false);
+  // Tracks whether the user consented to audio via the welcome modal
+  const audioConsentedRef = useRef(false);
 
   const FALLBACK_DESCRIPTION = `WhoWin is Africa's premier celebrity reality show where stars compete in challenges, showcase their talents, and battle for the ultimate crown. From intense competitions to unforgettable moments, witness your favorite celebrities go head-to-head in the most thrilling entertainment spectacle on the continent.`;
 
@@ -126,18 +135,52 @@ export default function HomePage() {
   }, [supabase]);
 
   // ============================================================
-  // Background audio sequence (GUESTS ONLY)
-  // - Voice 1 attempts to play on load.
-  // - If blocked by autoplay policy, resume on the first user
-  //   interaction anywhere on the page.
-  // - When voice 1 ends, start an 8s timer → play voice 2.
-  // - If Register is clicked at any point, cancel voice 2.
+  // WELCOME MODAL TRIGGER (GUESTS ONLY, ONCE PER SESSION)
+  // - Runs after loading + auth checks complete.
+  // - Only shows for guests (no currentUser).
+  // - Only shows once per browser session (sessionStorage flag).
+  // - If the user already answered this session, we skip the modal
+  //   AND skip all voices entirely.
   // ============================================================
   useEffect(() => {
-    // Wait until auth has resolved — don't start for logged-in users.
+    if (loading) return;
+    if (!authChecked) return;
+    if (currentUser) return; // logged-in users never see it and never get voices
+
+    const sessionKey = 'whowin_welcome_session';
+    const answered = sessionStorage.getItem(sessionKey);
+
+    if (answered === 'yes') {
+      // Already consented this session — no modal, but voices CAN play
+      // when the user interacts. We leave audioConsentedRef false so the
+      // existing "resume on first interaction" logic below still runs.
+      // (The browsers won't autoplay without a fresh gesture anyway.)
+      setShowWelcomeModal(false);
+      setWelcomeDismissed(true);
+    } else if (answered === 'no') {
+      // User declined this session — no modal, no voices.
+      audioConsentedRef.current = false;
+      setShowWelcomeModal(false);
+      setWelcomeDismissed(true);
+    } else {
+      // First visit this session — show the modal.
+      setShowWelcomeModal(true);
+    }
+  }, [loading, authChecked, currentUser]);
+
+  // ============================================================
+  // Background audio sequence (GUESTS + CONSENT ONLY)
+  // - Voice 1 attempts to play when user taps "Yes" on the welcome
+  //   modal (a fresh user gesture → audio is unlocked).
+  // - When voice 1 ends, start an 8s timer → play voice 2.
+  // - If Register is clicked at any point, cancel voice 2.
+  // - If the user declines, no voices play at all this session.
+  // ============================================================
+  useEffect(() => {
     if (!authChecked) return;
     if (currentUser) return;
     if (hasPlayedRef.current) return;
+    if (!audioConsentedRef.current) return; // only after user consents
 
     const v1 = bgAudioRef.current;
     const v2 = bgAudio2Ref.current;
@@ -146,7 +189,6 @@ export default function HomePage() {
     hasPlayedRef.current = true;
 
     // Force the browser to begin buffering both files right away.
-    // This is what makes playback feel instant when triggered.
     v1.volume = 0.5;
     v2.volume = 0.5;
     try { v1.load(); } catch (e) {}
@@ -155,7 +197,7 @@ export default function HomePage() {
     // -------- Voice 2 scheduler --------
     const scheduleVoice2 = () => {
       if (registerClickedRef.current) return;
-      if (voice1EndedRef.current) return; // only schedule once
+      if (voice1EndedRef.current) return;
       voice1EndedRef.current = true;
 
       if (secondVoiceTimerRef.current) {
@@ -169,34 +211,29 @@ export default function HomePage() {
       }, 8000);
     };
 
-    // -------- Voice 1 end handler --------
     const handleVoice1Ended = () => {
       scheduleVoice2();
     };
 
-    // -------- Voice 1 play attempt --------
     const tryPlayVoice1 = () => {
       const p = v1.play();
       if (p && typeof p.then === 'function') {
         p.then(() => {
-          // Playing — nothing more to do; 'ended' will fire naturally.
+          // Playing — 'ended' will fire naturally.
         }).catch(() => {
-          // Blocked by autoplay policy — wait for the first interaction.
           attachResumeListeners();
         });
       }
     };
 
-    // -------- Resume on first user interaction --------
+    // Fallback in case the "Yes" tap didn't fully unlock autoplay
+    // (rare, but keeps the experience robust).
     const resumeOnInteraction = () => {
       removeResumeListeners();
-      // If voice 1 already ended while we were waiting, don't replay it —
-      // just start voice 2.
       if (v1.ended || voice1EndedRef.current) {
         scheduleVoice2();
         return;
       }
-      // If voice 1 is already playing (started by another path), do nothing.
       if (!v1.paused && v1.currentTime > 0) {
         return;
       }
@@ -219,7 +256,6 @@ export default function HomePage() {
 
     v1.addEventListener('ended', handleVoice1Ended);
 
-    // Kick off
     tryPlayVoice1();
 
     return () => {
@@ -230,7 +266,28 @@ export default function HomePage() {
         secondVoiceTimerRef.current = null;
       }
     };
-  }, [authChecked, currentUser]);
+  }, [authChecked, currentUser, welcomeDismissed]);
+
+  // ===== Welcome modal handlers =====
+  const handleWelcomeYes = () => {
+    // Persist for the session — no re-showing.
+    sessionStorage.setItem('whowin_welcome_session', 'yes');
+    audioConsentedRef.current = true;
+    setShowWelcomeModal(false);
+    setWelcomeDismissed(true);
+    // Note: The audio effect above will kick in because welcomeDismissed
+    // changes. Because the tap is a genuine user gesture, browser will
+    // allow the .play() call immediately.
+  };
+
+  const handleWelcomeNo = () => {
+    // Persist for the session — no re-showing and no voices.
+    sessionStorage.setItem('whowin_welcome_session', 'no');
+    audioConsentedRef.current = false;
+    setShowWelcomeModal(false);
+    setWelcomeDismissed(true);
+    // No audio effect will run because audioConsentedRef stays false.
+  };
 
   // ===== Cancel second voice if user clicks Register =====
   const cancelSecondVoice = () => {
@@ -366,6 +423,76 @@ export default function HomePage() {
         </>
       )}
 
+      {/* ===== WELCOME ONBOARDING MODAL (GUESTS, ONCE PER SESSION) ===== */}
+      <AnimatePresence>
+        {showWelcomeModal && !currentUser && (
+          <motion.div
+            key="welcome-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: -10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+              className="relative w-full max-w-md rounded-2xl border border-[#C58B2A]/30 bg-gradient-to-br from-gray-900 to-black p-6 md:p-7 shadow-2xl shadow-[#C58B2A]/10 text-center"
+            >
+              {/* Logo */}
+              <div className="relative w-28 h-16 md:w-32 md:h-20 mx-auto mb-4">
+                <Image
+                  src="/logo.png"
+                  alt="WhoWin Logo"
+                  fill
+                  sizes="(max-width: 768px) 112px, 128px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
+
+              {/* Heading */}
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                Welcome to WhoWin
+              </h2>
+              <p className="text-[#C58B2A] text-sm md:text-base font-medium mb-1">
+                Are you here to participate?
+              </p>
+              <p className="text-white/50 text-xs md:text-sm mb-6 max-w-xs mx-auto leading-relaxed">
+                Tap <span className="text-[#C58B2A] font-semibold">Yes</span> to hear a short introduction from us.
+              </p>
+
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleWelcomeYes}
+                  className="flex-1 px-5 py-3 rounded-xl bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-bold text-sm transition-all hover:shadow-lg hover:shadow-[#C58B2A]/30"
+                >
+                  Yes, I'm here to participate
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleWelcomeNo}
+                  className="flex-1 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-semibold text-sm transition-all"
+                >
+                  Not yet
+                </motion.button>
+              </div>
+
+              {/* Footer note */}
+              <p className="text-white/25 text-[10px] mt-5">
+                This message shows once per session.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Hero />
       <Stats />
 
@@ -391,7 +518,7 @@ export default function HomePage() {
                 {shortDescription}
               </p>
 
-              {/* Small compact Learn More button — metallic white/silver FORCED inline */}
+              {/* Small compact Learn More button */}
               <div className="mt-3 md:mt-4">
                 <Link
                   href="/about"

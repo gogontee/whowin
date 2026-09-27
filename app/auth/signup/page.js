@@ -306,11 +306,39 @@ export default function SignupPage() {
   const voice3Ref = useRef(null);
   // Guards — each voice plays only once per page load
   const voice1PlayedRef = useRef(false);
+  const voice2PlayedRef = useRef(false);
   const voice3PlayedRef = useRef(false);
-  const voice2ScheduledRef = useRef(false);
-  const voice2TimerRef = useRef(null);
-  // Track whether the user has already interacted with the page
-  const userInteractedRef = useRef(false);
+  // Track which voice is currently playing so we can pause the others
+  const activeVoiceRef = useRef(null);
+
+  // ===== EXCLUSIVE PLAYBACK HELPER =====
+  // Pauses all other voices, then plays the requested one from the start.
+  // Returns the audio element that was started (or null).
+  const playExclusively = (voiceRef) => {
+    if (!voiceRef || !voiceRef.current) return null;
+
+    const target = voiceRef.current;
+
+    // Pause + rewind every other voice
+    [voice1Ref, voice2Ref, voice3Ref].forEach((ref) => {
+      if (ref.current && ref.current !== target) {
+        try {
+          ref.current.pause();
+          ref.current.currentTime = 0;
+        } catch (e) {}
+      }
+    });
+
+    // Start the target from the beginning
+    try {
+      target.currentTime = 0;
+      target.volume = 0.5;
+      target.play().catch(() => {});
+      activeVoiceRef.current = target;
+    } catch (e) {}
+
+    return target;
+  };
 
   // Auto-rotate example images
   useEffect(() => {
@@ -367,50 +395,31 @@ export default function SignupPage() {
     fetchStates();
   }, []);
 
-  // ===== SIGNUP VOICE SEQUENCE =====
-  // Voice 1 plays on page load. When it ends, wait 10s then play Voice 2.
-  // Voice 3 plays the first time the password field is focused.
-  // Plays for EVERYONE — no auth check, no first-time check.
-  //
-  // Playback strategy:
-  //  - Try to play immediately on mount.
-  //  - If the browser blocks autoplay (no user interaction yet),
-  //    resume on ANY of: scroll, tap, click, keydown, touchstart,
-  //    input focus, input change, pointerdown, mousemove.
+  // ===== SIGNUP VOICE 1 =====
+  // Voice 1 plays on page load. If blocked by autoplay policy, resumes on
+  // ANY user action (scroll, tap, click, keydown, input focus, etc.).
+  // Uses playExclusively so it takes priority over any other voice.
   useEffect(() => {
     if (voice1PlayedRef.current) return;
     if (!voice1Ref.current) return;
 
     const v1 = voice1Ref.current;
-    v1.volume = 0.5;
 
-    // ---- Schedule voice 2 ----
-    const scheduleVoice2 = () => {
-      if (voice2ScheduledRef.current) return;
-      voice2ScheduledRef.current = true;
-      if (voice2TimerRef.current) clearTimeout(voice2TimerRef.current);
-      voice2TimerRef.current = setTimeout(() => {
-        if (!voice2Ref.current) return;
-        voice2Ref.current.volume = 0.5;
-        voice2Ref.current.play().catch(() => {});
-      }, 10000);
-    };
-
-    const handleVoice1Ended = () => {
-      scheduleVoice2();
-    };
-
-    v1.addEventListener('ended', handleVoice1Ended);
-
-    // ---- Resume on ANY user action ----
-    // The moment the user scrolls, taps, types, clicks, or focuses any
-    // input, we retry voice 1 if it never started.
     const tryPlayVoice1 = () => {
       if (voice1PlayedRef.current) return;
+      // Don't steal priority if voice 2 or 3 already started
+      if (voice2PlayedRef.current || voice3PlayedRef.current) {
+        voice1PlayedRef.current = true;
+        cleanupActionListeners();
+        return;
+      }
       const p = v1.play();
       if (p && typeof p.then === 'function') {
         p.then(() => {
           voice1PlayedRef.current = true;
+          activeVoiceRef.current = v1;
+          v1.volume = 0.5;
+          cleanupActionListeners();
         }).catch(() => {
           // Blocked — will retry on interaction
         });
@@ -419,16 +428,14 @@ export default function SignupPage() {
 
     const resumeOnAction = () => {
       if (voice1PlayedRef.current) return;
-      // If voice 1 already ended while waiting, jump straight to scheduling voice 2.
-      if (v1.ended) {
+      if (voice2PlayedRef.current || voice3PlayedRef.current) {
         voice1PlayedRef.current = true;
-        scheduleVoice2();
         cleanupActionListeners();
         return;
       }
-      // If it's already playing, mark as played and stop listening.
       if (!v1.paused && v1.currentTime > 0) {
         voice1PlayedRef.current = true;
+        activeVoiceRef.current = v1;
         cleanupActionListeners();
         return;
       }
@@ -436,6 +443,8 @@ export default function SignupPage() {
       if (p && typeof p.then === 'function') {
         p.then(() => {
           voice1PlayedRef.current = true;
+          activeVoiceRef.current = v1;
+          v1.volume = 0.5;
           cleanupActionListeners();
         }).catch(() => {
           // Still blocked — keep listeners attached
@@ -443,7 +452,6 @@ export default function SignupPage() {
       }
     };
 
-    // Attach a wide net of interaction listeners
     const events = [
       'pointerdown',
       'touchstart',
@@ -471,27 +479,25 @@ export default function SignupPage() {
     };
 
     attachActionListeners();
-
-    // Kick off the initial attempt
     tryPlayVoice1();
 
     return () => {
-      v1.removeEventListener('ended', handleVoice1Ended);
       cleanupActionListeners();
-      if (voice2TimerRef.current) {
-        clearTimeout(voice2TimerRef.current);
-        voice2TimerRef.current = null;
-      }
     };
   }, []);
+
+  // ===== Voice 2: play when Upload Photo button is clicked =====
+  const playVoice2 = () => {
+    if (voice2PlayedRef.current) return;
+    voice2PlayedRef.current = true;
+    playExclusively(voice2Ref);
+  };
 
   // ===== Voice 3: play on first password field focus =====
   const handlePasswordFocus = () => {
     if (voice3PlayedRef.current) return;
     voice3PlayedRef.current = true;
-    if (!voice3Ref.current) return;
-    voice3Ref.current.volume = 0.5;
-    voice3Ref.current.play().catch(() => {});
+    playExclusively(voice3Ref);
   };
 
   const fetchStates = async () => {
@@ -856,6 +862,10 @@ export default function SignupPage() {
   };
 
   const handleAvatarUploadClick = () => {
+    // Trigger voice 2 on the Upload Photo button click.
+    // playExclusively pauses any currently playing voice first.
+    playVoice2();
+    // Show guidance modal
     setShowAvatarGuidance(true);
   };
 
