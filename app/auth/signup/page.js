@@ -2285,7 +2285,7 @@ export default function SignupPage() {
               
               <p className="text-[#C58B2A] text-base mb-6">
                 {selectedRole === 'candidate' 
-                  ? 'Your contestant profile has been created successfully!' 
+                  ? 'You have passed the first stage, now follow the next instructions to complete your registration!' 
                   : 'Your fan account has been created successfully!'}
               </p>
               

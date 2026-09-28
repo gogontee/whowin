@@ -271,7 +271,9 @@ export default function ProfilePage() {
   };
 
   // =====================
-  // CHECK AND TRIGGER ONBOARDING - FIXED
+  // CHECK AND TRIGGER ONBOARDING
+  // Same guarantee as the main effect: if all complete, show success popup
+  // (once per session) — otherwise show the next progressive step.
   // =====================
   const checkAndTriggerOnboarding = (profileData, status) => {
     if (isCheckingOnboardingRef.current) return;
@@ -291,32 +293,27 @@ export default function ProfilePage() {
       };
 
       const allCompleted = currentStatus.images && currentStatus.video && currentStatus.bio && currentStatus.telegram;
-
-      console.log('🔍 checkAndTriggerOnboarding - allCompleted:', allCompleted);
-      console.log('🔍 checkAndTriggerOnboarding - currentStatus:', currentStatus);
-
       const isFirstTimeUser = !currentStatus.images && !currentStatus.video && !currentStatus.bio && !currentStatus.telegram;
       const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profileData.id}`);
 
+      // ===== GUARANTEED SUCCESS POPUP =====
+      if (allCompleted) {
+        const sessionSuccessKey = `whowin_success_shown_session_${profileData.id}`;
+        const alreadyShownThisSession = sessionStorage.getItem(sessionSuccessKey);
+
+        if (!alreadyShownThisSession) {
+          sessionStorage.setItem(sessionSuccessKey, 'true');
+          localStorage.setItem(`whowin_success_seen_${profileData.id}`, 'true');
+          setOnboardingStep(onboardingSteps.length - 1);
+          setShowOnboarding(true);
+        }
+        return;
+      }
+
+      // ===== Progressive onboarding =====
       let nextStep = -1;
 
-      if (allCompleted) {
-        const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profileData.id}`);
-        console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
-        
-        if (!hasSeenSuccess) {
-          console.log('🎉 SUCCESS! Showing success popup!');
-          nextStep = onboardingSteps.length - 1;
-          localStorage.setItem(`whowin_success_seen_${profileData.id}`, 'true');
-          setOnboardingStep(nextStep);
-          setShowOnboarding(true);
-        } else {
-          console.log('🔍 Success already seen, not showing');
-          setShowOnboarding(false);
-          isCheckingOnboardingRef.current = false;
-          return;
-        }
-      } else if (isFirstTimeUser && !hasSeenWelcome) {
+      if (isFirstTimeUser && !hasSeenWelcome) {
         nextStep = 0;
       } else if (!currentStatus.images) {
         nextStep = 2;
@@ -368,7 +365,10 @@ export default function ProfilePage() {
   }, [showOnboarding, onboardingStep]);
 
   // =====================
-  // Check completion status and trigger progressive onboarding - FIXED
+  // Check completion status and trigger progressive onboarding
+  // GUARANTEED SUCCESS TRIGGER: when all four requirements are met,
+  // show the final "Registration Submitted" popup — regardless of what
+  // localStorage flags say.
   // =====================
   useEffect(() => {
     if (!isOwner || !profile || loading) return;
@@ -377,8 +377,6 @@ export default function ProfilePage() {
     const hasVideo = Array.isArray(profile.video_url) && profile.video_url.length > 0;
     const hasBio = Boolean(profile.bio?.trim());
     const hasTelegram = Boolean(profile.telegram?.trim());
-
-    console.log('🔍 Main useEffect - Status:', { hasTwoImages, hasVideo, hasBio, hasTelegram });
 
     const status = {
       images: hasTwoImages,
@@ -393,26 +391,27 @@ export default function ProfilePage() {
     const isFirstTimeUser = !status.images && !status.video && !status.bio && !status.telegram;
     const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profile.id}`);
 
-    console.log('🔍 Main useEffect - allCompleted:', allCompleted);
+    // ===== GUARANTEED SUCCESS POPUP =====
+    // If everything is complete, show the success popup UNLESS the user
+    // has already dismissed it in this browser session.
+    if (allCompleted) {
+      const sessionSuccessKey = `whowin_success_shown_session_${profile.id}`;
+      const alreadyShownThisSession = sessionStorage.getItem(sessionSuccessKey);
 
+      if (!alreadyShownThisSession) {
+        // Show the success popup
+        sessionStorage.setItem(sessionSuccessKey, 'true');
+        localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
+        setOnboardingStep(onboardingSteps.length - 1);
+        setShowOnboarding(true);
+      }
+      return; // don't fall through to the progressive steps below
+    }
+
+    // ===== Progressive onboarding (incomplete states) =====
     let nextStep = -1;
 
-    if (allCompleted) {
-      const hasSeenSuccess = localStorage.getItem(`whowin_success_seen_${profile.id}`);
-      console.log('🔍 hasSeenSuccess:', hasSeenSuccess);
-      
-      if (!hasSeenSuccess) {
-        console.log('🎉 SUCCESS! Showing success popup from main useEffect!');
-        nextStep = onboardingSteps.length - 1;
-        localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
-        setOnboardingStep(nextStep);
-        setShowOnboarding(true);
-      } else {
-        console.log('🔍 Success already seen, not showing');
-        setShowOnboarding(false);
-        return;
-      }
-    } else if (isFirstTimeUser && !hasSeenWelcome) {
+    if (isFirstTimeUser && !hasSeenWelcome) {
       nextStep = 0;
     } else if (!status.images) {
       nextStep = 2;
@@ -430,7 +429,33 @@ export default function ProfilePage() {
     } else {
       setShowOnboarding(false);
     }
-  }, [isOwner, profile, loading]);
+  }, [isOwner, profile, loading, allPosts]);
+
+  // =====================
+  // Backup: whenever a modal that was opened FROM the onboarding flow
+  // closes, re-fetch the profile so the completion effect above runs
+  // with fresh data. This catches the case where the profile update
+  // was delayed (e.g. Supabase eventual consistency).
+  // =====================
+  useEffect(() => {
+    if (!isOwner || !profile) return;
+    if (!onboardingCompletionPendingRef.current) return;
+
+    // Small delay to let the backend sync
+    const t = setTimeout(() => {
+      onboardingCompletionPendingRef.current = false;
+      fetchProfile();
+    }, 1200);
+
+    return () => clearTimeout(t);
+  }, [
+    showPostModal,
+    showVideoModal,
+    showAboutMeModal,
+    showSocialLinksModal,
+    isOwner,
+    profile
+  ]);
 
   // =====================
   // FETCH PROFILE - ALWAYS WORKS
@@ -564,6 +589,10 @@ export default function ProfilePage() {
 
   // =====================
   // CHECK AUTH - OPTIONAL, NON-BLOCKING
+  // Now enforces role-based access:
+  //   - Profile owner can view
+  //   - Admin can view
+  //   - Everyone else → redirected to /[username]/voteprofile
   // =====================
   const checkCurrentUser = async () => {
     try {
@@ -571,6 +600,7 @@ export default function ProfilePage() {
       
       setAuthChecked(true);
       
+      // No user logged in → check against profile ownership (they can't be owner)
       if (userError || !user) {
         console.log('Guest — redirecting to voteprofile');
         setIsOwner(false);
@@ -587,6 +617,7 @@ export default function ProfilePage() {
         const isProfileOwner = user.id === profile.id;
         setIsOwner(isProfileOwner);
 
+        // Fetch the current user's role to determine admin access
         let userRole = null;
         try {
           const { data: roleData } = await supabase
@@ -602,12 +633,14 @@ export default function ProfilePage() {
         const isUserAdmin = userRole === 'admin';
         setIsAdmin(isUserAdmin);
 
+        // Access control: only owner or admin can view this page
         if (!isProfileOwner && !isUserAdmin) {
           console.log('Not owner or admin — redirecting to voteprofile');
           router.replace(`/${username}/voteprofile`);
           return;
         }
 
+        // If the viewer is not the owner, check following state
         if (!isProfileOwner) {
           const { data: followData } = await supabase
             .from('followers')
@@ -621,6 +654,8 @@ export default function ProfilePage() {
           setIsFollowing(false);
         }
       } else {
+        // Should not happen — profile is always loaded before this runs,
+        // but keep the safety net for the edge case.
         setIsOwner(false);
         setIsAdmin(false);
         setIsFollowing(false);
@@ -958,6 +993,7 @@ export default function ProfilePage() {
 
   const shouldRenderProfileHeader = () => {
   if (!profile) return false;
+  // Only show ProfileHeader if account status is 'active'
   const status = profile.account_status;
   return status === 'active';
 };
@@ -1068,6 +1104,8 @@ export default function ProfilePage() {
       localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
       localStorage.setItem(`whowin_welcome_seen_${profile.id}`, 'true');
       localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
+      // Mark as shown this session so the effect doesn't immediately re-open it
+      sessionStorage.setItem(`whowin_success_shown_session_${profile.id}`, 'true');
     }
     const sessionReminderKey = `whowin_onboarding_reminder_${profile?.id}`;
     sessionStorage.removeItem(sessionReminderKey);
@@ -1101,6 +1139,11 @@ export default function ProfilePage() {
   };
 
   const handleOpenOnboarding = () => {
+    // Clear the session success flag so completion can re-trigger the popup
+    if (profile?.id) {
+      sessionStorage.removeItem(`whowin_success_shown_session_${profile.id}`);
+    }
+
     let step = 0;
     if (completionStatus.images) step = 3;
     if (completionStatus.images && completionStatus.video) step = 4;
