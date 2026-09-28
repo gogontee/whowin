@@ -134,6 +134,42 @@ export default function ProfilePage() {
   const telegramVoicePlayedRef = useRef(false);
 
   // =====================
+  // VOICE HELPER — play the appropriate voice for a given onboarding step
+  // Voice 2 → step 3 (Audition Video) — only if user has no video yet
+  // Voice 3 → step 5 (Telegram Number)
+  // Called directly from the code paths that set the onboarding step,
+  // so the voice fires reliably (no reliance on a separate observer effect).
+  // =====================
+  const playVoiceForStep = (step, profileData) => {
+    // Voice 2 — step 3, only if there's no video yet
+    if (step === 3 && !videoVoicePlayedRef.current) {
+      const hasVideo = Array.isArray(profileData?.video_url) && profileData.video_url.length > 0;
+      if (!hasVideo) {
+        videoVoicePlayedRef.current = true;
+        if (videoVoiceRef.current) {
+          videoVoiceRef.current.volume = 0.8;
+          try {
+            videoVoiceRef.current.currentTime = 0;
+          } catch (e) {}
+          videoVoiceRef.current.play().catch(() => {});
+        }
+      }
+    }
+
+    // Voice 3 — step 5
+    if (step === 5 && !telegramVoicePlayedRef.current) {
+      telegramVoicePlayedRef.current = true;
+      if (telegramVoiceRef.current) {
+        telegramVoiceRef.current.volume = 0.8;
+        try {
+          telegramVoiceRef.current.currentTime = 0;
+        } catch (e) {}
+        telegramVoiceRef.current.play().catch(() => {});
+      }
+    }
+  };
+
+  // =====================
   // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!
   // =====================
   useEffect(() => {
@@ -175,37 +211,13 @@ export default function ProfilePage() {
   }, [isOwner, profile]);
 
   // =====================
-  // VOICE TRIGGERS - Play onboarding voices when specific steps appear
-  // Voice 2 plays on "Audition Video Needed" step, but ONLY if profile has no video
-  // Voice 3 plays on "Telegram Number Needed" step
+  // VOICE TRIGGER — whenever the onboarding step changes while the modal
+  // is open, play the appropriate voice. This is a backup to the direct
+  // calls in checkAndTriggerOnboarding and the main completion effect.
   // =====================
   useEffect(() => {
     if (!showOnboarding || !isOwner || !profile) return;
-
-    // Voice 2 — "Audition Video Needed" (step index 3)
-    if (
-      onboardingStep === 3 &&
-      !videoVoicePlayedRef.current &&
-      !(Array.isArray(profile.video_url) && profile.video_url.length > 0)
-    ) {
-      videoVoicePlayedRef.current = true;
-      if (videoVoiceRef.current) {
-        videoVoiceRef.current.volume = 0.8;
-        videoVoiceRef.current.play().catch(() => {});
-      }
-    }
-
-    // Voice 3 — "Telegram Number Needed" (step index 5)
-    if (
-      onboardingStep === 5 &&
-      !telegramVoicePlayedRef.current
-    ) {
-      telegramVoicePlayedRef.current = true;
-      if (telegramVoiceRef.current) {
-        telegramVoiceRef.current.volume = 0.8;
-        telegramVoiceRef.current.play().catch(() => {});
-      }
-    }
+    playVoiceForStep(onboardingStep, profile);
   }, [showOnboarding, onboardingStep, isOwner, profile]);
 
   // =====================
@@ -274,6 +286,7 @@ export default function ProfilePage() {
   // CHECK AND TRIGGER ONBOARDING
   // Same guarantee as the main effect: if all complete, show success popup
   // (once per session) — otherwise show the next progressive step.
+  // Voice playback is triggered directly here so it's reliable.
   // =====================
   const checkAndTriggerOnboarding = (profileData, status) => {
     if (isCheckingOnboardingRef.current) return;
@@ -328,6 +341,8 @@ export default function ProfilePage() {
       if (nextStep !== -1) {
         setOnboardingStep(nextStep);
         setShowOnboarding(true);
+        // Play the appropriate voice for this step (guarded, once per page)
+        playVoiceForStep(nextStep, profileData);
       } else {
         setShowOnboarding(false);
       }
@@ -369,6 +384,7 @@ export default function ProfilePage() {
   // GUARANTEED SUCCESS TRIGGER: when all four requirements are met,
   // show the final "Registration Submitted" popup — regardless of what
   // localStorage flags say.
+  // Voice playback is triggered directly here so it's reliable.
   // =====================
   useEffect(() => {
     if (!isOwner || !profile || loading) return;
@@ -392,20 +408,17 @@ export default function ProfilePage() {
     const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profile.id}`);
 
     // ===== GUARANTEED SUCCESS POPUP =====
-    // If everything is complete, show the success popup UNLESS the user
-    // has already dismissed it in this browser session.
     if (allCompleted) {
       const sessionSuccessKey = `whowin_success_shown_session_${profile.id}`;
       const alreadyShownThisSession = sessionStorage.getItem(sessionSuccessKey);
 
       if (!alreadyShownThisSession) {
-        // Show the success popup
         sessionStorage.setItem(sessionSuccessKey, 'true');
         localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
         setOnboardingStep(onboardingSteps.length - 1);
         setShowOnboarding(true);
       }
-      return; // don't fall through to the progressive steps below
+      return;
     }
 
     // ===== Progressive onboarding (incomplete states) =====
@@ -426,6 +439,8 @@ export default function ProfilePage() {
     if (nextStep !== -1) {
       setOnboardingStep(nextStep);
       setShowOnboarding(true);
+      // Play the appropriate voice for this step (guarded, once per page)
+      playVoiceForStep(nextStep, profile);
     } else {
       setShowOnboarding(false);
     }
@@ -441,7 +456,6 @@ export default function ProfilePage() {
     if (!isOwner || !profile) return;
     if (!onboardingCompletionPendingRef.current) return;
 
-    // Small delay to let the backend sync
     const t = setTimeout(() => {
       onboardingCompletionPendingRef.current = false;
       fetchProfile();

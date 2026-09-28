@@ -168,7 +168,15 @@ export default function CelebMedia() {
     return true;
   };
 
-  // Handle file selection for upload (Add modal - hero/carousel/tv/gallery)
+  // Helper: detect media type from URL extension
+  const getMediaTypeFromUrl = (url) => {
+    if (!url) return null;
+    if (/\.(mp4|webm|mov|m4v|avi|mkv)(\?.*)?$/i.test(url)) return 'video';
+    if (/\.(jpe?g|png|gif|webp|bmp|svg|avif)(\?.*)?$/i.test(url)) return 'image';
+    return null;
+  };
+
+  // Handle file selection for upload (Add modal - hero/carousel/tv/gallery/featured)
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -179,7 +187,19 @@ export default function CelebMedia() {
                    'images';
     const url = await uploadFile(file, folder);
     if (url) {
-      setAddForm({ ...addForm, url: url, file: null });
+      // Auto-detect media type from the file when uploading to Featured
+      const detectedType = file.type.startsWith('video/')
+        ? 'video'
+        : file.type.startsWith('image/')
+          ? 'image'
+          : undefined;
+
+      setAddForm(prev => ({
+        ...prev,
+        url,
+        file: null,
+        ...(addType === 'featured' && detectedType ? { type: detectedType } : {})
+      }));
     }
     e.target.value = '';
   };
@@ -192,13 +212,19 @@ export default function CelebMedia() {
 
     const url = await uploadFile(file, 'featured');
     if (url) {
-      setAddForm({ ...addForm, url: url, file: null });
+      // Auto-detect media type from the file
+      const detectedType = file.type.startsWith('video/')
+        ? 'video'
+        : file.type.startsWith('image/')
+          ? 'image'
+          : 'image';
+
+      setAddForm(prev => ({ ...prev, url, file: null, type: detectedType }));
     }
     e.target.value = '';
   };
 
-  // NEW: Upload handler for the INLINE edit forms (hero / carousel / tv / gallery)
-  // Determines the storage folder from `editingId` (e.g. "tv-0", "hero-2", ...)
+  // Upload handler for the INLINE edit forms (hero / carousel / tv / gallery)
   const handleEditInlineUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -418,9 +444,15 @@ export default function CelebMedia() {
       alert('Please upload a file or enter a URL');
       return;
     }
+
+    // Determine the type: prefer explicit selection, otherwise infer from URL
+    let finalType = itemData.type || 'image';
+    const inferredType = getMediaTypeFromUrl(itemData.url);
+    if (inferredType) finalType = inferredType;
+
     const newItem = {
       id: generateId(),
-      type: itemData.type || 'image',
+      type: finalType,
       media: [{ url: itemData.url.trim() }],
       caption: itemData.caption || '',
       created_at: new Date().toISOString()
@@ -443,15 +475,21 @@ export default function CelebMedia() {
 
   const handleUpdateFeaturedItem = async () => {
     if (!editingFeaturedItem) return;
+
+    const finalUrl = editForm.url || editingFeaturedItem.media[0]?.url || '';
+
+    // Determine final type: prefer explicit selection, otherwise infer from URL
+    let finalType = editForm.type || editingFeaturedItem.type || 'image';
+    const inferredType = getMediaTypeFromUrl(finalUrl);
+    if (inferredType) finalType = inferredType;
+
     const updatedItem = {
       ...editingFeaturedItem,
-      caption: editForm.caption || '',
-      media: [{ url: editForm.url || editingFeaturedItem.media[0]?.url }]
+      type: finalType,
+      caption: editForm.caption ?? editingFeaturedItem.caption ?? '',
+      media: [{ url: finalUrl }]
     };
-    if (editForm.url && editForm.url !== editingFeaturedItem.media[0]?.url) {
-      updatedItem.media = [{ url: editForm.url }];
-    }
-    updatedItem.type = editForm.type || updatedItem.type;
+
     const updatedFeatured = featuredPost.map(item => 
       item.id === editingFeaturedItem.id ? updatedItem : item
     );
@@ -461,7 +499,7 @@ export default function CelebMedia() {
     setEditForm({});
   };
 
-  // NEW: Featured edit-modal upload (from device)
+  // Featured edit-modal upload (from device) with type auto-detection
   const handleFeaturedEditUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -469,7 +507,14 @@ export default function CelebMedia() {
 
     const url = await uploadFile(file, 'featured');
     if (url) {
-      setEditForm(prev => ({ ...prev, url }));
+      // Auto-detect media type from the file
+      const detectedType = file.type.startsWith('video/')
+        ? 'video'
+        : file.type.startsWith('image/')
+          ? 'image'
+          : editForm.type || 'image';
+
+      setEditForm(prev => ({ ...prev, url, type: detectedType }));
     }
     e.target.value = '';
   };
@@ -578,7 +623,6 @@ export default function CelebMedia() {
                       >
                         {editingId === `hero-${index}` ? (
                           <div className="p-2 space-y-2">
-                            {/* NEW: upload from device */}
                             <button
                               type="button"
                               onClick={() => editFileInputRef.current?.click()}
@@ -874,7 +918,6 @@ export default function CelebMedia() {
                               className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-[10px] text-white"
                               placeholder="Caption"
                             />
-                            {/* NEW: upload from device */}
                             <button
                               type="button"
                               onClick={() => editFileInputRef.current?.click()}
@@ -1091,14 +1134,25 @@ export default function CelebMedia() {
                       >
                         <div className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-800">
                           {item.type === 'video' ? (
-                            <div className="w-full h-full bg-black/80 flex items-center justify-center">
-                              <Play className="w-5 h-5 text-white/40" fill="white" />
-                            </div>
+                            item.media[0]?.url ? (
+                              <video
+                                src={item.media[0].url}
+                                className="w-full h-full object-cover"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-black/80 flex items-center justify-center">
+                                <Play className="w-5 h-5 text-white/40" fill="white" />
+                              </div>
+                            )
                           ) : (
                             <img
-                              src={item.media[0]?.url}
+                              src={item.media[0]?.url || ''}
                               alt=""
                               className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; }}
                             />
                           )}
                         </div>
@@ -1161,7 +1215,7 @@ export default function CelebMedia() {
         className="hidden"
       />
 
-      {/* Add Modal - unchanged */}
+      {/* Add Modal */}
       <AnimatePresence>
         {showAddModal && (
           <motion.div
@@ -1229,15 +1283,19 @@ export default function CelebMedia() {
                       )}
                     </div>
 
-                    {addForm.url && (
-                      <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10">
-                        {addType === 'tv' ? (
-                          <video src={addForm.url} className="w-full h-full object-cover" controls />
-                        ) : (
-                          <Image src={addForm.url} alt="Preview" fill className="object-cover" />
-                        )}
-                      </div>
-                    )}
+                    {addForm.url && (() => {
+                      const isVideoUrl = /\.(mp4|webm|mov|m4v|avi|mkv)(\?.*)?$/i.test(addForm.url);
+                      const showAsVideo = addType === 'tv' || isVideoUrl;
+                      return (
+                        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10 bg-black">
+                          {showAsVideo ? (
+                            <video src={addForm.url} className="w-full h-full object-contain" controls playsInline preload="metadata" />
+                          ) : (
+                            <Image src={addForm.url} alt="Preview" fill className="object-cover" />
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -1302,15 +1360,53 @@ export default function CelebMedia() {
                       )}
                     </div>
 
-                    {addForm.url && (
-                      <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10">
-                        {addForm.type === 'video' ? (
-                          <video src={addForm.url} className="w-full h-full object-cover" controls />
-                        ) : (
-                          <Image src={addForm.url} alt="Preview" fill className="object-cover" />
-                        )}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-white/10"></div>
                       </div>
-                    )}
+                      <div className="relative flex justify-center text-xs">
+                        <span className="bg-gray-900 px-2 text-white/40">OR Paste a URL</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">Media URL</label>
+                      <input
+                        type="text"
+                        value={addForm.url || ''}
+                        onChange={(e) => {
+                          const newUrl = e.target.value;
+                          const inferred = getMediaTypeFromUrl(newUrl);
+                          setAddForm(prev => ({
+                            ...prev,
+                            url: newUrl,
+                            ...(inferred ? { type: inferred } : {})
+                          }));
+                        }}
+                        placeholder="https://example.com/video.mp4 or image.jpg"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
+                      />
+                    </div>
+
+                    {addForm.url && (() => {
+                      const isVideoUrl = /\.(mp4|webm|mov|m4v|avi|mkv)(\?.*)?$/i.test(addForm.url);
+                      const showAsVideo = addForm.type === 'video' || isVideoUrl;
+                      return (
+                        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10 bg-black">
+                          {showAsVideo ? (
+                            <video
+                              src={addForm.url}
+                              className="w-full h-full object-contain"
+                              controls
+                              playsInline
+                              preload="metadata"
+                            />
+                          ) : (
+                            <Image src={addForm.url} alt="Preview" fill className="object-cover" />
+                          )}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 
@@ -1389,7 +1485,7 @@ export default function CelebMedia() {
         )}
       </AnimatePresence>
 
-      {/* Edit Featured Modal - scrollable, and with Upload button added above URL */}
+      {/* Edit Featured Modal */}
       <AnimatePresence>
         {showEditFeaturedModal && editingFeaturedItem && (
           <motion.div
@@ -1415,18 +1511,39 @@ export default function CelebMedia() {
 
               <div className="space-y-3 sm:space-y-4">
                 <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10 bg-gray-800">
-                  {editingFeaturedItem.type === 'video' ? (
-                    <video src={editForm.url || editingFeaturedItem.media[0]?.url} className="w-full h-full object-cover" controls />
-                  ) : (
-                    <img
-                      src={editForm.url || editingFeaturedItem.media[0]?.url}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+                  {(() => {
+                    const previewUrl = editForm.url || editingFeaturedItem.media[0]?.url || '';
+                    const previewType = editForm.type || editingFeaturedItem.type || 'image';
+                    const isVideoUrl = /\.(mp4|webm|mov|m4v|avi|mkv)(\?.*)?$/i.test(previewUrl);
+                    const showAsVideo = previewType === 'video' || isVideoUrl;
+
+                    if (!previewUrl) {
+                      return (
+                        <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">
+                          No preview
+                        </div>
+                      );
+                    }
+
+                    return showAsVideo ? (
+                      <video
+                        src={previewUrl}
+                        className="w-full h-full object-contain bg-black"
+                        controls
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    );
+                  })()}
                 </div>
 
-                {/* NEW: Upload from device */}
                 <button
                   type="button"
                   onClick={() => featuredFileInputRef?.click()}
@@ -1451,7 +1568,15 @@ export default function CelebMedia() {
                   <input
                     type="text"
                     value={editForm.url || ''}
-                    onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                    onChange={(e) => {
+                      const newUrl = e.target.value;
+                      const inferred = getMediaTypeFromUrl(newUrl);
+                      setEditForm(prev => ({
+                        ...prev,
+                        url: newUrl,
+                        ...(inferred ? { type: inferred } : {})
+                      }));
+                    }}
                     placeholder="https://example.com/file.jpg"
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white"
                   />
