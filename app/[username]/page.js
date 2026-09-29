@@ -127,20 +127,33 @@ export default function ProfilePage() {
   const completionPopupShownRef = useRef(false);
 
   // ===== Voice refs for onboarding step voices =====
+  const imagesVoiceRef = useRef(null);
   const videoVoiceRef = useRef(null);
   const telegramVoiceRef = useRef(null);
   // Guards: only play each voice once per page session
+  const imagesVoicePlayedRef = useRef(false);
   const videoVoicePlayedRef = useRef(false);
   const telegramVoicePlayedRef = useRef(false);
 
   // =====================
   // VOICE HELPER — play the appropriate voice for a given onboarding step
+  // Voice 1 → step 2 (Upload Your Full Image)
   // Voice 2 → step 3 (Audition Video) — only if user has no video yet
   // Voice 3 → step 5 (Telegram Number)
-  // Called directly from the code paths that set the onboarding step,
-  // so the voice fires reliably (no reliance on a separate observer effect).
   // =====================
   const playVoiceForStep = (step, profileData) => {
+    // Voice 1 — step 2 (Upload Your Full Image)
+    if (step === 2 && !imagesVoicePlayedRef.current) {
+      imagesVoicePlayedRef.current = true;
+      if (imagesVoiceRef.current) {
+        imagesVoiceRef.current.volume = 0.8;
+        try {
+          imagesVoiceRef.current.currentTime = 0;
+        } catch (e) {}
+        imagesVoiceRef.current.play().catch(() => {});
+      }
+    }
+
     // Voice 2 — step 3, only if there's no video yet
     if (step === 3 && !videoVoicePlayedRef.current) {
       const hasVideo = Array.isArray(profileData?.video_url) && profileData.video_url.length > 0;
@@ -168,6 +181,48 @@ export default function ProfilePage() {
       }
     }
   };
+
+  // =====================
+  // AUTOPLAY UNLOCKER — if the browser blocked the voice (autoplay policy),
+  // play it on the very first user interaction anywhere on the page.
+  // =====================
+  useEffect(() => {
+    if (!showOnboarding || !isOwner || !profile) return;
+
+    const step = onboardingStep;
+    if (step !== 2 && step !== 3 && step !== 5) return;
+
+    const alreadyPlayed =
+      (step === 2 && imagesVoicePlayedRef.current) ||
+      (step === 3 && videoVoicePlayedRef.current) ||
+      (step === 5 && telegramVoicePlayedRef.current);
+    if (alreadyPlayed) return;
+
+    if (step === 3) {
+      const hasVideo = Array.isArray(profile.video_url) && profile.video_url.length > 0;
+      if (hasVideo) return;
+    }
+
+    const tryPlay = () => {
+      playVoiceForStep(step, profile);
+      document.removeEventListener('pointerdown', tryPlay);
+      document.removeEventListener('touchstart', tryPlay);
+      document.removeEventListener('click', tryPlay);
+      document.removeEventListener('keydown', tryPlay);
+    };
+
+    document.addEventListener('pointerdown', tryPlay, { once: true, passive: true });
+    document.addEventListener('touchstart', tryPlay, { once: true, passive: true });
+    document.addEventListener('click', tryPlay, { once: true, passive: true });
+    document.addEventListener('keydown', tryPlay, { once: true });
+
+    return () => {
+      document.removeEventListener('pointerdown', tryPlay);
+      document.removeEventListener('touchstart', tryPlay);
+      document.removeEventListener('click', tryPlay);
+      document.removeEventListener('keydown', tryPlay);
+    };
+  }, [showOnboarding, onboardingStep, isOwner, profile]);
 
   // =====================
   // STEP 1: ALWAYS LOAD PROFILE FIRST - No auth required!
@@ -212,8 +267,7 @@ export default function ProfilePage() {
 
   // =====================
   // VOICE TRIGGER — whenever the onboarding step changes while the modal
-  // is open, play the appropriate voice. This is a backup to the direct
-  // calls in checkAndTriggerOnboarding and the main completion effect.
+  // is open, play the appropriate voice.
   // =====================
   useEffect(() => {
     if (!showOnboarding || !isOwner || !profile) return;
@@ -221,7 +275,7 @@ export default function ProfilePage() {
   }, [showOnboarding, onboardingStep, isOwner, profile]);
 
   // =====================
-  // SILENT REFRESH FUNCTION - Fetches profile without reloading the page
+  // SILENT REFRESH FUNCTION
   // =====================
   const silentRefreshProfile = async () => {
     try {
@@ -284,9 +338,6 @@ export default function ProfilePage() {
 
   // =====================
   // CHECK AND TRIGGER ONBOARDING
-  // Same guarantee as the main effect: if all complete, show success popup
-  // (once per session) — otherwise show the next progressive step.
-  // Voice playback is triggered directly here so it's reliable.
   // =====================
   const checkAndTriggerOnboarding = (profileData, status) => {
     if (isCheckingOnboardingRef.current) return;
@@ -309,7 +360,6 @@ export default function ProfilePage() {
       const isFirstTimeUser = !currentStatus.images && !currentStatus.video && !currentStatus.bio && !currentStatus.telegram;
       const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profileData.id}`);
 
-      // ===== GUARANTEED SUCCESS POPUP =====
       if (allCompleted) {
         const sessionSuccessKey = `whowin_success_shown_session_${profileData.id}`;
         const alreadyShownThisSession = sessionStorage.getItem(sessionSuccessKey);
@@ -323,7 +373,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // ===== Progressive onboarding =====
       let nextStep = -1;
 
       if (isFirstTimeUser && !hasSeenWelcome) {
@@ -341,7 +390,6 @@ export default function ProfilePage() {
       if (nextStep !== -1) {
         setOnboardingStep(nextStep);
         setShowOnboarding(true);
-        // Play the appropriate voice for this step (guarded, once per page)
         playVoiceForStep(nextStep, profileData);
       } else {
         setShowOnboarding(false);
@@ -381,10 +429,6 @@ export default function ProfilePage() {
 
   // =====================
   // Check completion status and trigger progressive onboarding
-  // GUARANTEED SUCCESS TRIGGER: when all four requirements are met,
-  // show the final "Registration Submitted" popup — regardless of what
-  // localStorage flags say.
-  // Voice playback is triggered directly here so it's reliable.
   // =====================
   useEffect(() => {
     if (!isOwner || !profile || loading) return;
@@ -407,7 +451,6 @@ export default function ProfilePage() {
     const isFirstTimeUser = !status.images && !status.video && !status.bio && !status.telegram;
     const hasSeenWelcome = localStorage.getItem(`whowin_welcome_seen_${profile.id}`);
 
-    // ===== GUARANTEED SUCCESS POPUP =====
     if (allCompleted) {
       const sessionSuccessKey = `whowin_success_shown_session_${profile.id}`;
       const alreadyShownThisSession = sessionStorage.getItem(sessionSuccessKey);
@@ -421,7 +464,6 @@ export default function ProfilePage() {
       return;
     }
 
-    // ===== Progressive onboarding (incomplete states) =====
     let nextStep = -1;
 
     if (isFirstTimeUser && !hasSeenWelcome) {
@@ -439,7 +481,6 @@ export default function ProfilePage() {
     if (nextStep !== -1) {
       setOnboardingStep(nextStep);
       setShowOnboarding(true);
-      // Play the appropriate voice for this step (guarded, once per page)
       playVoiceForStep(nextStep, profile);
     } else {
       setShowOnboarding(false);
@@ -448,9 +489,7 @@ export default function ProfilePage() {
 
   // =====================
   // Backup: whenever a modal that was opened FROM the onboarding flow
-  // closes, re-fetch the profile so the completion effect above runs
-  // with fresh data. This catches the case where the profile update
-  // was delayed (e.g. Supabase eventual consistency).
+  // closes, re-fetch the profile SILENTLY (no page reload / spinner).
   // =====================
   useEffect(() => {
     if (!isOwner || !profile) return;
@@ -458,7 +497,7 @@ export default function ProfilePage() {
 
     const t = setTimeout(() => {
       onboardingCompletionPendingRef.current = false;
-      fetchProfile();
+      fetchProfile({ silent: true });
     }, 1200);
 
     return () => clearTimeout(t);
@@ -473,9 +512,11 @@ export default function ProfilePage() {
 
   // =====================
   // FETCH PROFILE - ALWAYS WORKS
+  // Pass { silent: true } for background refreshes so the page does NOT
+  // unmount and re-render the loading spinner.
   // =====================
-  const fetchProfile = async () => {
-    setLoading(true);
+  const fetchProfile = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -486,13 +527,13 @@ export default function ProfilePage() {
       if (profileError) {
         console.error('Error fetching profile:', profileError);
         setProfile(null);
-        setLoading(false);
+        if (!silent) setLoading(false);
         return;
       }
 
       if (!profileData) {
         setProfile(null);
-        setLoading(false);
+        if (!silent) setLoading(false);
         return;
       }
       
@@ -597,16 +638,12 @@ export default function ProfilePage() {
         setProfile(null);
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   // =====================
   // CHECK AUTH - OPTIONAL, NON-BLOCKING
-  // Now enforces role-based access:
-  //   - Profile owner can view
-  //   - Admin can view
-  //   - Everyone else → redirected to /[username]/voteprofile
   // =====================
   const checkCurrentUser = async () => {
     try {
@@ -614,7 +651,6 @@ export default function ProfilePage() {
       
       setAuthChecked(true);
       
-      // No user logged in → check against profile ownership (they can't be owner)
       if (userError || !user) {
         console.log('Guest — redirecting to voteprofile');
         setIsOwner(false);
@@ -631,7 +667,6 @@ export default function ProfilePage() {
         const isProfileOwner = user.id === profile.id;
         setIsOwner(isProfileOwner);
 
-        // Fetch the current user's role to determine admin access
         let userRole = null;
         try {
           const { data: roleData } = await supabase
@@ -647,14 +682,12 @@ export default function ProfilePage() {
         const isUserAdmin = userRole === 'admin';
         setIsAdmin(isUserAdmin);
 
-        // Access control: only owner or admin can view this page
         if (!isProfileOwner && !isUserAdmin) {
           console.log('Not owner or admin — redirecting to voteprofile');
           router.replace(`/${username}/voteprofile`);
           return;
         }
 
-        // If the viewer is not the owner, check following state
         if (!isProfileOwner) {
           const { data: followData } = await supabase
             .from('followers')
@@ -668,8 +701,6 @@ export default function ProfilePage() {
           setIsFollowing(false);
         }
       } else {
-        // Should not happen — profile is always loaded before this runs,
-        // but keep the safety net for the edge case.
         setIsOwner(false);
         setIsAdmin(false);
         setIsFollowing(false);
@@ -773,7 +804,7 @@ export default function ProfilePage() {
       setShowPhotoPopup(false);
     } catch (error) {
       console.error('Error uploading photo:', error);
-      fetchProfile();
+      fetchProfile({ silent: true });
     } finally {
       setUploadingPhoto(false);
     }
@@ -1118,7 +1149,6 @@ export default function ProfilePage() {
       localStorage.setItem(`whowin_onboarding_${profile.id}`, 'true');
       localStorage.setItem(`whowin_welcome_seen_${profile.id}`, 'true');
       localStorage.setItem(`whowin_success_seen_${profile.id}`, 'true');
-      // Mark as shown this session so the effect doesn't immediately re-open it
       sessionStorage.setItem(`whowin_success_shown_session_${profile.id}`, 'true');
     }
     const sessionReminderKey = `whowin_onboarding_reminder_${profile?.id}`;
@@ -1153,7 +1183,6 @@ export default function ProfilePage() {
   };
 
   const handleOpenOnboarding = () => {
-    // Clear the session success flag so completion can re-trigger the popup
     if (profile?.id) {
       sessionStorage.removeItem(`whowin_success_shown_session_${profile.id}`);
     }
@@ -1223,6 +1252,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
       {/* Hidden background audio — onboarding voices */}
+      <audio ref={imagesVoiceRef} src="/profilevoice1.MP3" preload="auto" loop={false} />
       <audio ref={videoVoiceRef} src="/profilevoice2.MP3" preload="auto" loop={false} />
       <audio ref={telegramVoiceRef} src="/profilevoice3.MP3" preload="auto" loop={false} />
 
@@ -1236,7 +1266,7 @@ export default function ProfilePage() {
           onSettingsClick={() => setShowSettings(true)}
           onVoteClick={handleOpenVoteModal}
           isVoteModalOpen={showVoteModal}
-          onUpdateProfile={fetchProfile}
+          onUpdateProfile={() => fetchProfile({ silent: true })}
         />
 
         <ProfileInfo
@@ -1313,7 +1343,7 @@ export default function ProfilePage() {
             profile={profile}
             isOpen={showSettings}
             onClose={() => setShowSettings(false)}
-            onUpdate={fetchProfile}
+            onUpdate={() => fetchProfile({ silent: true })}
             supabase={supabase}
           />
         )}
@@ -1348,7 +1378,7 @@ export default function ProfilePage() {
             profile={profile}
             onGiftSuccess={(gift, amount) => {
               console.log(`🎁 ${gift.emoji} ${gift.name} gift sent for ${amount}`);
-              fetchProfile();
+              fetchProfile({ silent: true });
             }}
             onGiftError={(error) => {
               console.error('Gift error:', error);
@@ -1435,7 +1465,7 @@ export default function ProfilePage() {
                 onboardingActionRef.current = false;
                 onboardingCompletionPendingRef.current = true;
               }
-              fetchProfile();
+              fetchProfile({ silent: true });
             }}
             supabase={supabase}
           />
@@ -1455,7 +1485,7 @@ export default function ProfilePage() {
                 onboardingActionRef.current = false;
                 onboardingCompletionPendingRef.current = true;
               }
-              fetchProfile();
+              fetchProfile({ silent: true });
             }}
             supabase={supabase}
           />
@@ -1630,7 +1660,7 @@ export default function ProfilePage() {
                       {currentStep.action === 'upload_photos' && 'Upload Photos'}
                       {currentStep.action === 'upload_video' && 'Upload Video'}
                       {currentStep.action === 'about_me' && 'Tell Us About You'}
-                      {currentStep.action === 'social_links' && 'Add Social Links'}
+                      {currentStep.action === 'social_links' && 'Add Your Telegram Numb'}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   ) : (

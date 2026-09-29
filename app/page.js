@@ -28,9 +28,9 @@ export default function HomePage() {
   const [showTopCandidate, setShowTopCandidate] = useState(false);
 
   // ===== Welcome onboarding state (guests only) =====
-  // The modal shows once per session for guests. If they tap "Yes",
-  // we consider it a user gesture → audio is unlocked and voice 1 plays.
-  // If they tap "Not yet", we don't play any voices.
+  // The modal shows once per session for guests. Tapping "Tap Here to
+  // Continue" is a genuine user gesture → audio is unlocked and voice 1
+  // plays immediately.
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
 
@@ -139,8 +139,6 @@ export default function HomePage() {
   // - Runs after loading + auth checks complete.
   // - Only shows for guests (no currentUser).
   // - Only shows once per browser session (sessionStorage flag).
-  // - If the user already answered this session, we skip the modal
-  //   AND skip all voices entirely.
   // ============================================================
   useEffect(() => {
     if (loading) return;
@@ -154,7 +152,6 @@ export default function HomePage() {
       // Already consented this session — no modal, but voices CAN play
       // when the user interacts. We leave audioConsentedRef false so the
       // existing "resume on first interaction" logic below still runs.
-      // (The browsers won't autoplay without a fresh gesture anyway.)
       setShowWelcomeModal(false);
       setWelcomeDismissed(true);
     } else if (answered === 'no') {
@@ -170,8 +167,8 @@ export default function HomePage() {
 
   // ============================================================
   // Background audio sequence (GUESTS + CONSENT ONLY)
-  // - Voice 1 attempts to play when user taps "Yes" on the welcome
-  //   modal (a fresh user gesture → audio is unlocked).
+  // - Voice 1 attempts to play when user taps "Tap Here to Continue"
+  //   on the welcome modal (a fresh user gesture → audio is unlocked).
   // - When voice 1 ends, start an 8s timer → play voice 2.
   // - If Register is clicked at any point, cancel voice 2.
   // - If the user declines, no voices play at all this session.
@@ -226,7 +223,7 @@ export default function HomePage() {
       }
     };
 
-    // Fallback in case the "Yes" tap didn't fully unlock autoplay
+    // Fallback in case the tap didn't fully unlock autoplay
     // (rare, but keeps the experience robust).
     const resumeOnInteraction = () => {
       removeResumeListeners();
@@ -268,25 +265,16 @@ export default function HomePage() {
     };
   }, [authChecked, currentUser, welcomeDismissed]);
 
-  // ===== Welcome modal handlers =====
-  const handleWelcomeYes = () => {
+  // ===== Welcome modal handler — single "Tap Here to Continue" =====
+  const handleWelcomeContinue = () => {
     // Persist for the session — no re-showing.
     sessionStorage.setItem('whowin_welcome_session', 'yes');
     audioConsentedRef.current = true;
     setShowWelcomeModal(false);
     setWelcomeDismissed(true);
-    // Note: The audio effect above will kick in because welcomeDismissed
-    // changes. Because the tap is a genuine user gesture, browser will
-    // allow the .play() call immediately.
-  };
-
-  const handleWelcomeNo = () => {
-    // Persist for the session — no re-showing and no voices.
-    sessionStorage.setItem('whowin_welcome_session', 'no');
-    audioConsentedRef.current = false;
-    setShowWelcomeModal(false);
-    setWelcomeDismissed(true);
-    // No audio effect will run because audioConsentedRef stays false.
+    // The audio effect above kicks in because welcomeDismissed changes.
+    // Because the tap is a genuine user gesture, the browser will allow
+    // the .play() call immediately.
   };
 
   // ===== Cancel second voice if user clicks Register =====
@@ -454,30 +442,19 @@ export default function HomePage() {
               </div>
 
               {/* Heading */}
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-                Welcome to WhoWin
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-1">
+                Welcome to Who Wins
               </h2>
-              <p className="text-[#C58B2A] text-sm md:text-base font-medium mb-1">
-                Are you here to participate?
-              </p>
 
-              {/* Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {/* Button */}
+              <div className="flex justify-center mt-5">
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={handleWelcomeYes}
-                  className="flex-1 px-5 py-3 rounded-xl bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-bold text-sm transition-all hover:shadow-lg hover:shadow-[#C58B2A]/30"
+                  onClick={handleWelcomeContinue}
+                  className="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 text-black font-bold text-sm transition-all hover:shadow-lg hover:shadow-[#C58B2A]/30"
                 >
-                  Yes, I'm here to participate
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleWelcomeNo}
-                  className="flex-1 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-semibold text-sm transition-all"
-                >
-                  Not yet
+                  Tap Here to Continue
                 </motion.button>
               </div>
 

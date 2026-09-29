@@ -37,6 +37,78 @@ import {
   XCircle
 } from 'lucide-react';
 
+// ===== IndexedDB helpers for persisting the signup avatar =====
+// localStorage can't hold base64 images over ~5MB, but IndexedDB can
+// store Blobs directly with limits in the hundreds of MB.
+const SIGNUP_DB_NAME = 'whowin_signup_db';
+const SIGNUP_STORE_NAME = 'signup_assets';
+
+function openSignupDB() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error('IndexedDB not available'));
+      return;
+    }
+    const req = window.indexedDB.open(SIGNUP_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(SIGNUP_STORE_NAME)) {
+        db.createObjectStore(SIGNUP_STORE_NAME);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveSignupAvatar(file) {
+  if (!file) return;
+  try {
+    const db = await openSignupDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(SIGNUP_STORE_NAME, 'readwrite');
+      tx.objectStore(SIGNUP_STORE_NAME).put(file, 'avatar');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (err) {
+    console.warn('Could not save avatar to IndexedDB:', err);
+  }
+}
+
+async function loadSignupAvatar() {
+  try {
+    const db = await openSignupDB();
+    const file = await new Promise((resolve, reject) => {
+      const tx = db.transaction(SIGNUP_STORE_NAME, 'readonly');
+      const req = tx.objectStore(SIGNUP_STORE_NAME).get('avatar');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return file;
+  } catch (err) {
+    console.warn('Could not load avatar from IndexedDB:', err);
+    return null;
+  }
+}
+
+async function clearSignupAvatar() {
+  try {
+    const db = await openSignupDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(SIGNUP_STORE_NAME, 'readwrite');
+      tx.objectStore(SIGNUP_STORE_NAME).delete('avatar');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (err) {
+    console.warn('Could not clear avatar from IndexedDB:', err);
+  }
+}
+
 // Custom Searchable Select Component
 const SearchableSelect = ({
   id,
@@ -351,44 +423,87 @@ export default function SignupPage() {
     return () => clearInterval(interval);
   }, [showAvatarGuidance, exampleImages.length]);
 
-  // Load saved form data from localStorage on mount
+  // ===== Load saved form data from localStorage + avatar from IndexedDB =====
   useEffect(() => {
     const savedData = localStorage.getItem('whowin_signup_form');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        setFormData(prev => ({ ...prev, ...parsed }));
+        // Never restore avatarPreview / avatarUrl from localStorage —
+        // they can be huge base64 strings. The avatar is restored from
+        // IndexedDB below instead.
+        const { avatarPreview: _ap, avatarUrl: _au, ...safeData } = parsed;
+        setFormData(prev => ({ ...prev, ...safeData }));
         if (parsed.selectedRole) {
           setSelectedRole(parsed.selectedRole);
         }
-        if (parsed.avatarPreview) {
-          setAvatarPreview(parsed.avatarPreview);
-        }
       } catch (e) {
         console.error('Error loading saved form data:', e);
+        try { localStorage.removeItem('whowin_signup_form'); } catch (_) {}
       }
     }
-    setFormInitialized(true);
+
+    // Restore the avatar (if any) from IndexedDB and rebuild the preview
+    (async () => {
+      const storedFile = await loadSignupAvatar();
+      if (storedFile) {
+        setAvatarFile(storedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => setAvatarPreview(reader.result);
+        reader.readAsDataURL(storedFile);
+      }
+      setFormInitialized(true);
+    })();
   }, []);
 
-  // Save form data to localStorage whenever it changes
+  // ===== Save form data to localStorage + avatar to IndexedDB =====
+  // The avatar (a File object) is persisted separately in IndexedDB —
+  // localStorage can't hold base64 images without blowing its 5MB quota.
   useEffect(() => {
     if (!formInitialized) return;
-    
-    const dataToSave = {
-      ...formData,
-      selectedRole: selectedRole,
-      avatarPreview: avatarPreview
-    };
-    localStorage.setItem('whowin_signup_form', JSON.stringify(dataToSave));
-  }, [formData, selectedRole, avatarPreview, formInitialized]);
 
-  // Clear saved data when signup is successful
+    try {
+      const { avatarUrl, ...restFormData } = formData;
+      const dataToSave = {
+        ...restFormData,
+        selectedRole: selectedRole
+      };
+      localStorage.setItem('whowin_signup_form', JSON.stringify(dataToSave));
+    } catch (err) {
+      console.warn('Could not save signup form to localStorage:', err);
+      try { localStorage.removeItem('whowin_signup_form'); } catch (_) {}
+    }
+
+    // Persist the avatar file in IndexedDB (or clear it if removed)
+    if (avatarFile) {
+      saveSignupAvatar(avatarFile);
+    } else {
+      clearSignupAvatar();
+    }
+  }, [formData, selectedRole, avatarFile, formInitialized]);
+
+  // ===== Clear saved data when signup is successful =====
   useEffect(() => {
     if (success) {
-      localStorage.removeItem('whowin_signup_form');
+      try { localStorage.removeItem('whowin_signup_form'); } catch (_) {}
+      clearSignupAvatar();
     }
   }, [success]);
+
+  // ===== One-time cleanup of any oversized stale data from earlier versions =====
+  useEffect(() => {
+    const cleanupKey = 'whowin_signup_cleanup_v1';
+    try {
+      if (!sessionStorage.getItem(cleanupKey)) {
+        const raw = localStorage.getItem('whowin_signup_form');
+        if (raw && raw.length > 100000) {
+          localStorage.removeItem('whowin_signup_form');
+          console.log('🧹 Cleared stale oversized signup form data');
+        }
+        sessionStorage.setItem(cleanupKey, 'true');
+      }
+    } catch (_) {}
+  }, []);
 
   // Fetch states on mount
   useEffect(() => {
@@ -1985,7 +2100,7 @@ export default function SignupPage() {
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
                     <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                     Submit
-                    <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                    <Star className="w-3 md:w-4 md:h-4 flex-shrink-0" />
                   </span>
                 )}
               </motion.button>
@@ -2280,12 +2395,12 @@ export default function SignupPage() {
               </div>
               
               <h2 className="text-2xl font-bold text-white mb-3">
-                Welcome to Who Wins! 🎉
+                You have passed the first stage!
               </h2>
               
               <p className="text-[#C58B2A] text-base mb-6">
                 {selectedRole === 'candidate' 
-                  ? 'You have passed the first stage, now follow the next instructions to complete your registration!' 
+                  ? 'Follow the next Steps to complete your registration!' 
                   : 'Your fan account has been created successfully!'}
               </p>
               
