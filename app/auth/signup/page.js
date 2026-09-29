@@ -7,12 +7,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
-import { 
-  Eye, 
-  EyeOff, 
-  Check, 
-  X, 
-  Star, 
+import {
+  Eye,
+  EyeOff,
+  Check,
+  X,
+  Star,
   Shield,
   User,
   Mail,
@@ -38,8 +38,6 @@ import {
 } from 'lucide-react';
 
 // ===== IndexedDB helpers for persisting the signup avatar =====
-// localStorage can't hold base64 images over ~5MB, but IndexedDB can
-// store Blobs directly with limits in the hundreds of MB.
 const SIGNUP_DB_NAME = 'whowin_signup_db';
 const SIGNUP_STORE_NAME = 'signup_assets';
 
@@ -70,6 +68,7 @@ async function saveSignupAvatar(file) {
       tx.objectStore(SIGNUP_STORE_NAME).put(file, 'avatar');
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
     });
     db.close();
   } catch (err) {
@@ -107,6 +106,19 @@ async function clearSignupAvatar() {
   } catch (err) {
     console.warn('Could not clear avatar from IndexedDB:', err);
   }
+}
+
+// Wrap any promise with a timeout so mobile networks can't hang forever
+function withTimeout(promise, ms, label = 'operation') {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out. Please check your connection and try again.`));
+    }, ms);
+    Promise.resolve(promise).then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
 }
 
 // Custom Searchable Select Component
@@ -149,7 +161,11 @@ const SearchableSelect = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleSelect = (option) => {
@@ -183,14 +199,14 @@ const SearchableSelect = ({
   return (
     <div className="relative w-full" ref={dropdownRef}>
       <label htmlFor={id} className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-        {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />} 
-        <span>{label}</span> 
+        {Icon && <Icon className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />}
+        <span>{label}</span>
         {required && <span className="text-[#C58B2A]">*</span>}
       </label>
-      
+
       <div className="relative w-full">
         <div className={`relative w-full bg-white/5 border rounded-lg md:rounded-xl transition-all ${
-          error ? 'border-red-400 bg-red-500/10' : 
+          error ? 'border-red-400 bg-red-500/10' :
           value ? 'border-green-400 bg-green-500/10' : isOpen ? 'border-[#C58B2A] ring-1 ring-[#C58B2A]/50' : 'border-white/20 hover:border-white/40'
         }`}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 md:w-3.5 md:h-3.5 text-white/30 flex-shrink-0" />
@@ -309,26 +325,23 @@ const SearchableSelect = ({
 
 export default function SignupPage() {
   const router = useRouter();
-  
+
   const [selectedRole, setSelectedRole] = useState('candidate');
   const [switchingRole, setSwitchingRole] = useState(false);
-  
-  // Fan registration disabled state
+
   const [showFanDisabledModal, setShowFanDisabledModal] = useState(false);
   const [showWhatsappNotice, setShowWhatsappNotice] = useState(false);
   const [whatsappNoticeDismissed, setWhatsappNoticeDismissed] = useState(false);
-  
-  // Password error alert - simple message below password field
+
   const [passwordAlert, setPasswordAlert] = useState('');
-  
-  // Avatar guidance modal
+
   const [showAvatarGuidance, setShowAvatarGuidance] = useState(false);
   const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
-  const [exampleImages, setExampleImages] = useState([
+  const [exampleImages] = useState([
     '/passport1.jpeg',
     '/passport2.jpg'
   ]);
-  
+
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
@@ -343,12 +356,12 @@ export default function SignupPage() {
     avatarUrl: '',
     agreeTerms: false
   });
-  
+
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
-  
+
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -371,27 +384,24 @@ export default function SignupPage() {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const [formInitialized, setFormInitialized] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  // Refs to prevent double submission from mobile double-taps
+  const submittingRef = useRef(false);
+  const lastSubmitAtRef = useRef(0);
 
   // ===== Voice refs =====
   const voice1Ref = useRef(null);
   const voice2Ref = useRef(null);
   const voice3Ref = useRef(null);
-  // Guards — each voice plays only once per page load
   const voice1PlayedRef = useRef(false);
   const voice2PlayedRef = useRef(false);
   const voice3PlayedRef = useRef(false);
-  // Track which voice is currently playing so we can pause the others
   const activeVoiceRef = useRef(null);
 
-  // ===== EXCLUSIVE PLAYBACK HELPER =====
-  // Pauses all other voices, then plays the requested one from the start.
-  // Returns the audio element that was started (or null).
   const playExclusively = (voiceRef) => {
     if (!voiceRef || !voiceRef.current) return null;
-
     const target = voiceRef.current;
-
-    // Pause + rewind every other voice
     [voice1Ref, voice2Ref, voice3Ref].forEach((ref) => {
       if (ref.current && ref.current !== target) {
         try {
@@ -400,38 +410,29 @@ export default function SignupPage() {
         } catch (e) {}
       }
     });
-
-    // Start the target from the beginning
     try {
       target.currentTime = 0;
       target.volume = 0.8;
       target.play().catch(() => {});
       activeVoiceRef.current = target;
     } catch (e) {}
-
     return target;
   };
 
-  // Auto-rotate example images
   useEffect(() => {
     if (!showAvatarGuidance) return;
-    
     const interval = setInterval(() => {
       setCurrentExampleIndex((prev) => (prev + 1) % exampleImages.length);
     }, 3000);
-    
     return () => clearInterval(interval);
   }, [showAvatarGuidance, exampleImages.length]);
 
-  // ===== Load saved form data from localStorage + avatar from IndexedDB =====
+  // ===== Load saved form data =====
   useEffect(() => {
     const savedData = localStorage.getItem('whowin_signup_form');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        // Never restore avatarPreview / avatarUrl from localStorage —
-        // they can be huge base64 strings. The avatar is restored from
-        // IndexedDB below instead.
         const { avatarPreview: _ap, avatarUrl: _au, ...safeData } = parsed;
         setFormData(prev => ({ ...prev, ...safeData }));
         if (parsed.selectedRole) {
@@ -443,22 +444,23 @@ export default function SignupPage() {
       }
     }
 
-    // Restore the avatar (if any) from IndexedDB and rebuild the preview
     (async () => {
-      const storedFile = await loadSignupAvatar();
-      if (storedFile) {
-        setAvatarFile(storedFile);
-        const reader = new FileReader();
-        reader.onloadend = () => setAvatarPreview(reader.result);
-        reader.readAsDataURL(storedFile);
+      try {
+        const storedFile = await loadSignupAvatar();
+        if (storedFile) {
+          setAvatarFile(storedFile);
+          const reader = new FileReader();
+          reader.onloadend = () => setAvatarPreview(reader.result);
+          reader.readAsDataURL(storedFile);
+        }
+      } catch (e) {
+        console.warn('Avatar restore failed:', e);
       }
       setFormInitialized(true);
     })();
   }, []);
 
-  // ===== Save form data to localStorage + avatar to IndexedDB =====
-  // The avatar (a File object) is persisted separately in IndexedDB —
-  // localStorage can't hold base64 images without blowing its 5MB quota.
+  // ===== Save form data =====
   useEffect(() => {
     if (!formInitialized) return;
 
@@ -474,7 +476,6 @@ export default function SignupPage() {
       try { localStorage.removeItem('whowin_signup_form'); } catch (_) {}
     }
 
-    // Persist the avatar file in IndexedDB (or clear it if removed)
     if (avatarFile) {
       saveSignupAvatar(avatarFile);
     } else {
@@ -482,7 +483,6 @@ export default function SignupPage() {
     }
   }, [formData, selectedRole, avatarFile, formInitialized]);
 
-  // ===== Clear saved data when signup is successful =====
   useEffect(() => {
     if (success) {
       try { localStorage.removeItem('whowin_signup_form'); } catch (_) {}
@@ -490,7 +490,6 @@ export default function SignupPage() {
     }
   }, [success]);
 
-  // ===== One-time cleanup of any oversized stale data from earlier versions =====
   useEffect(() => {
     const cleanupKey = 'whowin_signup_cleanup_v1';
     try {
@@ -498,22 +497,17 @@ export default function SignupPage() {
         const raw = localStorage.getItem('whowin_signup_form');
         if (raw && raw.length > 100000) {
           localStorage.removeItem('whowin_signup_form');
-          console.log('🧹 Cleared stale oversized signup form data');
         }
         sessionStorage.setItem(cleanupKey, 'true');
       }
     } catch (_) {}
   }, []);
 
-  // Fetch states on mount
   useEffect(() => {
     fetchStates();
   }, []);
 
-  // ===== SIGNUP VOICE 1 =====
-  // Voice 1 plays on page load. If blocked by autoplay policy, resumes on
-  // ANY user action (scroll, tap, click, keydown, input focus, etc.).
-  // Uses playExclusively so it takes priority over any other voice.
+  // ===== Voice 1 =====
   useEffect(() => {
     if (voice1PlayedRef.current) return;
     if (!voice1Ref.current) return;
@@ -522,7 +516,6 @@ export default function SignupPage() {
 
     const tryPlayVoice1 = () => {
       if (voice1PlayedRef.current) return;
-      // Don't steal priority if voice 2 or 3 already started
       if (voice2PlayedRef.current || voice3PlayedRef.current) {
         voice1PlayedRef.current = true;
         cleanupActionListeners();
@@ -535,9 +528,7 @@ export default function SignupPage() {
           activeVoiceRef.current = v1;
           v1.volume = 0.8;
           cleanupActionListeners();
-        }).catch(() => {
-          // Blocked — will retry on interaction
-        });
+        }).catch(() => {});
       }
     };
 
@@ -561,21 +552,11 @@ export default function SignupPage() {
           activeVoiceRef.current = v1;
           v1.volume = 0.8;
           cleanupActionListeners();
-        }).catch(() => {
-          // Still blocked — keep listeners attached
-        });
+        }).catch(() => {});
       }
     };
 
-    const events = [
-      'pointerdown',
-      'touchstart',
-      'keydown',
-      'click',
-      'input',
-      'focusin',
-      'change',
-    ];
+    const events = ['pointerdown', 'touchstart', 'keydown', 'click', 'input', 'focusin', 'change'];
 
     const attachActionListeners = () => {
       events.forEach((evt) => {
@@ -601,14 +582,12 @@ export default function SignupPage() {
     };
   }, []);
 
-  // ===== Voice 2: play when Upload Photo button is clicked =====
   const playVoice2 = () => {
     if (voice2PlayedRef.current) return;
     voice2PlayedRef.current = true;
     playExclusively(voice2Ref);
   };
 
-  // ===== Voice 3: play on first password field focus =====
   const handlePasswordFocus = () => {
     if (voice3PlayedRef.current) return;
     voice3PlayedRef.current = true;
@@ -622,9 +601,9 @@ export default function SignupPage() {
         .from('locations')
         .select('state')
         .order('state');
-      
+
       if (error) throw error;
-      
+
       const uniqueStates = [...new Set(data.map(item => item.state))];
       setStates(uniqueStates);
     } catch (error) {
@@ -634,7 +613,6 @@ export default function SignupPage() {
     }
   };
 
-  // Fetch cities when state changes
   useEffect(() => {
     if (formData.state && formData.country?.toLowerCase() === 'nigeria') {
       fetchCities(formData.state);
@@ -651,12 +629,12 @@ export default function SignupPage() {
         .select('cities')
         .eq('state', stateName)
         .maybeSingle();
-      
+
       if (error) throw error;
-      
+
       if (data?.cities) {
-        const citiesData = typeof data.cities === 'string' 
-          ? JSON.parse(data.cities) 
+        const citiesData = typeof data.cities === 'string'
+          ? JSON.parse(data.cities)
           : data.cities;
         const cityNames = citiesData.map(item => item.name);
         const uniqueCityNames = [...new Set(cityNames)];
@@ -672,14 +650,13 @@ export default function SignupPage() {
     }
   };
 
-  // Cooldown countdown effect
   useEffect(() => {
     if (!cooldownUntil) return;
-    
+
     const interval = setInterval(() => {
       const now = Date.now();
       const remaining = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
-      
+
       if (remaining <= 0) {
         setCooldownUntil(null);
         setCooldownSeconds(0);
@@ -688,11 +665,10 @@ export default function SignupPage() {
         setCooldownSeconds(remaining);
       }
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [cooldownUntil]);
 
-  // Check password strength
   const checkPasswordStrength = (password) => {
     setPasswordStrength({
       score: password.length > 0 ? Math.min(4, Math.floor(password.length / 2)) : 0,
@@ -704,38 +680,36 @@ export default function SignupPage() {
     });
   };
 
-  // Validate password and show alert below input
   const validatePassword = (password) => {
     if (password.length === 0) {
       setPasswordAlert('');
       return true;
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       setPasswordAlert('Please make sure you add at least one capital letter to your password');
       return false;
     }
-    
+
     if (!/[a-z]/.test(password)) {
       setPasswordAlert('Please make sure you add at least one small letter to your password');
       return false;
     }
-    
+
     if (!/[0-9]/.test(password)) {
       setPasswordAlert('Please make sure you add at least one numeric to your password');
       return false;
     }
-    
+
     if (password.length < 8) {
       setPasswordAlert('Password must be at least 8 characters long');
       return false;
     }
-    
+
     setPasswordAlert('');
     return true;
   };
 
-  // Handle password validation on blur
   const handlePasswordBlur = (e) => {
     const password = e.target.value;
     if (password.length > 0) {
@@ -745,63 +719,57 @@ export default function SignupPage() {
     }
   };
 
-  // Handle password change - clear alert when user types
   const handlePasswordChange = (e) => {
     const password = e.target.value;
     setFormData(prev => ({ ...prev, password }));
     checkPasswordStrength(password);
-    
+
     if (passwordAlert) {
       if (password.length > 0) {
         const hasUpper = /[A-Z]/.test(password);
         const hasLower = /[a-z]/.test(password);
         const hasNumber = /[0-9]/.test(password);
         const minLength = password.length >= 8;
-        
+
         if (hasUpper && hasLower && hasNumber && minLength) {
           setPasswordAlert('');
         }
       }
     }
-    
+
     if (errors.password) {
       setErrors(prev => ({ ...prev, password: '' }));
     }
   };
 
-  // Check username availability
+  // ===== Username availability check =====
   useEffect(() => {
     let isMounted = true;
-    
-    const checkUsername = async () => {
-      const usernameToCheck = formData.username.trim();
-      
-      if (usernameToCheck.length < 3) {
-        if (isMounted) {
-          setUsernameAvailable(null);
-          setCheckingUsername(false);
-        }
-        return;
-      }
 
-      if (!/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
-        if (isMounted) {
-          setUsernameAvailable(null);
-          setCheckingUsername(false);
-        }
-        return;
-      }
+    const usernameToCheck = formData.username.trim();
 
-      if (usernameToCheck.includes('@')) {
-        if (isMounted) {
-          setUsernameAvailable(null);
-          setCheckingUsername(false);
-        }
-        return;
-      }
+    // IMPORTANT: reset availability immediately on any change so a stale
+    // "true" from a previous value can never leak through.
+    setUsernameAvailable(null);
 
-      setCheckingUsername(true);
-      
+    if (usernameToCheck.length < 3) {
+      if (isMounted) setCheckingUsername(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
+      if (isMounted) setCheckingUsername(false);
+      return;
+    }
+
+    if (usernameToCheck.includes('@')) {
+      if (isMounted) setCheckingUsername(false);
+      return;
+    }
+
+    setCheckingUsername(true);
+
+    const timer = setTimeout(async () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -809,37 +777,45 @@ export default function SignupPage() {
           .ilike('username', usernameToCheck)
           .maybeSingle();
 
+        if (!isMounted) return;
+
         if (error) {
           console.error('Username check error:', error);
-          if (isMounted) {
-            setUsernameAvailable(null);
-          }
+          setUsernameAvailable(null);
         } else if (data) {
-          if (isMounted) setUsernameAvailable(false);
+          setUsernameAvailable(false);
         } else {
-          if (isMounted) setUsernameAvailable(true);
+          setUsernameAvailable(true);
         }
       } catch (error) {
         console.error('Username check error:', error);
-        if (isMounted) {
-          setUsernameAvailable(null);
-        }
+        if (isMounted) setUsernameAvailable(null);
       } finally {
         if (isMounted) setCheckingUsername(false);
       }
-    };
-
-    const timer = setTimeout(() => {
-      checkUsername();
-    }, 800);
+    }, 700);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [formData.username, supabase]);
+  }, [formData.username]);
 
-  // Handle fan disabled modal actions
+  // Inline username check used at submit time (bypasses the debounce)
+  const verifyUsernameInline = async (usernameToCheck) => {
+    const { data, error } = await withTimeout(
+      supabase
+        .from('profiles')
+        .select('username')
+        .ilike('username', usernameToCheck)
+        .maybeSingle(),
+      15000,
+      'Username check'
+    );
+    if (error) throw error;
+    return !data;
+  };
+
   const handleFanModalAction = (action) => {
     setShowFanDisabledModal(false);
     if (action === 'home') {
@@ -858,13 +834,12 @@ export default function SignupPage() {
     }
   };
 
-  // Handle role switch
   const handleRoleSwitch = (role) => {
     if (role === 'fan') {
       setShowFanDisabledModal(true);
       return;
     }
-    
+
     setSwitchingRole(true);
     setSelectedRole(role);
     setFormData(prev => ({
@@ -879,15 +854,15 @@ export default function SignupPage() {
     setTimeout(() => setSwitchingRole(false), 300);
   };
 
-  // Handle dismissing WhatsApp notice
   const handleDismissWhatsapp = () => {
     setWhatsappNoticeDismissed(true);
     setShowWhatsappNotice(false);
   };
 
+  // ===== Validation (does NOT depend on usernameAvailable being resolved) =====
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (selectedRole === 'candidate') {
       if (!formData.username.trim()) {
         newErrors.username = 'Username is required';
@@ -898,21 +873,23 @@ export default function SignupPage() {
       } else if (usernameAvailable === false) {
         newErrors.username = 'Username is already taken. Please choose a different one.';
       }
+      // NOTE: We deliberately do NOT block on usernameAvailable === null here.
+      // handleSubmit will re-verify inline so a slow debounce never blocks submit.
     }
-    
+
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
     } else if (formData.fullName.length < 2) {
       newErrors.fullName = 'Name must be at least 2 characters';
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
-    
+
     if (selectedRole === 'candidate') {
       if (!formData.phone) {
         newErrors.phone = 'Whatsapp number is required';
@@ -920,46 +897,46 @@ export default function SignupPage() {
         newErrors.phone = 'Please enter a valid phone number';
       }
     }
-    
+
     if (selectedRole === 'candidate') {
-      if (!formData.country) {
-        newErrors.country = 'Country is required';
-      }
-      if (!formData.state) {
-        newErrors.state = 'State is required';
-      }
-      if (!formData.city) {
-        newErrors.city = 'City is required';
-      }
+      if (!formData.country) newErrors.country = 'Country is required';
+      if (!formData.state) newErrors.state = 'State is required';
+      if (!formData.city) newErrors.city = 'City is required';
     }
-    
-    const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
-    if (!formData.password) {
+
+    // Validate password inline (not via blur) — mobile users may never blur
+    const pw = formData.password || '';
+    const hasLower = /[a-z]/.test(pw);
+    const hasUpper = /[A-Z]/.test(pw);
+    const hasNumber = /[0-9]/.test(pw);
+    const minLength = pw.length >= 8;
+
+    if (!pw) {
       newErrors.password = 'Password is required';
     } else if (!minLength || !hasLower || !hasUpper || !hasNumber) {
       newErrors.password = 'Password does not meet requirements';
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    
+
     if (!formData.agreeTerms) {
       newErrors.agreeTerms = 'You must agree to the terms';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (name === 'username') {
       const formattedValue = value
         .replace(/\s+/g, '_')
         .replace(/[^a-zA-Z0-9_]/g, '');
-      
+
       setFormData(prev => ({
         ...prev,
         [name]: formattedValue
@@ -970,17 +947,15 @@ export default function SignupPage() {
         [name]: type === 'checkbox' ? checked : value
       }));
     }
-    
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+    if (submitError) setSubmitError('');
   };
 
   const handleAvatarUploadClick = () => {
-    // Trigger voice 2 on the Upload Photo button click.
-    // playExclusively pauses any currently playing voice first.
     playVoice2();
-    // Show guidance modal
     setShowAvatarGuidance(true);
   };
 
@@ -1002,7 +977,7 @@ export default function SignupPage() {
 
     setUploadingAvatar(true);
     setAvatarFile(file);
-    
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result);
@@ -1013,183 +988,202 @@ export default function SignupPage() {
     setErrors(prev => ({ ...prev, avatar: '' }));
   };
 
-  const uploadAvatar = async (file, userId) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+  // ===== THE MAIN SUBMIT HANDLER =====
+  // Called from both form onSubmit AND the button's onClick so taps always land.
+  const handleSubmit = async (e) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
 
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (uploadError) {
-        console.error('Avatar upload error:', uploadError);
-        return null;
+    // Debounce rapid double-taps on mobile
+    const now = Date.now();
+    if (now - lastSubmitAtRef.current < 800) return;
+    lastSubmitAtRef.current = now;
+
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
+    setSubmitError('');
+    setErrors({});
+
+    try {
+      // 1. Run validation (does not depend on usernameAvailable)
+      const isValid = validateForm();
+      if (!isValid) {
+        setSubmitError('Please fix the highlighted fields and try again.');
+        // Scroll to top of form so user sees errors
+        setTimeout(() => {
+          const el = document.getElementById('signup-form-top');
+          if (el && el.scrollIntoView) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 50);
+        submittingRef.current = false;
+        return;
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
-      
-      return publicUrl;
-    } catch (error) {
-      console.error('Avatar upload error:', error);
-      return null;
-    }
-  };
+      if (cooldownSeconds > 0) {
+        setSubmitError(`Please wait ${cooldownSeconds} seconds before trying again.`);
+        submittingRef.current = false;
+        return;
+      }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    if (selectedRole === 'candidate' && usernameAvailable !== true) {
-      setErrors(prev => ({
-        ...prev,
-        username: 'Please wait for username availability check or choose a different username.'
-      }));
-      return;
-    }
-    
-    if (cooldownSeconds > 0) {
-      setErrors(prev => ({
-        ...prev,
-        submit: `Please wait ${cooldownSeconds} seconds before trying again.`
-      }));
-      return;
-    }
-    
-    setLoading(true);
-    setErrors(prev => ({ ...prev, submit: '' }));
-    
-    try {
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            username: selectedRole === 'candidate' ? formData.username : null,
-            full_name: formData.fullName,
-            phone: formData.phone || '',
-            country: formData.country || '',
-            state: formData.state || '',
-            city: formData.city || '',
-            lga: selectedRole === 'candidate' ? formData.lga : null,
-            role: selectedRole === 'candidate' ? 'user' : 'fan',
-            avatar_url: null,
-            accept_terms: formData.agreeTerms
-          }
-        }
-      });
-      
-      if (signUpError) {
-        console.error('Signup error details:', signUpError);
-        
-        if (signUpError.status === 429 || signUpError.message.includes('security purposes') || signUpError.message.includes('rate limit')) {
-          const waitTime = 60;
-          setCooldownUntil(Date.now() + (waitTime * 1000));
-          
-          setErrors(prev => ({
-            ...prev,
-            submit: `Too many signup attempts. Please wait ${waitTime} seconds.`
-          }));
+      setLoading(true);
+
+      // 2. Re-verify username inline if not confirmed yet
+      if (selectedRole === 'candidate') {
+        if (usernameAvailable === false) {
+          setErrors(prev => ({ ...prev, username: 'Username is already taken. Please choose a different one.' }));
+          setSubmitError('Username is already taken.');
           setLoading(false);
+          submittingRef.current = false;
           return;
         }
-        
-        if (signUpError.message.includes('User already registered')) {
+
+        if (usernameAvailable !== true) {
+          try {
+            const isAvailable = await verifyUsernameInline(formData.username.trim());
+            if (!isAvailable) {
+              setUsernameAvailable(false);
+              setErrors(prev => ({ ...prev, username: 'Username is already taken. Please choose a different one.' }));
+              setSubmitError('Username is already taken.');
+              setLoading(false);
+              submittingRef.current = false;
+              return;
+            }
+            setUsernameAvailable(true);
+          } catch (checkErr) {
+            console.error('Inline username check failed:', checkErr);
+            setSubmitError(checkErr.message || 'Could not verify username. Please try again.');
+            setLoading(false);
+            submittingRef.current = false;
+            return;
+          }
+        }
+      }
+
+      // 3. Sign up
+      const { data: authData, error: signUpError } = await withTimeout(
+        supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              username: selectedRole === 'candidate' ? formData.username : null,
+              full_name: formData.fullName,
+              phone: formData.phone || '',
+              country: formData.country || '',
+              state: formData.state || '',
+              city: formData.city || '',
+              lga: selectedRole === 'candidate' ? formData.lga : null,
+              role: selectedRole === 'candidate' ? 'user' : 'fan',
+              avatar_url: null,
+              accept_terms: formData.agreeTerms
+            }
+          }
+        }),
+        30000,
+        'Signup request'
+      );
+
+      if (signUpError) {
+        console.error('Signup error details:', signUpError);
+
+        if (signUpError.status === 429 || signUpError.message?.includes('security purposes') || signUpError.message?.includes('rate limit')) {
+          const waitTime = 60;
+          setCooldownUntil(Date.now() + (waitTime * 1000));
+          setSubmitError(`Too many signup attempts. Please wait ${waitTime} seconds.`);
+          setLoading(false);
+          submittingRef.current = false;
+          return;
+        }
+
+        if (signUpError.message?.includes('User already registered')) {
           throw new Error('An account with this email already exists. Please log in instead.');
-        } else if (signUpError.message.includes('Password should be at least')) {
+        } else if (signUpError.message?.includes('Password should be at least')) {
           throw new Error('Password must be at least 8 characters long.');
         }
         throw signUpError;
       }
-      
+
       if (!authData?.user) {
         throw new Error('Failed to create user account');
       }
 
       const userId = authData.user.id;
 
+      // 4. Wait for profile row to exist (timeout so we never hang forever)
       let profileCreated = false;
       let attempts = 0;
-      const maxAttempts = 10;
-      let profileData = null;
-      
+      const maxAttempts = 8;
       while (!profileCreated && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 900));
         attempts++;
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        
-        if (!error && data) {
-          profileCreated = true;
-          profileData = data;
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', userId)
+            .maybeSingle();
+          if (!error && data) {
+            profileCreated = true;
+          }
+        } catch (e) {
+          // keep retrying
         }
       }
 
-      if (!profileCreated) {
-        throw new Error('Profile creation failed. Please try again.');
-      }
+      // Even if profile row isn't ready, don't block the user — proceed.
+      // The profile trigger will finish soon and the account is created.
 
+      // 5. accept_terms
       if (formData.agreeTerms) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ 
-            accept_terms: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-        
-        if (updateError) {
-          console.error('Error updating accept_terms:', updateError);
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              accept_terms: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+        } catch (e) {
+          console.error('Error updating accept_terms:', e);
         }
       }
 
+      // 6. Avatar upload (best-effort)
       if (avatarFile) {
         try {
           const fileExt = avatarFile.name.split('.').pop();
           const fileName = `${userId}.${fileExt}`;
           const filePath = `${userId}/${fileName}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from('profiles')
-            .upload(filePath, avatarFile, {
-              cacheControl: '3600',
-              upsert: true
-            });
-          
-          if (uploadError) {
-            console.error('Avatar upload error:', uploadError);
-          } else {
+          const { error: upErr } = await withTimeout(
+            supabase.storage
+              .from('profiles')
+              .upload(filePath, avatarFile, {
+                cacheControl: '3600',
+                upsert: true
+              }),
+            30000,
+            'Avatar upload'
+          );
+
+          if (!upErr) {
             const { data: { publicUrl } } = supabase.storage
               .from('profiles')
               .getPublicUrl(filePath);
-            
+
             if (publicUrl) {
-              const { error: updateError } = await supabase
+              await supabase
                 .from('profiles')
-                .update({ 
+                .update({
                   avatar_url: publicUrl,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', userId);
-              
-              if (updateError) {
-                console.error('Avatar URL update error:', updateError);
-              } else {
-                console.log('Avatar URL updated successfully:', publicUrl);
-              }
             }
           }
         } catch (uploadError) {
@@ -1197,49 +1191,52 @@ export default function SignupPage() {
         }
       }
 
+      // 7. Auto-login (best-effort)
       try {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (signInError) {
-          console.error('Auto-login error:', signInError);
-          setSuccess(true);
-          setTimeout(() => {
-            router.push('/auth/login?email=' + encodeURIComponent(formData.email));
-          }, 3000);
-          return;
-        }
+        await withTimeout(
+          supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          }),
+          20000,
+          'Auto-login'
+        );
       } catch (loginError) {
         console.error('Auto-login error:', loginError);
       }
 
+      // 8. Success
       setSuccess(true);
-      
+
       setTimeout(() => {
         if (selectedRole === 'candidate' && formData.username) {
           router.push(`/${formData.username}`);
         } else {
           router.push('/');
         }
-      }, 3000);
-      
+      }, 2500);
+
     } catch (error) {
       console.error('Signup error:', error);
-      setErrors(prev => ({
-        ...prev,
-        submit: error.message || 'An error occurred during signup. Please try again.'
-      }));
+      const msg = error?.message || 'An error occurred during signup. Please try again.';
+      setSubmitError(msg);
+      setErrors(prev => ({ ...prev, submit: msg }));
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
+  };
+
+  // Button onClick handler — guarantees submit fires even if form onSubmit is swallowed
+  const handleSubmitClick = (e) => {
+    // Let the native form submission also fire; we just ensure ours runs.
+    handleSubmit(e);
   };
 
   const getStrengthColor = () => {
     const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
     const checks = [hasLower, hasUpper, hasNumber, minLength].filter(Boolean).length;
-    
+
     if (checks <= 2) return "bg-[#C58B2A]";
     if (checks <= 3) return "bg-[#A96F1F]";
     return "bg-green-500";
@@ -1248,7 +1245,7 @@ export default function SignupPage() {
   const getStrengthText = () => {
     const { hasLower, hasUpper, hasNumber, minLength } = passwordStrength;
     const checks = [hasLower, hasUpper, hasNumber, minLength].filter(Boolean).length;
-    
+
     if (checks <= 2) return "Weak";
     if (checks <= 3) return "Medium";
     return "Strong";
@@ -1256,12 +1253,10 @@ export default function SignupPage() {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
-      {/* Hidden background audio — signup page voices (always mounted) */}
       <audio ref={voice1Ref} src="/signupvoice.MP3" preload="auto" playsInline loop={false} />
       <audio ref={voice2Ref} src="/signupvoice2.MP3" preload="auto" playsInline loop={false} />
       <audio ref={voice3Ref} src="/signupvoice3.MP3" preload="auto" playsInline loop={false} />
 
-      {/* Background decor - gold/yellow sparks */}
       {Array.from({ length: 15 }, (_, index) => ({
         id: index,
         x: (index * 13) % 90 + 5,
@@ -1273,13 +1268,13 @@ export default function SignupPage() {
         <motion.div
           key={star.id}
           className="absolute pointer-events-none hidden md:block"
-          initial={{ 
-            x: `${star.x}vw`, 
+          initial={{
+            x: `${star.x}vw`,
             y: `${star.y}vh`,
             scale: 0,
             opacity: 0.2
           }}
-          animate={{ 
+          animate={{
             y: [`${star.y}vh`, `${star.y - 15}vh`, `${star.y}vh`],
             x: [`${star.x}vw`, `${star.x + 8}vw`, `${star.x}vw`],
             rotate: [0, 180, 360],
@@ -1293,8 +1288,8 @@ export default function SignupPage() {
             ease: "linear"
           }}
         >
-          <Sparkles 
-            size={star.size} 
+          <Sparkles
+            size={star.size}
             className="text-[#C58B2A]/20"
           />
         </motion.div>
@@ -1330,7 +1325,6 @@ export default function SignupPage() {
             }}
           />
 
-          {/* Header with Logo */}
           <div className="bg-black/50 backdrop-blur-sm flex items-center justify-between py-3 px-4 border-b border-white/10">
             <motion.div
               initial={{ y: -2, opacity: 0 }}
@@ -1349,40 +1343,40 @@ export default function SignupPage() {
                 />
               </div>
             </motion.div>
-            
-            {/* Role Switch Buttons */}
+
             <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleRoleSwitch('candidate')}
-                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
-                    selectedRole === 'candidate'
-                      ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  <Crown className="w-3 h-3 flex-shrink-0" />
-                  <span>Candidate</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleSwitch('fan')}
-                  className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 opacity-50 cursor-not-allowed ${
-                    selectedRole === 'fan'
-                      ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                  title="Fan registration is currently disabled"
-                >
-                  <Users className="w-3 h-3 flex-shrink-0" />
-                  <span>Fan</span>
-                  <span className="text-[6px] bg-[#C58B2A]/20 text-[#C58B2A] px-1 rounded">Soon</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => handleRoleSwitch('candidate')}
+                className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 ${
+                  selectedRole === 'candidate'
+                    ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                <Crown className="w-3 h-3 flex-shrink-0" />
+                <span>Candidate</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRoleSwitch('fan')}
+                className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-medium transition-all flex items-center gap-1 opacity-50 cursor-not-allowed ${
+                  selectedRole === 'fan'
+                    ? 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] text-black'
+                    : 'text-white/60 hover:text-white'
+                }`}
+                title="Fan registration is currently disabled"
+              >
+                <Users className="w-3 h-3 flex-shrink-0" />
+                <span>Fan</span>
+                <span className="text-[6px] bg-[#C58B2A]/20 text-[#C58B2A] px-1 rounded">Soon</span>
+              </button>
             </div>
           </div>
 
-          {/* Form Content */}
           <div className="p-5 md:p-8 space-y-4 md:space-y-5">
+            <div id="signup-form-top" />
+
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1393,7 +1387,7 @@ export default function SignupPage() {
                 {selectedRole === 'candidate' ? 'FILL YOUR REGISTRATION FORM' : 'Join as a Fan'}
               </h2>
               <p className="text-xs md:text-sm text-white/60">
-                {selectedRole === 'candidate' 
+                {selectedRole === 'candidate'
                   ? 'Carefully fill the form below to get enrolled.'
                   : 'Support your favorite contestants'}
               </p>
@@ -1406,7 +1400,6 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* Rate Limit Warning */}
             <AnimatePresence>
               {cooldownSeconds > 0 && (
                 <motion.div
@@ -1423,8 +1416,28 @@ export default function SignupPage() {
               )}
             </AnimatePresence>
 
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-              {/* Username - Only for candidates */}
+            {/* Top-level submit error — visible on mobile */}
+            <AnimatePresence>
+              {submitError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-red-500/15 border border-red-500/40 rounded-lg p-3 text-center"
+                >
+                  <p className="text-red-300 text-xs flex items-center justify-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {submitError}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="space-y-4 md:space-y-5"
+            >
               {selectedRole === 'candidate' && (
                 <motion.div
                   initial={{ opacity: 0, x: -5 }}
@@ -1433,8 +1446,8 @@ export default function SignupPage() {
                   className="w-full"
                 >
                   <label htmlFor="username" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                    <User className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                    <span>Nickname</span> 
+                    <User className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                    <span>Nickname</span>
                     <span className="text-[#C58B2A]">*</span>
                   </label>
                   <div className="relative w-full">
@@ -1444,91 +1457,86 @@ export default function SignupPage() {
                       name="username"
                       placeholder="e.g. stargirl, celeb_joe"
                       className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 pr-8 ${
-                        errors.username ? 'border-red-400 bg-red-500/10' : 
+                        errors.username ? 'border-red-400 bg-red-500/10' :
                         usernameAvailable === true && formData.username.length >= 3 ? 'border-green-400 bg-green-500/10' :
-                        usernameAvailable === false && formData.username.length >= 3 ? 'border-red-400 bg-red-500/10' : 
-                        formData.username.length >= 3 ? 'border-white/20' : 'border-white/20'
+                        usernameAvailable === false && formData.username.length >= 3 ? 'border-red-400 bg-red-500/10' :
+                        'border-white/20'
                       }`}
                       value={formData.username}
                       onChange={handleChange}
-                      required
-                      minLength={3}
-                      disabled={cooldownSeconds > 0}
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      inputMode="text"
+                      enterKeyHint="next"
                     />
-                    
+
                     {checkingUsername && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
                         <div className="w-3 h-3 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                       </div>
                     )}
-                    
+
                     {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
                         <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
                       </div>
                     )}
-                    
+
                     {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && (
                       <div className="absolute inset-y-0 right-2 flex items-center">
                         <X className="w-3 h-3 text-red-500 flex-shrink-0" />
                       </div>
                     )}
                   </div>
-                  
+
                   {errors.username && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       {errors.username}
                     </p>
                   )}
-                  
+
                   {checkingUsername && formData.username.length >= 3 && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-white/40 flex items-center gap-1">
-                      <div className="w-2 h-2 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                      <span className="w-2 h-2 border-2 border-[#C58B2A] border-t-transparent rounded-full animate-spin flex-shrink-0 inline-block"></span>
                       Checking username availability...
                     </p>
                   )}
-                  
+
                   {!checkingUsername && usernameAvailable === true && formData.username.length >= 3 && !errors.username && (
                     <p className="mt-0.5 text-[9px] md:text-xs text-green-400 flex items-center gap-1 animate-pulse">
                       <Check className="w-2.5 h-2.5 flex-shrink-0" />
                       ✓ Username is available!
                     </p>
                   )}
-                  
+
                   {!checkingUsername && usernameAvailable === false && formData.username.length >= 3 && !errors.username && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                       <X className="w-2.5 h-2.5 flex-shrink-0" />
                       ✗ Username is already taken. Please choose a different one.
                     </p>
                   )}
-                  
+
                   {formData.username.length > 0 && formData.username.length < 3 && (
                     <p className="mt-0.5 text-[8px] md:text-[10px] text-[#C58B2A] flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                       Minimum 3 characters required
                     </p>
                   )}
-                  
-                  {formData.username.length >= 3 && !/^[a-zA-Z0-9_]+$/.test(formData.username) && (
-                    <p className="mt-0.5 text-[8px] md:text-[10px] text-[#C58B2A] flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
-                      Only letters, numbers, and underscores allowed
-                    </p>
-                  )}
                 </motion.div>
               )}
 
-              {/* Full Name */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 }}
                 className="w-full"
               >
-                  <label htmlFor="fullName" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                  <Award className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                  <span>Full Name</span> 
+                <label htmlFor="fullName" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
+                  <Award className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                  <span>Full Name</span>
                   <span className="text-[#C58B2A]">*</span>
                 </label>
                 <input
@@ -1536,13 +1544,13 @@ export default function SignupPage() {
                   id="fullName"
                   name="fullName"
                   placeholder="Enter your full name"
+                  autoComplete="name"
+                  enterKeyHint="next"
                   className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                     errors.fullName ? 'border-red-400 bg-red-500/10' : formData.fullName ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.fullName}
                   onChange={handleChange}
-                  required
-                  disabled={cooldownSeconds > 0}
                 />
                 {errors.fullName && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1552,16 +1560,15 @@ export default function SignupPage() {
                 )}
               </motion.div>
 
-              {/* Email */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
                 className="w-full"
               >
-                  <label htmlFor="email" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                  <Mail className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                  <span>Email</span> 
+                <label htmlFor="email" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
+                  <Mail className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                  <span>Email</span>
                   <span className="text-[#C58B2A]">*</span>
                 </label>
                 <input
@@ -1569,13 +1576,17 @@ export default function SignupPage() {
                   id="email"
                   name="email"
                   placeholder="your@email.com"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="email"
+                  enterKeyHint="next"
                   className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                     errors.email ? 'border-red-400 bg-red-500/10' : formData.email ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                   }`}
                   value={formData.email}
                   onChange={handleChange}
-                  required
-                  disabled={cooldownSeconds > 0}
                 />
                 {errors.email && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1585,7 +1596,6 @@ export default function SignupPage() {
                 )}
               </motion.div>
 
-              {/* Phone - Required for candidates */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1593,7 +1603,7 @@ export default function SignupPage() {
                 className="w-full"
               >
                 <label htmlFor="phone" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                  <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
                   <span>{selectedRole === 'candidate' ? 'Whatsapp Number' : 'Phone (Optional)'}</span>
                   {selectedRole === 'candidate' && <span className="text-[#C58B2A]">*</span>}
                 </label>
@@ -1603,6 +1613,9 @@ export default function SignupPage() {
                     id="phone"
                     name="phone"
                     placeholder={selectedRole === 'candidate' ? '+234 800 000 0000' : '+123 456 7890 (optional)'}
+                    autoComplete="tel"
+                    inputMode="tel"
+                    enterKeyHint="next"
                     className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                       errors.phone ? 'border-red-400 bg-red-500/10' : formData.phone ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
@@ -1614,8 +1627,6 @@ export default function SignupPage() {
                     onClick={() => {
                       if (!whatsappNoticeDismissed) setShowWhatsappNotice(true);
                     }}
-                    required={selectedRole === 'candidate'}
-                    disabled={cooldownSeconds > 0}
                   />
                 </div>
                 {errors.phone && (
@@ -1626,7 +1637,6 @@ export default function SignupPage() {
                 )}
               </motion.div>
 
-              {/* Avatar Upload */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1634,7 +1644,7 @@ export default function SignupPage() {
                 className="w-full"
               >
                 <label className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
-                  <Camera className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                  <Camera className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
                   <span>Profile Picture</span>
                 </label>
                 <div className="flex items-center gap-3">
@@ -1655,7 +1665,6 @@ export default function SignupPage() {
                       type="button"
                       onClick={handleAvatarUploadClick}
                       className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2"
-                      disabled={cooldownSeconds > 0}
                     >
                       <Upload className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                       {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
@@ -1671,7 +1680,6 @@ export default function SignupPage() {
                 </div>
               </motion.div>
 
-              {/* Country, State, City - Only for candidates */}
               {selectedRole === 'candidate' && (
                 <>
                   <motion.div
@@ -1681,8 +1689,8 @@ export default function SignupPage() {
                     className="w-full"
                   >
                     <label htmlFor="country" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                      <Globe className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                      <span>Country</span> 
+                      <Globe className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                      <span>Country</span>
                       <span className="text-[#C58B2A]">*</span>
                     </label>
                     <input
@@ -1690,13 +1698,13 @@ export default function SignupPage() {
                       id="country"
                       name="country"
                       placeholder="e.g. Nigeria, United States, UK"
+                      autoComplete="country-name"
+                      enterKeyHint="next"
                       className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                         errors.country ? 'border-red-400 bg-red-500/10' : formData.country ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                       }`}
                       value={formData.country}
                       onChange={handleChange}
-                      required={selectedRole === 'candidate'}
-                      disabled={cooldownSeconds > 0}
                     />
                     {errors.country && (
                       <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1706,7 +1714,6 @@ export default function SignupPage() {
                     )}
                   </motion.div>
 
-                  {/* State Dropdown - Only for Nigeria */}
                   {formData.country?.toLowerCase() === 'nigeria' ? (
                     <SearchableSelect
                       id="state"
@@ -1735,8 +1742,8 @@ export default function SignupPage() {
                       className="w-full"
                     >
                       <label htmlFor="state" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                        <span>State/Region</span> 
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                        <span>State/Region</span>
                         <span className="text-[#C58B2A]">*</span>
                       </label>
                       <input
@@ -1744,13 +1751,12 @@ export default function SignupPage() {
                         id="state"
                         name="state"
                         placeholder="Enter your state or region"
+                        enterKeyHint="next"
                         className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                           errors.state ? 'border-red-400 bg-red-500/10' : formData.state ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.state}
                         onChange={handleChange}
-                        required={selectedRole === 'candidate'}
-                        disabled={cooldownSeconds > 0}
                       />
                       {errors.state && (
                         <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1761,7 +1767,6 @@ export default function SignupPage() {
                     </motion.div>
                   )}
 
-                  {/* City Dropdown - Only for Nigeria with state selected */}
                   {formData.country?.toLowerCase() === 'nigeria' && formData.state && (
                     <SearchableSelect
                       id="city"
@@ -1784,7 +1789,6 @@ export default function SignupPage() {
                     />
                   )}
 
-                  {/* Manual City Input - For non-Nigeria countries */}
                   {formData.country?.toLowerCase() !== 'nigeria' && (
                     <motion.div
                       initial={{ opacity: 0, x: -5 }}
@@ -1793,7 +1797,7 @@ export default function SignupPage() {
                       className="w-full"
                     >
                       <label htmlFor="city" className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
-                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
+                        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
                         <span>City You Currently Stay</span>
                         <span className="text-[#C58B2A]">*</span>
                       </label>
@@ -1802,13 +1806,13 @@ export default function SignupPage() {
                         id="city"
                         name="city"
                         placeholder="Enter the city you currently stay in"
+                        autoComplete="address-level2"
+                        enterKeyHint="next"
                         className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none placeholder:text-white/30 ${
                           errors.city ? 'border-red-400 bg-red-500/10' : formData.city ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                         }`}
                         value={formData.city}
                         onChange={handleChange}
-                        required={selectedRole === 'candidate'}
-                        disabled={cooldownSeconds > 0}
                       />
                       {errors.city && (
                         <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
@@ -1821,7 +1825,6 @@ export default function SignupPage() {
                 </>
               )}
 
-              {/* Password */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1829,8 +1832,8 @@ export default function SignupPage() {
                 className="w-full"
               >
                 <label htmlFor="password" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                  <span>Password</span> 
+                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                  <span>Password</span>
                   <span className="text-[#C58B2A]">*</span>
                 </label>
                 <div className="relative w-full">
@@ -1839,6 +1842,11 @@ export default function SignupPage() {
                     id="password"
                     name="password"
                     placeholder="Create password"
+                    autoComplete="new-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none pr-8 ${
                       errors.password ? 'border-red-400 bg-red-500/10' : formData.password ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
@@ -1846,27 +1854,24 @@ export default function SignupPage() {
                     onChange={handlePasswordChange}
                     onBlur={handlePasswordBlur}
                     onFocus={handlePasswordFocus}
-                    required
-                    disabled={cooldownSeconds > 0}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-2 flex items-center text-white/40 hover:text-white/80 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
-                    disabled={cooldownSeconds > 0}
                   >
                     {showPassword ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                   </button>
                 </div>
-                
+
                 {passwordAlert && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                     <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                     {passwordAlert}
                   </p>
                 )}
-                
+
                 {errors.password && !passwordAlert && (
                   <p className="mt-0.5 text-[8px] md:text-[10px] text-red-400 flex items-center gap-1">
                     <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
@@ -1934,7 +1939,6 @@ export default function SignupPage() {
                 </AnimatePresence>
               </motion.div>
 
-              {/* Confirm Password */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1942,8 +1946,8 @@ export default function SignupPage() {
                 className="w-full"
               >
                 <label htmlFor="confirmPassword" className="flex items-center gap-1 text-xs md:text-sm font-medium text-white/70 mb-1 ml-1">
-                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" /> 
-                  <span>Confirm Password</span> 
+                  <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
+                  <span>Confirm Password</span>
                   <span className="text-[#C58B2A]">*</span>
                 </label>
                 <div className="relative w-full">
@@ -1952,20 +1956,22 @@ export default function SignupPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     placeholder="Confirm password"
+                    autoComplete="new-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="done"
                     className={`w-full px-3 py-2 md:px-4 md:py-2.5 bg-white/5 border rounded-lg md:rounded-xl text-sm md:text-base text-white focus:ring-1 focus:ring-[#C58B2A] focus:border-[#C58B2A] transition-all outline-none pr-8 ${
                       errors.confirmPassword ? 'border-red-400 bg-red-500/10' : formData.confirmPassword ? 'border-green-400 bg-green-500/10' : 'border-white/20'
                     }`}
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    required
-                    disabled={cooldownSeconds > 0}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-2 flex items-center text-white/40 hover:text-white/80 transition-colors"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     tabIndex={-1}
-                    disabled={cooldownSeconds > 0}
                   >
                     {showConfirmPassword ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                   </button>
@@ -1999,7 +2005,6 @@ export default function SignupPage() {
                 )}
               </motion.div>
 
-              {/* Terms Acceptance */}
               <motion.div
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2015,10 +2020,9 @@ export default function SignupPage() {
                       checked={formData.agreeTerms}
                       onChange={handleChange}
                       className="w-3 h-3 opacity-0 absolute cursor-pointer"
-                      disabled={cooldownSeconds > 0}
                     />
                     <div className={`w-3 h-3 border rounded flex items-center justify-center transition-all flex-shrink-0 ${
-                      formData.agreeTerms 
+                      formData.agreeTerms
                         ? 'bg-green-400 border-green-400'
                         : 'border-white/30 group-hover:border-[#C58B2A]'
                     }`}>
@@ -2027,16 +2031,16 @@ export default function SignupPage() {
                   </div>
                   <span className="text-[9px] md:text-[10px] text-white/60 leading-tight">
                     I agree to the{' '}
-                    <Link 
-                      href="/terms" 
+                    <Link
+                      href="/terms"
                       className="text-[#C58B2A] font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
                       Terms
                     </Link>{' '}
                     &{' '}
-                    <Link 
-                      href="/privacy" 
+                    <Link
+                      href="/privacy"
                       className="text-[#C58B2A] font-semibold hover:text-green-400 hover:underline transition-colors"
                       target="_blank"
                     >
@@ -2055,16 +2059,18 @@ export default function SignupPage() {
               {/* Submit Button */}
               <motion.button
                 type="submit"
-                disabled={loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)}
-                whileHover={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)) ? 1 : 1.01 }}
-                whileTap={{ scale: (loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)) ? 1 : 0.99 }}
-                className={`w-full py-2 md:py-2.5 rounded-lg md:rounded-xl font-semibold text-black shadow-md transition-all relative overflow-hidden group ${
-                  loading || !formData.agreeTerms || cooldownSeconds > 0 || (selectedRole === 'candidate' && usernameAvailable !== true)
+                onClick={handleSubmitClick}
+                disabled={loading || cooldownSeconds > 0}
+                whileHover={{ scale: (loading || cooldownSeconds > 0) ? 1 : 1.01 }}
+                whileTap={{ scale: (loading || cooldownSeconds > 0) ? 1 : 0.99 }}
+                className={`w-full py-2 md:py-2.5 rounded-lg md:rounded-xl font-semibold text-black shadow-md transition-all relative overflow-hidden group touch-manipulation ${
+                  loading || cooldownSeconds > 0
                     ? 'bg-white/10 cursor-not-allowed text-white/40'
                     : 'bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] hover:from-green-500 hover:to-emerald-500 hover:text-white'
                 }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {!cooldownSeconds && (selectedRole !== 'candidate' || usernameAvailable === true) && !loading && formData.agreeTerms && (
+                {!cooldownSeconds && !loading && (
                   <motion.div
                     className="absolute inset-0 bg-white/20"
                     animate={{
@@ -2077,7 +2083,7 @@ export default function SignupPage() {
                     }}
                   />
                 )}
-                
+
                 {loading ? (
                   <div className="flex items-center justify-center gap-1.5">
                     <motion.div
@@ -2091,11 +2097,6 @@ export default function SignupPage() {
                   <span className="text-xs md:text-sm relative z-10">
                     Wait {cooldownSeconds}s
                   </span>
-                ) : selectedRole === 'candidate' && usernameAvailable !== true ? (
-                  <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
-                    <X className="w-3 h-3 flex-shrink-0" />
-                    Choose Available Username
-                  </span>
                 ) : (
                   <span className="text-xs md:text-sm relative z-10 flex items-center justify-center gap-1.5">
                     <Star className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
@@ -2105,7 +2106,6 @@ export default function SignupPage() {
                 )}
               </motion.button>
 
-              {/* Login Link */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -2123,7 +2123,6 @@ export default function SignupPage() {
                 </p>
               </motion.div>
 
-              {/* Security Badge */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -2216,11 +2215,11 @@ export default function SignupPage() {
                   Fan Portal Coming Soon! 🎉
                 </h2>
                 <p className="text-white/70 text-sm leading-relaxed">
-                  The fan registration will be open as soon as the candidate registration period is over. 
+                  The fan registration will be open as soon as the candidate registration period is over.
                   We appreciate your patience and enthusiasm!
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -2231,7 +2230,7 @@ export default function SignupPage() {
                   <Crown className="w-4 h-4 flex-shrink-0" />
                   Register as Contestant
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -2300,7 +2299,7 @@ export default function SignupPage() {
                       />
                     </motion.div>
                   </AnimatePresence>
-                  
+
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1">
                     <span className="text-[10px] text-white/80">
                       {currentExampleIndex + 1} / {exampleImages.length}
@@ -2357,7 +2356,7 @@ export default function SignupPage() {
                     </span>
                   </div>
                 </label>
-                
+
                 <button
                   onClick={() => setShowAvatarGuidance(false)}
                   className="w-full py-2 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm transition-all"
@@ -2393,17 +2392,17 @@ export default function SignupPage() {
               <div className="w-20 h-20 bg-gradient-to-r from-[#C58B2A] to-[#A96F1F] rounded-full flex items-center justify-center mx-auto mb-6">
                 <Check className="w-10 h-10 text-black" />
               </div>
-              
+
               <h2 className="text-2xl font-bold text-white mb-3">
                 You have passed the first stage!
               </h2>
-              
+
               <p className="text-[#C58B2A] text-base mb-6">
-                {selectedRole === 'candidate' 
-                  ? 'Follow the next Steps to complete your registration!' 
+                {selectedRole === 'candidate'
+                  ? 'Follow the next Steps to complete your registration!'
                   : 'Your fan account has been created successfully!'}
               </p>
-              
+
               <div className="space-y-3">
                 <div className="bg-white/10 rounded-lg p-3 text-sm text-white/80">
                   <p>You're now signed in as <span className="font-bold text-[#C58B2A]">@{formData.username || formData.fullName}</span></p>
@@ -2411,7 +2410,7 @@ export default function SignupPage() {
                     {selectedRole === 'candidate' ? 'Contestant' : 'Fan'} • {formData.email}
                   </p>
                 </div>
-                
+
                 <div className="flex items-center justify-center gap-2 text-sm text-[#C58B2A]/80">
                   <div className="w-2 h-2 bg-[#C58B2A] rounded-full animate-pulse flex-shrink-0"></div>
                   <span>Taking you to your dashboard...</span>
