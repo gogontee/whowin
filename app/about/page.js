@@ -535,9 +535,9 @@ Now in its 1st season, the show brings together exceptional young people from ac
                     <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-yellow-300 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 md:mb-4">
                       <Award className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
                     </div>
-                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-white mb-1">Consolation</h3>
-                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-300 mb-1">Multiple</div>
-                    <p className="text-[10px] sm:text-xs text-white/60">Prizes for top finalists</p>
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-white mb-1">Gifting</h3>
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-300 mb-1">Gifts From Fans</div>
+                    <p className="text-[10px] sm:text-xs text-white/60">Recieve your accumulated gift at the End of the Show</p>
                   </motion.div>
 
                   {/* Special Awards - Dark Gold */}

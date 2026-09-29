@@ -24,23 +24,27 @@ const TermsPage = () => {
   // Check if user is authenticated and get profile
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('accept_terms, role')
-          .eq('id', user.id)
-          .single();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('accept_terms, role')
+            .eq('id', user.id)
+            .single();
 
-        if (profile) {
-          setUserProfile(profile);
-          // If user has already accepted terms, check the box
-          if (profile.accept_terms === true) {
-            setAcceptedTerms(true);
+          if (profile) {
+            setUserProfile(profile);
+            // If user has already accepted terms, check the box
+            if (profile.accept_terms === true) {
+              setAcceptedTerms(true);
+            }
           }
         }
+      } catch (error) {
+        console.error('Error fetching user:', error);
       }
     };
     getUser();
@@ -81,7 +85,7 @@ const TermsPage = () => {
       id: 1,
       icon: '🪪',
       title: 'Eligibility & Age Verification',
-      desc: 'Participants must be 18 years or older at application. Valid government-issued ID required for final selection. Must be legally able to reside and travel within Nigeria for the 3-week filming. No felony convictions or pending criminal cases. Must be single, divorced, or legally separated (no current marital commitments). Not currently in a serious, exclusive relationship that would conflict with show format.'
+      desc: 'Participants must be 21 years or older at application. No felony convictions or pending criminal cases.'
     },
     {
       id: 2,
@@ -147,7 +151,7 @@ const TermsPage = () => {
       id: 12,
       icon: '💰',
       title: 'Compensation & Expenses',
-      desc: 'Accommodation, meals, and refreshments provided during production. Consolation prizes for runner-ups shall rest on the discretion of producers. The winner\'s prize is ₦19M worth of prizes, awarded as producers determine. Half of gifts accumulated by participants during filming shall be given to the candidate at the end of the show season; half is retained by Who Wins Show. Travel to filming location from the mansion during production at producer\'s expense unless otherwise agreed.'
+      desc: 'Accommodation, meals, and refreshments provided during production. Consolation prizes for runner-ups shall rest on the discretion of producers. The winner\'s prize is ₦19M worth of prizes, awarded as producers determine. Half of gifts accumulated by participants during filming shall be given to the candidate at the end of the show season. Travel to filming location from the mansion during production at producer\'s expense unless otherwise agreed.'
     }
   ];
 
@@ -247,8 +251,7 @@ const TermsPage = () => {
             <div className="bg-gradient-to-r from-green-500/10 to-yellow-500/10 border-l-4 border-green-500 rounded-lg p-4 mb-6 flex items-center gap-3">
               <span className="text-2xl">🔞</span>
               <div>
-                <strong className="text-green-400 text-sm md:text-base block">MUST BE 18 YEARS OR OLDER</strong>
-                <span className="text-white/60 text-xs md:text-sm">Valid government ID will be required on arrival to the camp · No exceptions</span>
+                <strong className="text-green-400 text-sm md:text-base block">MUST BE 21 YEARS OR OLDER</strong>
               </div>
             </div>
 
@@ -368,7 +371,6 @@ const TermsPage = () => {
             {/* Key highlights */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
               {[
-                { icon: '📋', text: 'Valid ID' },
                 { icon: '🧪', text: 'Psych Evaluation' },
                 { icon: '🏥', text: 'Medical' },
                 { icon: '🤫', text: 'NDA' },
@@ -493,70 +495,90 @@ const TermsPage = () => {
       </main>
 
       {/* Accept Terms Modal */}
-      {showAcceptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <AnimatePresence>
+        {showAcceptModal && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-6 max-w-md w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowAcceptModal(false)}
           >
-            <div className="flex items-center gap-3 text-yellow-500 mb-4">
-              <AlertCircle className="w-6 h-6" />
-              <h3 className="text-lg font-bold text-white">Accept Terms Required</h3>
-            </div>
-            <p className="text-white/80 mb-6">
-              Please read and accept the Terms & Conditions before proceeding.
-            </p>
-            <button
-              onClick={() => setShowAcceptModal(false)}
-              className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-yellow-500 text-white rounded-lg font-semibold"
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-6 max-w-md w-full"
             >
-              OK
-            </button>
+              <div className="flex items-center gap-3 text-yellow-500 mb-4">
+                <AlertCircle className="w-6 h-6" />
+                <h3 className="text-lg font-bold text-white">Accept Terms Required</h3>
+              </div>
+              <p className="text-white/80 mb-6">
+                Please read and accept the Terms & Conditions before proceeding.
+              </p>
+              <button
+                onClick={() => setShowAcceptModal(false)}
+                className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-yellow-500 text-white rounded-lg font-semibold"
+              >
+                OK
+              </button>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Auth Required Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <AnimatePresence>
+        {showAuthModal && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-6 max-w-md w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowAuthModal(false)}
           >
-            <div className="flex items-center gap-3 text-green-500 mb-4">
-              <LogIn className="w-6 h-6" />
-              <h3 className="text-lg font-bold text-white">Authentication Required</h3>
-            </div>
-            <p className="text-white/80 mb-6">
-              Please login or create an account to continue with your application.
-            </p>
-            <div className="flex flex-col gap-3">
-              <Link
-                href="/auth/login"
-                className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-yellow-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Login
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="w-full px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                Create Account
-              </Link>
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="text-white/60 hover:text-white text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-6 max-w-md w-full"
+            >
+              <div className="flex items-center gap-3 text-green-500 mb-4">
+                <LogIn className="w-6 h-6" />
+                <h3 className="text-lg font-bold text-white">Authentication Required</h3>
+              </div>
+              <p className="text-white/80 mb-6">
+                Please login or create an account to continue with your application.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  href="/auth/login"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-yellow-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Login
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="w-full px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Create Account
+                </Link>
+                <button
+                  onClick={() => setShowAuthModal(false)}
+                  className="text-white/60 hover:text-white text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };

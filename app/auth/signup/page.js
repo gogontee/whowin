@@ -2357,16 +2357,9 @@ export default function SignupPage() {
                   </div>
                 </label>
 
-                <button
-                  onClick={() => setShowAvatarGuidance(false)}
-                  className="w-full py-2 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm transition-all"
-                >
-                  Skip for now
-                </button>
               </div>
-
-              <p className="text-[8px] text-white/30 text-center mt-4">
-                You can always update your profile picture later
+<p className="text-[8px] text-white/30 text-center mt-4">
+                Make sure it is a clear picture
               </p>
             </motion.div>
           </motion.div>
