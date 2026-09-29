@@ -252,9 +252,10 @@ const GlobalNavigation = () => {
   // NAVIGATION ITEMS
   // ============================================
   // Explore removed from mobile dropdown — already present in bottom nav
+  // NOTE: 'candidates' (Housemates) is hidden for now — kept here so it can be restored later.
   const mobileMenuItems = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
-    { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
+    // { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' }, // HIDDEN FOR NOW
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
     { id: 'previous-seasons', label: 'Season 1', icon: Clapperboard, href: '/previous-seasons' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
@@ -264,10 +265,11 @@ const GlobalNavigation = () => {
   const logoUrl = '/logo.png';
   const activeTab = getActiveTab();
 
+  // NOTE: 'explore' (Flame/Vote) is hidden for now — kept here so it can be restored later.
   const mobileNavItems = [
     { id: 'home', icon: Home, label: 'Home', href: '/' },
     { id: 'updates', icon: Bell, label: 'Updates', href: '/updates' },
-    { id: 'explore', icon: Flame, label: 'Explore', isSpecial: true, href: '/vote' },
+    // { id: 'explore', icon: Flame, label: 'Explore', isSpecial: true, href: '/vote' }, // HIDDEN FOR NOW
     { id: 'gallery', icon: Images, label: 'Gallery', href: '/event-gallery' },
     {
       id: 'profile',
@@ -278,9 +280,10 @@ const GlobalNavigation = () => {
     },
   ];
 
+  // NOTE: 'candidates' (Housemates) is hidden for now — kept here so it can be restored later.
   const desktopNavItems = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
-    { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' },
+    // { id: 'candidates', label: 'Housemates', icon: Users, href: '/candidates' }, // HIDDEN FOR NOW
     { id: 'gallery', label: 'Gallery', icon: Images, href: '/event-gallery' },
     { id: 'previous-seasons', label: 'Season 1', icon: Clapperboard, href: '/previous-seasons' },
     { id: 'updates', label: 'Updates', icon: Bell, href: '/updates' },
