@@ -571,7 +571,7 @@ const GlobalNavigation = () => {
 
       {/* ===== MOBILE BOTTOM TAB ===== */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-white/10 z-40 shadow-2xl transition-opacity duration-500 ${liveTvChromeHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <div className="grid grid-cols-5 items-center py-2 px-1">
+        <div className="grid grid-cols-4 items-center py-2 px-1">
           {mobileNavItems.map((item) => {
             const isActive = activeTab === item.id;
             const isSpecial = item.isSpecial;
