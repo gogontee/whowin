@@ -16,6 +16,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileError, setFileError] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
+  const [showWaitMessage, setShowWaitMessage] = useState(false);
   const fileInputRef = useRef(null);
 
   const MAX_FILE_SIZE = 150 * 1024 * 1024; // 150MB
@@ -36,7 +37,10 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setValidationMessage('Videos exceeding 150MB are not allowed. Please reduce the video size and try again.');
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setValidationMessage(
+        `Your video is above the required size limit of 150MB (yours is ${fileSizeMB}MB). Please reduce the video size to 150MB or less and try again.`
+      );
       e.target.value = '';
       return;
     }
@@ -125,6 +129,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     setError('');
     setSuccess(false);
     setUploadProgress(0);
+    setShowWaitMessage(false);
 
     if (!selectedFile) {
       setError('Please select a video file to upload');
@@ -201,6 +206,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
       setVideoPreview(null);
       setCaption('');
       setUploadProgress(0);
+      setShowWaitMessage(false);
 
       if (onVideoAdded) {
         onVideoAdded(newVideoPost);
@@ -216,6 +222,7 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
       setError(error.message || 'Failed to upload video. Please try again.');
       setAdding(false);
       setUploadProgress(0);
+      setShowWaitMessage(false);
     }
   };
 
@@ -232,6 +239,9 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
+
+  // Trigger the "please wait" message the moment the progress bar hits 95%
+  const showWaitNotice = uploadProgress >= 95 && uploadProgress < 100 && adding;
 
   return (
     <motion.div
@@ -364,6 +374,26 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
                 />
               </div>
             </div>
+          )}
+
+          {/* ⏳ "Please wait" notice shown once upload reaches 95% */}
+          {showWaitNotice && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-yellow-500/15 border border-yellow-500/40 rounded-lg p-3 flex items-start gap-2"
+            >
+              <Loader className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5 animate-spin" />
+              <div>
+                <p className="text-yellow-300 text-sm font-semibold">
+                  Please wait...
+                </p>
+                <p className="text-yellow-200/80 text-xs mt-0.5">
+                  Your video upload is still in progress. Please do not close this window or navigate away until it completes.
+                </p>
+              </div>
+            </motion.div>
           )}
 
           <div>

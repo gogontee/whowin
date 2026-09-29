@@ -379,7 +379,11 @@ export default function CandidatesPage() {
           </div>
         ) : null}
 
-        {/* ===== Bulk Vote image — only when who_win.bulk_vote_display === true ===== */}
+        {/* ===== Bulk Vote image — HIDDEN FOR NOW =====
+            Kept here so it can be re-enabled later by uncommenting.
+            The fetch (fetchBulkVoteFlag) and state (showBulkVote) are still wired up.
+        */}
+        {/*
         {showBulkVote && (
           <div className="mt-10 md:mt-14 flex justify-center">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md rounded-2xl overflow-hidden border border-white/10 bg-gray-900">
@@ -395,6 +399,7 @@ export default function CandidatesPage() {
             </div>
           </div>
         )}
+        */}
       </div>
 
       {/* ===== Vote Modal ===== */}
