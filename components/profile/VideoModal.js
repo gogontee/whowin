@@ -249,7 +249,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-      onClick={handleClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
@@ -263,15 +262,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
             <Video className="w-5 h-5 text-[#D4AF37]" />
             Upload Video
           </h2>
-          <button
-            onClick={handleClose}
-            disabled={adding}
-            className={`p-2 rounded-full transition-colors ${
-              adding ? 'text-white/20 cursor-not-allowed' : 'hover:bg-white/10 text-white'
-            }`}
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">

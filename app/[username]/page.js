@@ -1131,6 +1131,12 @@ export default function ProfilePage() {
   };
 
   const handleCloseOnboarding = () => {
+    // Hard block — about_me and social_links steps must not be dismissible
+    const step = onboardingSteps[onboardingStep];
+    if (step && (step.action === 'about_me' || step.action === 'social_links')) {
+      return;
+    }
+
     setShowOnboarding(false);
     setHasSeenOnboarding(true);
     if (profile?.id) {
@@ -1248,6 +1254,10 @@ export default function ProfilePage() {
   const currentStep = onboardingSteps[onboardingStep];
 
   const allStepsCompleted = completionStatus.images && completionStatus.video && completionStatus.bio && completionStatus.telegram;
+
+  // ===== When this step requires action, the modal cannot be dismissed =====
+  const stepRequiresAction = Boolean(currentStep?.action);
+  const stepIsNonDismissible = currentStep?.action === 'about_me' || currentStep?.action === 'social_links';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
@@ -1500,6 +1510,12 @@ export default function ProfilePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={(e) => {
+              // Non-dismissible steps: backdrop click does nothing
+              if (stepIsNonDismissible) {
+                e.stopPropagation();
+              }
+            }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -1518,7 +1534,8 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {(currentStep.isFinal || onboardingStep === 0) && (
+              {/* Dismiss (X) only shows for steps that are NOT about_me / social_links, and NOT final */}
+              {(currentStep.isFinal || onboardingStep === 0) && !stepIsNonDismissible && (
                 <button
                   onClick={handleCloseOnboarding}
                   className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors z-10"

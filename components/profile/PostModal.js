@@ -106,7 +106,6 @@ export default function PostModal({ onClose, onUpload }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-      onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
@@ -120,12 +119,6 @@ export default function PostModal({ onClose, onUpload }) {
             <ImageIcon className="w-5 h-5 text-[#D4AF37]" />
             Upload Photos ({selectedFiles.length}/{MAX_IMAGES})
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
         </div>
 
         <div className="p-4 space-y-4">

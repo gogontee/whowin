@@ -390,6 +390,9 @@ export default function SignupPage() {
   const submittingRef = useRef(false);
   const lastSubmitAtRef = useRef(0);
 
+  // Ref for scrolling to the avatar upload section
+  const avatarSectionRef = useRef(null);
+
   // ===== Voice refs =====
   const voice1Ref = useRef(null);
   const voice2Ref = useRef(null);
@@ -873,8 +876,6 @@ export default function SignupPage() {
       } else if (usernameAvailable === false) {
         newErrors.username = 'Username is already taken. Please choose a different one.';
       }
-      // NOTE: We deliberately do NOT block on usernameAvailable === null here.
-      // handleSubmit will re-verify inline so a slow debounce never blocks submit.
     }
 
     if (!formData.fullName.trim()) {
@@ -902,6 +903,11 @@ export default function SignupPage() {
       if (!formData.country) newErrors.country = 'Country is required';
       if (!formData.state) newErrors.state = 'State is required';
       if (!formData.city) newErrors.city = 'City is required';
+    }
+
+    // ===== PROFILE PICTURE IS NOW MANDATORY =====
+    if (!avatarFile && !avatarPreview) {
+      newErrors.avatar = 'Profile picture is required';
     }
 
     // Validate password inline (not via blur) — mobile users may never blur
@@ -988,8 +994,24 @@ export default function SignupPage() {
     setErrors(prev => ({ ...prev, avatar: '' }));
   };
 
+  // ===== Scroll to avatar section helper =====
+  const scrollToAvatarSection = () => {
+    setTimeout(() => {
+      if (avatarSectionRef.current && avatarSectionRef.current.scrollIntoView) {
+        avatarSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        // Fallback — try by id
+        const el = document.getElementById('avatar-upload-section');
+        if (el && el.scrollIntoView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+    }, 80);
+  };
+
   // ===== THE MAIN SUBMIT HANDLER =====
-  // Called from both form onSubmit AND the button's onClick so taps always land.
   const handleSubmit = async (e) => {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
@@ -1007,9 +1029,17 @@ export default function SignupPage() {
     setErrors({});
 
     try {
-      // 1. Run validation (does not depend on usernameAvailable)
+      // 1. Run validation
       const isValid = validateForm();
       if (!isValid) {
+        // ===== If profile picture is missing, scroll directly to it =====
+        if (!avatarFile && !avatarPreview) {
+          setSubmitError('Please add your profile picture to continue.');
+          scrollToAvatarSection();
+          submittingRef.current = false;
+          return;
+        }
+
         setSubmitError('Please fix the highlighted fields and try again.');
         // Scroll to top of form so user sees errors
         setTimeout(() => {
@@ -1135,9 +1165,6 @@ export default function SignupPage() {
         }
       }
 
-      // Even if profile row isn't ready, don't block the user — proceed.
-      // The profile trigger will finish soon and the account is created.
-
       // 5. accept_terms
       if (formData.agreeTerms) {
         try {
@@ -1153,7 +1180,7 @@ export default function SignupPage() {
         }
       }
 
-      // 6. Avatar upload (best-effort)
+      // 6. Avatar upload — REQUIRED, and now awaited before success
       if (avatarFile) {
         try {
           const fileExt = avatarFile.name.split('.').pop();
@@ -1185,6 +1212,8 @@ export default function SignupPage() {
                 })
                 .eq('id', userId);
             }
+          } else {
+            console.error('Avatar upload error:', upErr);
           }
         } catch (uploadError) {
           console.error('Avatar upload process error:', uploadError);
@@ -1229,7 +1258,6 @@ export default function SignupPage() {
 
   // Button onClick handler — guarantees submit fires even if form onSubmit is swallowed
   const handleSubmitClick = (e) => {
-    // Let the native form submission also fire; we just ensure ours runs.
     handleSubmit(e);
   };
 
@@ -1250,6 +1278,8 @@ export default function SignupPage() {
     if (checks <= 3) return "Medium";
     return "Strong";
   };
+
+  const avatarHasError = !!errors.avatar;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center px-3 py-4 md:px-4 md:py-6 relative overflow-hidden">
@@ -1637,18 +1667,35 @@ export default function SignupPage() {
                 )}
               </motion.div>
 
+              {/* ===== Profile Picture (MANDATORY) ===== */}
               <motion.div
+                ref={avatarSectionRef}
+                id="avatar-upload-section"
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
-                className="w-full"
+                className={`w-full rounded-lg md:rounded-xl p-2 transition-all ${
+                  avatarHasError
+                    ? 'bg-red-500/10 border-2 border-red-400 ring-2 ring-red-400/30'
+                    : 'border-2 border-transparent'
+                }`}
               >
                 <label className="flex items-center gap-1 text-[10px] md:text-xs font-medium text-white/60 mb-0.5 ml-1">
                   <Camera className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
                   <span>Profile Picture</span>
+                  <span className="text-[#C58B2A]">*</span>
+                  {avatarHasError && (
+                    <span className="ml-auto text-[9px] md:text-[10px] text-red-400 font-semibold">
+                      Required
+                    </span>
+                  )}
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <div className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white/5 border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                    avatarHasError
+                      ? 'border-red-400 ring-2 ring-red-400/40 animate-pulse'
+                      : 'border-white/10'
+                  }`}>
                     {avatarPreview ? (
                       <Image
                         src={avatarPreview}
@@ -1664,7 +1711,11 @@ export default function SignupPage() {
                     <button
                       type="button"
                       onClick={handleAvatarUploadClick}
-                      className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2"
+                      className={`px-3 py-1.5 md:px-4 md:py-2 border rounded-lg text-xs md:text-sm text-white transition-colors inline-flex items-center gap-2 ${
+                        avatarHasError
+                          ? 'bg-red-500/20 hover:bg-red-500/30 border-red-400/60 animate-pulse'
+                          : 'bg-white/10 hover:bg-white/20 border-white/20'
+                      }`}
                     >
                       <Upload className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                       {uploadingAvatar ? 'Uploading...' : 'Upload Photo'}
@@ -1674,6 +1725,12 @@ export default function SignupPage() {
                       <p className="text-[8px] md:text-[10px] text-red-400 mt-1 flex items-center gap-1">
                         <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
                         {uploadError}
+                      </p>
+                    )}
+                    {errors.avatar && (
+                      <p className="text-[9px] md:text-[11px] text-red-400 mt-1 flex items-center gap-1 font-semibold">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        {errors.avatar} — please upload a photo to continue
                       </p>
                     )}
                   </div>
@@ -2358,7 +2415,7 @@ export default function SignupPage() {
                 </label>
 
               </div>
-<p className="text-[8px] text-white/30 text-center mt-4">
+              <p className="text-[8px] text-white/30 text-center mt-4">
                 Make sure it is a clear picture
               </p>
             </motion.div>
