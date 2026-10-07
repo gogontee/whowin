@@ -1,7 +1,7 @@
 // /components/profile/VideoModal.js
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Video, Loader, Check, AlertCircle, Upload, Film, Clock, HardDrive, FileVideo } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
