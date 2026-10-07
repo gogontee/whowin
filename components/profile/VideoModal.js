@@ -1,7 +1,7 @@
 // /components/profile/VideoModal.js
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Video, Loader, Check, AlertCircle, Upload, Film, Clock, HardDrive, FileVideo } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -18,64 +18,9 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
   const [validationMessage, setValidationMessage] = useState('');
   const [showWaitMessage, setShowWaitMessage] = useState(false);
   const fileInputRef = useRef(null);
-  const voiceRef = useRef(null);
 
   const MAX_FILE_SIZE = 150 * 1024 * 1024; // 150MB
   const MAX_DURATION = 60; // 60 seconds
-
-  // =====================
-  // VOICE — play /profilevoice2.MP3 when this modal is open.
-  // Tries immediately on mount; if the browser blocks autoplay,
-  // retries on the next user interaction anywhere on the page.
-  // =====================
-  useEffect(() => {
-    const audio = voiceRef.current;
-    if (!audio) return;
-
-    let played = false;
-
-    const tryPlay = () => {
-      if (played) return;
-      try {
-        audio.currentTime = 0;
-        audio.volume = 0.8;
-      } catch (e) {}
-
-      const p = audio.play();
-      if (p && typeof p.then === 'function') {
-        p.then(() => {
-          played = true;
-          cleanup();
-        }).catch(() => {
-          // Autoplay blocked — will retry on next interaction
-        });
-      } else {
-        played = true;
-        cleanup();
-      }
-    };
-
-    const events = ['pointerdown', 'touchstart', 'click', 'keydown'];
-    const onInteract = () => tryPlay();
-
-    const cleanup = () => {
-      events.forEach((evt) => document.removeEventListener(evt, onInteract));
-    };
-
-    // Try immediately
-    tryPlay();
-
-    // Fallback listeners
-    events.forEach((evt) => document.addEventListener(evt, onInteract, { passive: true }));
-
-    return () => {
-      cleanup();
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-      } catch (e) {}
-    };
-  }, []);
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -305,9 +250,6 @@ export default function VideoModal({ onClose, profileId, onVideoAdded }) {
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
     >
-      {/* Voice — plays /profilevoice2.MP3 the moment this modal opens */}
-      <audio ref={voiceRef} src="/profilevoice2.MP3" preload="auto" loop={false} />
-
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
