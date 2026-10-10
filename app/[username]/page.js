@@ -83,6 +83,7 @@ export default function ProfilePage() {
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -1037,14 +1038,23 @@ export default function ProfilePage() {
   };
 
   const shouldRenderProfileHeader = () => {
-  if (!profile) return false;
-  // Only show ProfileHeader if account status is 'active'
-  const status = profile.account_status;
-  return status === 'active';
-};
+    if (!profile) return false;
+    // Only show ProfileHeader if account status is 'active'
+    const status = profile.account_status;
+    return status === 'active';
+  };
 
   const handleOpenVoteModal = () => {
     setShowVoteModal(true);
+  };
+
+  // =====================
+  // POST CLICK HANDLER — now receives the specific image index from ProfileTabs
+  // so PostDetailModal can open on the correct image when the post is a carousel.
+  // =====================
+  const handlePostClick = (post, imageIndex = 0) => {
+    setSelectedPost(post);
+    setSelectedImageIndex(imageIndex);
   };
 
   // =====================
@@ -1313,7 +1323,7 @@ export default function ProfilePage() {
               videoCount={allPosts.filter(p => p.type === 'video').length}
               posts={displayPosts}
               isOwner={isOwner}
-              onPostClick={setSelectedPost}
+              onPostClick={handlePostClick}
               onAddPhoto={() => setShowPostModal(true)}
               onAddVideo={() => setShowVideoModal(true)}
               onSettingsClick={() => setShowSettings(true)}
@@ -1451,13 +1461,16 @@ export default function ProfilePage() {
             post={selectedPost}
             profile={profile}
             isOwner={isOwner}
-            onClose={() => setSelectedPost(null)}
+            onClose={() => {
+              setSelectedPost(null);
+              setSelectedImageIndex(0);
+            }}
             onDelete={() => handleDeletePost(selectedPost)}
             onEdit={(caption) => handleEditPost(selectedPost.id, caption)}
             onSave={() => handleSavePost(selectedPost)}
             getEmbedUrl={getEmbedUrl}
             allPosts={allPosts}
-            initialIndex={allPosts.findIndex(p => p.id === selectedPost.id)}
+            initialIndex={selectedImageIndex}
           />
         )}
       </AnimatePresence>
