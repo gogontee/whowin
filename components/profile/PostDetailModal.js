@@ -33,7 +33,8 @@ export default function PostDetailModal({
   allPosts = [],
   initialIndex = 0
 }) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  // ===== currentImageIndex = the index of the image WITHIN this post's media array =====
+  const [currentImageIndex, setCurrentImageIndex] = useState(initialIndex || 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
@@ -41,20 +42,27 @@ export default function PostDetailModal({
   const videoRef = useRef(null);
   const editInputRef = useRef(null);
 
-  const currentPost = allPosts[currentIndex] || post;
+  // The post we're showing (always the one passed in — no jumping between posts)
+  const currentPost = post;
 
-  // Check if URL is a YouTube link
-  const isYouTubeUrl = (url) => {
-    return url?.includes('youtu.be') || url?.includes('youtube.com') || url?.includes('youtube/embed');
-  };
+  // All media inside this post (images of a carousel, or a single video)
+  const media = Array.isArray(currentPost?.media) ? currentPost.media : [];
+  const totalMedia = media.length;
+  const isVideo = currentPost?.type === 'video';
+
+  // Reset the image index whenever a new post opens or parent changes initialIndex
+  useEffect(() => {
+    setCurrentImageIndex(initialIndex || 0);
+    setIsPlaying(false);
+    setIsEditing(false);
+  }, [currentPost?.id, initialIndex]);
 
   // Set edit caption when post changes
   useEffect(() => {
-    setEditCaption(currentPost.caption || '');
+    setEditCaption(currentPost?.caption || '');
     setIsEditing(false);
-    // Reset video playing state when post changes
     setIsPlaying(false);
-  }, [currentIndex, currentPost]);
+  }, [currentPost?.id, currentPost?.caption]);
 
   // Focus edit input when editing starts
   useEffect(() => {
@@ -63,15 +71,16 @@ export default function PostDetailModal({
     }
   }, [isEditing]);
 
+  // ===== Navigation within THIS post's media array =====
   const handleNext = () => {
-    if (currentIndex < allPosts.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    if (totalMedia > 1 && currentImageIndex < totalMedia - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
     }
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+    if (totalMedia > 1 && currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
     }
   };
 
@@ -84,7 +93,19 @@ export default function PostDetailModal({
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex]);
+  }, [currentImageIndex, totalMedia]);
+
+  // Get the current media URL (handles both string and object forms)
+  const currentMediaItem = media[currentImageIndex];
+  const currentUrl =
+    typeof currentMediaItem === 'string'
+      ? currentMediaItem
+      : currentMediaItem?.url || currentMediaItem?.embedUrl || '';
+
+  // Check if URL is a YouTube link
+  const isYouTubeUrl = (url) => {
+    return url?.includes('youtu.be') || url?.includes('youtube.com') || url?.includes('youtube/embed');
+  };
 
   // Handle video playback for direct videos
   const togglePlay = () => {
@@ -123,12 +144,12 @@ export default function PostDetailModal({
     if (currentPost.type !== 'image') return;
     
     try {
-      const response = await fetch(currentPost.media[0]?.url);
+      const response = await fetch(currentUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `post-${currentPost.id}.jpg`;
+      a.download = `post-${currentPost.id}-${currentImageIndex + 1}.jpg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -159,9 +180,12 @@ export default function PostDetailModal({
   const authorLocation = profile?.location || null;
 
   // Check if this is a YouTube video
-  const videoUrl = currentPost.media[0]?.url;
-  const isYouTube = isYouTubeUrl(videoUrl);
-  const embedUrl = getEmbedUrl(videoUrl);
+  const videoUrl = isVideo ? currentUrl : null;
+  const isYouTube = isVideo && isYouTubeUrl(videoUrl);
+  const embedUrl = isVideo ? getEmbedUrl(videoUrl) : '';
+
+  // Guard: if post is missing, bail gracefully
+  if (!currentPost) return null;
 
   return (
     <motion.div
@@ -179,10 +203,10 @@ export default function PostDetailModal({
         <X className="w-6 h-6 text-white" />
       </button>
 
-      {/* Desktop navigation arrows */}
-      {allPosts.length > 1 && (
+      {/* Desktop navigation arrows — cycle within THIS post's media */}
+      {!isVideo && totalMedia > 1 && (
         <>
-          {currentIndex > 0 && (
+          {currentImageIndex > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
               className="hidden md:block fixed left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
@@ -190,7 +214,7 @@ export default function PostDetailModal({
               <ChevronLeft className="w-6 h-6 text-white" />
             </button>
           )}
-          {currentIndex < allPosts.length - 1 && (
+          {currentImageIndex < totalMedia - 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
               className="hidden md:block fixed right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
@@ -255,18 +279,82 @@ export default function PostDetailModal({
 
             {/* Media Content */}
             <div className="relative flex-1 bg-black flex items-center justify-center">
-              {currentPost.type === 'image' ? (
+              {!isVideo ? (
+                // ===== IMAGE (with carousel navigation for multi-image posts) =====
                 <div className="relative w-full h-[70vh] md:h-[80vh]">
-                  <Image
-                    src={currentPost.media[0]?.url}
-                    alt="Post"
-                    fill
-                    className="object-contain"
-                    sizes="100vw"
-                    priority
-                  />
+                  {totalMedia > 0 ? (
+                    <>
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={currentImageIndex}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute inset-0"
+                        >
+                          <Image
+                            src={currentUrl}
+                            alt={`Image ${currentImageIndex + 1}`}
+                            fill
+                            className="object-contain"
+                            sizes="100vw"
+                            priority
+                          />
+                        </motion.div>
+                      </AnimatePresence>
+
+                      {/* Mobile navigation arrows (visible on small screens) */}
+                      {totalMedia > 1 && (
+                        <>
+                          {currentImageIndex > 0 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                              className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors z-10"
+                            >
+                              <ChevronLeft className="w-5 h-5 text-white" />
+                            </button>
+                          )}
+                          {currentImageIndex < totalMedia - 1 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                              className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors z-10"
+                            >
+                              <ChevronRight className="w-5 h-5 text-white" />
+                            </button>
+                          )}
+
+                          {/* Image counter badge (bottom center) */}
+                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1 z-10">
+                            <span className="text-xs text-white">
+                              {currentImageIndex + 1} / {totalMedia}
+                            </span>
+                          </div>
+
+                          {/* Dot indicators (bottom right) */}
+                          <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
+                            {media.map((_, i) => (
+                              <button
+                                key={i}
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(i); }}
+                                className={`h-1.5 rounded-full transition-all ${
+                                  i === currentImageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'
+                                }`}
+                                aria-label={`Go to image ${i + 1}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/40 text-sm">
+                      No media available
+                    </div>
+                  )}
                 </div>
               ) : (
+                // ===== VIDEO =====
                 <div className="relative w-full h-[70vh] md:h-[80vh]">
                   {isYouTube ? (
                     // YouTube video - use iframe
@@ -389,10 +477,10 @@ export default function PostDetailModal({
         </div>
       </div>
 
-      {/* Post counter */}
-      {allPosts.length > 1 && (
+      {/* Image counter — only for multi-image carousels (top center) */}
+      {!isVideo && totalMedia > 1 && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-white z-50">
-          {currentIndex + 1} / {allPosts.length}
+          {currentImageIndex + 1} / {totalMedia}
         </div>
       )}
     </motion.div>
