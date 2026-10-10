@@ -44,9 +44,11 @@ export default function ProfileManagement() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [verificationFilter, setVerificationFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
   const [totalCount, setTotalCount] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -79,9 +81,23 @@ export default function ProfileManagement() {
     { value: 'fully_verified', label: 'Fully Verified', color: 'blue' }
   ];
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchProfiles();
-  }, [currentPage, statusFilter, verificationFilter, searchTerm]);
+  }, [currentPage, statusFilter, verificationFilter, debouncedSearchTerm]);
+
+  // Keep page input in sync with currentPage
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
 
   const fetchProfiles = async () => {
     setLoading(true);
@@ -90,13 +106,15 @@ export default function ProfileManagement() {
         .from('profiles')
         .select('*', { count: 'exact' });
 
-      if (searchTerm) {
-        query = query.or(`
-          username.ilike.%${searchTerm}%,
-          full_name.ilike.%${searchTerm}%,
-          email.ilike.%${searchTerm}%,
-          phone.ilike.%${searchTerm}%
-        `);
+      if (debouncedSearchTerm) {
+        // Sanitize search term to avoid breaking the query
+        const sanitized = debouncedSearchTerm.trim().replace(/[%,()]/g, '');
+
+        if (sanitized) {
+          query = query.or(
+            `username.ilike.%${sanitized}%,full_name.ilike.%${sanitized}%,email.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`
+          );
+        }
       }
 
       if (statusFilter !== 'all') {
@@ -570,6 +588,52 @@ export default function ProfileManagement() {
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
+  // Generate page numbers to display with ellipsis for large page counts
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    const half = Math.floor(maxVisible / 2);
+
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+
+    let start = Math.max(2, currentPage - half);
+    let end = Math.min(totalPages - 1, currentPage + half);
+
+    // Adjust window if near the beginning or end
+    if (currentPage <= half + 1) {
+      start = 2;
+      end = maxVisible;
+    } else if (currentPage >= totalPages - half) {
+      start = totalPages - maxVisible + 1;
+      end = totalPages - 1;
+    }
+
+    if (start > 2) pages.push('...');
+
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    if (end < totalPages - 1) pages.push('...');
+
+    pages.push(totalPages);
+
+    return pages;
+  };
+
+  const handlePageJump = (e) => {
+    e.preventDefault();
+    const page = parseInt(pageInput, 10);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    } else {
+      setPageInput(String(currentPage));
+    }
+  };
+
   const ControlToggle = ({ profile, controlName, label, icon: Icon, onToggle }) => {
     const isEnabled = profile[controlName] === true;
     const color = isEnabled ? 'text-green-400' : 'text-gray-400';
@@ -762,7 +826,6 @@ export default function ProfileManagement() {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:border-burnt-orange-500 focus:outline-none transition-colors"
             />
@@ -814,7 +877,6 @@ export default function ProfileManagement() {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:border-burnt-orange-500 focus:outline-none transition-colors"
             />
@@ -2484,28 +2546,106 @@ export default function ProfileManagement() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between flex-wrap gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-xs text-white/40">
                 Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} profiles
               </p>
-              <div className="flex items-center gap-2">
+
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                {/* First Page */}
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-30"
+                  title="First page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-white" />
+                  <ChevronLeft className="w-4 h-4 text-white -ml-3" />
+                </button>
+
+                {/* Previous Page */}
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                   className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                  title="Previous page"
                 >
                   <ChevronLeft className="w-4 h-4 text-white" />
                 </button>
-                <span className="text-sm text-white">
-                  Page {currentPage} of {totalPages}
-                </span>
+
+                {/* Page Numbers */}
+                {getPageNumbers().map((page, index) => {
+                  if (page === '...') {
+                    return (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className="px-2 text-sm text-white/40 select-none"
+                      >
+                        …
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[36px] h-9 px-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white'
+                          : 'bg-white/5 hover:bg-white/10 text-white/70'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+
+                {/* Next Page */}
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                   className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                  title="Next page"
                 >
                   <ChevronRight className="w-4 h-4 text-white" />
                 </button>
+
+                {/* Last Page */}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-30"
+                  title="Last page"
+                >
+                  <ChevronRight className="w-4 h-4 text-white" />
+                  <ChevronRight className="w-4 h-4 text-white -ml-3" />
+                </button>
+
+                {/* Page Jump Input */}
+                <form onSubmit={handlePageJump} className="flex items-center gap-1.5 ml-2">
+                  <span className="text-xs text-white/40 whitespace-nowrap">Go to</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    value={pageInput}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onBlur={(e) => {
+                      const page = parseInt(e.target.value, 10);
+                      if (isNaN(page) || page < 1 || page > totalPages) {
+                        setPageInput(String(currentPage));
+                      }
+                    }}
+                    className="w-16 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white text-center focus:border-burnt-orange-500 focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-xs text-white/40 whitespace-nowrap">/ {totalPages}</span>
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1.5 bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Go
+                  </button>
+                </form>
               </div>
             </div>
           )}
