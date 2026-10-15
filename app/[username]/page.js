@@ -1181,7 +1181,17 @@ export default function ProfilePage() {
         setShowAboutMeModal(true);
         break;
       case 'social_links':
-        setShowSocialLinksModal(true);
+        if (profile?.id) {
+          const sessionPromptKey = `whowin_social_links_modal_shown_session_${profile.id}`;
+          if (!sessionStorage.getItem(sessionPromptKey)) {
+            sessionStorage.setItem(sessionPromptKey, 'true');
+            setShowSocialLinksModal(true);
+          } else {
+            onboardingActionRef.current = false;
+          }
+        } else {
+          onboardingActionRef.current = false;
+        }
         break;
       default:
         break;
@@ -1488,6 +1498,7 @@ export default function ProfilePage() {
             profile={profile}
             isOpen={showSocialLinksModal}
             onClose={() => {
+              onboardingActionRef.current = false;
               setShowSocialLinksModal(false);
             }}
             onUpdate={() => {

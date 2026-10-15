@@ -101,6 +101,15 @@ export default function SocialLinksModal({ profile, isOpen, onClose, onUpdate, s
               className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl shadow-yellow-400/10"
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Dismiss Telegram prompt"
+                className="absolute top-3 right-3 p-2 text-white/50 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
               {/* Decorative icon */}
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center border border-yellow-400/30">
@@ -168,6 +177,15 @@ export default function SocialLinksModal({ profile, isOpen, onClose, onUpdate, s
                   <Send className="w-5 h-5 text-[#C58B2A]" />
                   Telegram Verification
                 </h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Dismiss Telegram prompt"
+                  disabled={loading || success}
+                  className="p-2 text-white/50 hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
               <form onSubmit={handleSubmit} className="p-4 space-y-4">
