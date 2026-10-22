@@ -123,15 +123,17 @@ export default function PostDetailModal({
 
   // Handle share
   const handleShare = async () => {
+    const shareUrl = isVideo && currentUrl ? currentUrl : window.location.href;
+
     try {
       if (navigator.share) {
         await navigator.share({
           title: `Post by ${profile?.full_name || 'user'}`,
           text: currentPost.caption || 'Check out this post!',
-          url: window.location.href,
+          url: shareUrl,
         });
       } else {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         alert('Link copied to clipboard!');
       }
     } catch (error) {
