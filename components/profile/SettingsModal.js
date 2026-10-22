@@ -508,85 +508,87 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                 </div>
 
                 {/* Social Links */}
-                <div className="space-y-3 pt-3 border-t border-white/10">
-                  <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-[#D4AF37]" />
-                    Social Links
-                  </h3>
+                {!isOwner && (
+                  <div className="space-y-3 pt-3 border-t border-white/10">
+                    <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-[#D4AF37]" />
+                      Social Links
+                    </h3>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-white/40 mb-1">
-                        <Instagram className="w-3 h-3 inline mr-1 text-pink-500" />
-                        Instagram
-                      </label>
-                      <input
-                        type="text"
-                        name="instagram"
-                        value={formData.instagram || ''}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                        placeholder="@ella_james"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/40 mb-1">
-                        <Music className="w-3 h-3 inline mr-1 text-black" />
-                        TikTok
-                      </label>
-                      <input
-                        type="text"
-                        name="tiktok"
-                        value={formData.tiktok || ''}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                        placeholder="@ella_james"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/40 mb-1">
-                        <Facebook className="w-3 h-3 inline mr-1 text-blue-600" />
-                        Facebook
-                      </label>
-                      <input
-                        type="text"
-                        name="facebook"
-                        value={formData.facebook || ''}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                        placeholder="@ella_james"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/40 mb-1">
-                        <Youtube className="w-3 h-3 inline mr-1 text-red-600" />
-                        YouTube
-                      </label>
-                      <input
-                        type="text"
-                        name="youtube"
-                        value={formData.youtube || ''}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                        placeholder="@ella_james"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs text-white/40 mb-1">
-                        <Twitter className="w-3 h-3 inline mr-1 text-blue-400" />
-                        Twitter/X
-                      </label>
-                      <input
-                        type="text"
-                        name="twitter"
-                        value={formData.twitter || ''}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                        placeholder="@ella_james"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1">
+                          <Instagram className="w-3 h-3 inline mr-1 text-pink-500" />
+                          Instagram
+                        </label>
+                        <input
+                          type="text"
+                          name="instagram"
+                          value={formData.instagram || ''}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                          placeholder="@ella_james"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1">
+                          <Music className="w-3 h-3 inline mr-1 text-black" />
+                          TikTok
+                        </label>
+                        <input
+                          type="text"
+                          name="tiktok"
+                          value={formData.tiktok || ''}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                          placeholder="@ella_james"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1">
+                          <Facebook className="w-3 h-3 inline mr-1 text-blue-600" />
+                          Facebook
+                        </label>
+                        <input
+                          type="text"
+                          name="facebook"
+                          value={formData.facebook || ''}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                          placeholder="@ella_james"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1">
+                          <Youtube className="w-3 h-3 inline mr-1 text-red-600" />
+                          YouTube
+                        </label>
+                        <input
+                          type="text"
+                          name="youtube"
+                          value={formData.youtube || ''}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                          placeholder="@ella_james"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-white/40 mb-1">
+                          <Twitter className="w-3 h-3 inline mr-1 text-blue-400" />
+                          Twitter/X
+                        </label>
+                        <input
+                          type="text"
+                          name="twitter"
+                          value={formData.twitter || ''}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                          placeholder="@ella_james"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Preferences */}
                 <div className="space-y-3 pt-3 border-t border-white/10">
