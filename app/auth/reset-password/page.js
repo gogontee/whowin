@@ -32,30 +32,82 @@ export default function ResetPasswordPage() {
   const [sessionReady, setSessionReady] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // Supabase injects the recovery session into the URL hash when the user
-  // clicks the email link. The client SDK picks it up automatically.
+  // ===== Handle session establishment on mount =====
+  // Supabase PKCE flow sends ?code=... in the URL — we must exchange it for a
+  // session before the user can update their password. The older implicit flow
+  // and onAuthStateChange events are kept as fallbacks.
   useEffect(() => {
     let mounted = true;
 
-    // 1. Check if there is already a session (covers the hash-parse race)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      if (session) setSessionReady(true);
-      setCheckingSession(false);
-    });
+    const handleRecovery = async () => {
+      try {
+        // 1. PKCE flow — code in query string
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
 
-    // 2. Listen for the PASSWORD_RECOVERY event as a fallback
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        setSessionReady(true);
-        setCheckingSession(false);
+        if (code) {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (exchangeError) {
+            console.error('Code exchange failed:', exchangeError);
+            if (mounted) {
+              setSessionReady(false);
+              setCheckingSession(false);
+            }
+            return;
+          }
+
+          if (mounted && data?.session) {
+            setSessionReady(true);
+          }
+          if (mounted) setCheckingSession(false);
+          return;
+        }
+
+        // 2. Implicit flow / already logged in — check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+          if (mounted) {
+            setSessionReady(true);
+            setCheckingSession(false);
+          }
+          return;
+        }
+
+        // 3. Fallback — listen for PASSWORD_RECOVERY event
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (!mounted) return;
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+            setSessionReady(true);
+            setCheckingSession(false);
+          }
+        });
+
+        // Timeout — if nothing happens after 3s, stop waiting and show the error
+        const timeoutId = setTimeout(() => {
+          if (mounted) {
+            setCheckingSession(false);
+          }
+        }, 3000);
+
+        return () => {
+          clearTimeout(timeoutId);
+          subscription.unsubscribe();
+        };
+      } catch (err) {
+        console.error('Recovery handling error:', err);
+        if (mounted) {
+          setSessionReady(false);
+          setCheckingSession(false);
+        }
       }
-    });
+    };
+
+    handleRecovery();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, []);
 
@@ -93,7 +145,7 @@ export default function ResetPasswordPage() {
     } catch (err) {
       console.error('Reset password error:', err);
       setError(
-        err?.message?.includes('session') 
+        err?.message?.includes('session')
           ? 'Your reset link has expired or is invalid. Please request a new one.'
           : (err?.message || 'Could not update your password. Please try again.')
       );
