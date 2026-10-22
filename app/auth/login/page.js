@@ -36,7 +36,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [resetLoading, setResetLoading] = useState(false);
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -171,42 +170,6 @@ export default function LoginPage() {
       }));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    const email = formData.email.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErrors(prev => ({
-        ...prev,
-        email: 'Enter a valid email address to reset your password'
-      }));
-      return;
-    }
-
-    setResetLoading(true);
-    setErrors(prev => ({ ...prev, submit: '' }));
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
-
-      if (error) throw error;
-
-      setErrors(prev => ({
-        ...prev,
-        submit: 'If an account exists for this email, a reset link has been sent. Check your inbox and spam folder.'
-      }));
-    } catch (error) {
-      console.error('Reset password error:', error);
-      setErrors(prev => ({
-        ...prev,
-        submit: 'Could not send a reset email. Please wait a moment and try again.'
-      }));
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -390,7 +353,7 @@ export default function LoginPage() {
                   }`}
                   value={formData.email}
                   onChange={handleChange}
-                  disabled={loading || resetLoading || cooldownSeconds > 0}
+                  disabled={loading || cooldownSeconds > 0}
                   required
                 />
                 {errors.email && (
@@ -423,7 +386,7 @@ export default function LoginPage() {
                     }`}
                     value={formData.password}
                     onChange={handleChange}
-                    disabled={loading || resetLoading || cooldownSeconds > 0}
+                    disabled={loading || cooldownSeconds > 0}
                     required
                   />
                   <button
@@ -431,7 +394,7 @@ export default function LoginPage() {
                     className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-amber-600 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
-                    disabled={loading || resetLoading || cooldownSeconds > 0}
+                    disabled={loading || cooldownSeconds > 0}
                   >
                     {showPassword ? (
                       <EyeOff size={18} className="flex-shrink-0" />
@@ -462,25 +425,23 @@ export default function LoginPage() {
                     checked={formData.rememberMe}
                     onChange={handleChange}
                     className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 focus:ring-offset-0 flex-shrink-0"
-                    disabled={loading || resetLoading || cooldownSeconds > 0}
+                    disabled={loading || cooldownSeconds > 0}
                   />
                   <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-800 transition-colors">Remember me</span>
                 </label>
                 
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
+                <Link
+                  href="/auth/forgot-password"
                   className="text-xs md:text-sm text-amber-600 hover:text-green-600 font-medium transition-colors flex-shrink-0"
-                  disabled={loading || resetLoading || cooldownSeconds > 0}
                 >
-                  {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
-                </button>
+                  Forgot password?
+                </Link>
               </motion.div>
 
               {/* Submit Button - Gold with Green Hover */}
               <motion.button
                 type="submit"
-                disabled={loading || resetLoading || cooldownSeconds > 0}
+                disabled={loading || cooldownSeconds > 0}
                 whileHover={{ scale: cooldownSeconds > 0 ? 1 : 1.02 }}
                 whileTap={{ scale: cooldownSeconds > 0 ? 1 : 0.98 }}
                 className={`w-full py-3 md:py-4 rounded-lg md:rounded-xl font-semibold text-white shadow-lg transition-all relative overflow-hidden group ${
