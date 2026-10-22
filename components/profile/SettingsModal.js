@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import BankDetails from './BankDetails';
 
-export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supabase }) {
+export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supabase, isOwner }) {
   const [formData, setFormData] = useState({
     full_name: profile.full_name || '',
     bio: profile.bio || '',
@@ -66,10 +66,10 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
 
   // ===== Fetch bank details whenever the settings modal opens =====
   useEffect(() => {
-    if (isOpen && profile?.id) {
+    if (!isOwner && isOpen && profile?.id) {
       fetchBankDetails();
     }
-  }, [isOpen, profile?.id]);
+  }, [isOwner, isOpen, profile?.id]);
 
   const fetchBankDetails = async () => {
     setBankLoading(true);
@@ -313,7 +313,8 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                 </div>
 
                 {/* ===== Bank Details Section ===== */}
-                <div className="space-y-3 pt-3 border-t border-white/10">
+                {!isOwner && (
+                  <div className="space-y-3 pt-3 border-t border-white/10">
                   <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-[#D4AF37]" />
                     Bank Details
@@ -389,7 +390,8 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                       </p>
                     </div>
                   )}
-                </div>
+                  </div>
+                )}
 
                 {/* Basic Info */}
                 <div className="space-y-3 pt-3 border-t border-white/10">
@@ -644,19 +646,20 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
       </AnimatePresence>
 
       {/* ===== Bank Details Modal ===== */}
-      <BankDetails
-        profile={profile}
-        isOpen={showBankDetails}
-        onClose={() => {
-          setShowBankDetails(false);
-          // Refresh the card preview after closing
-          fetchBankDetails();
-        }}
-        onUpdate={() => {
-          fetchBankDetails();
-          if (onUpdate) onUpdate();
-        }}
-      />
+      {!isOwner && (
+        <BankDetails
+          profile={profile}
+          isOpen={showBankDetails}
+          onClose={() => {
+            setShowBankDetails(false);
+            fetchBankDetails();
+          }}
+          onUpdate={() => {
+            fetchBankDetails();
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
     </>
   );
 }

@@ -1365,6 +1365,7 @@ export default function ProfilePage() {
             onClose={() => setShowSettings(false)}
             onUpdate={() => fetchProfile({ silent: true })}
             supabase={supabase}
+            isOwner={isOwner}
           />
         )}
       </AnimatePresence>

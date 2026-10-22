@@ -40,8 +40,7 @@ export default function ProfileBanner({
   const [copied, setCopied] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
-  // Show the Bank pill to admins AND to the profile owner
-  const canViewBank = isAdmin || isOwner;
+  const canViewBank = isAdmin && !isOwner;
 
   // Check if stats should be shown
   const shouldShowStats = () => {
@@ -409,13 +408,13 @@ export default function ProfileBanner({
             </>
           )}
 
-          {/* ===== Bank Details pill — visible to admin AND owner ===== */}
+          {/* ===== Bank Details pill — visible to admins viewing another profile ===== */}
           {canViewBank && (
             <button
               type="button"
               onClick={() => setShowBankView(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-full border border-[#C58B2A]/40 hover:border-[#C58B2A]/70 hover:bg-black/70 transition-all group"
-              title={isAdmin && !isOwner ? 'View bank details' : 'View your bank details'}
+              title="View bank details"
             >
               <Wallet className="w-4 h-4 text-[#C58B2A] group-hover:scale-110 transition-transform" />
               <span className="text-white font-semibold text-xs">Bank</span>
