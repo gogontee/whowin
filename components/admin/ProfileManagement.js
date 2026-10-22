@@ -40,6 +40,40 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
+function BankAccountDetails({ profile }) {
+  const bankDetails = [
+    ['Bank Name', profile.bank_name],
+    ['Account Name', profile.account_name],
+    ['Account Number', profile.account_number]
+  ].map(([label, value]) => [
+    label,
+    typeof value === 'string' ? value.trim() : value
+  ]);
+  const hasCompleteDetails = bankDetails.every(([, value]) => Boolean(value));
+
+  return (
+    <div className="mt-4 pt-3 border-t border-white/10">
+      <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
+        Bank Account Details
+      </h4>
+      {hasCompleteDetails ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {bankDetails.map(([label, value]) => (
+            <div key={label}>
+              <div className="text-[10px] text-white/40 uppercase">{label}</div>
+              <div className="text-sm text-white/80 break-all">{value}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-white/50 italic">
+          This user has not added their bank account details.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProfileManagement() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1485,6 +1519,7 @@ export default function ProfileManagement() {
                                     ) : (
                                       <p className="text-sm text-white/40 italic">No bio provided.</p>
                                     )}
+                                    <BankAccountDetails profile={profile} />
                                   </div>
 
                                   {/* Contact details */}
@@ -1886,6 +1921,7 @@ export default function ProfileManagement() {
                                 ) : (
                                   <p className="text-xs text-white/40 italic">No bio provided.</p>
                                 )}
+                                <BankAccountDetails profile={profile} />
                               </div>
                               <div>
                                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Full Location</div>
@@ -2252,6 +2288,7 @@ export default function ProfileManagement() {
                                 ) : (
                                   <p className="text-xs text-white/40 italic">No bio provided.</p>
                                 )}
+                                <BankAccountDetails profile={profile} />
                               </div>
                               <div>
                                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Full Location</div>
