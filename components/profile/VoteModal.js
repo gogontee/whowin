@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Loader, Check, AlertCircle, AlertTriangle } from 'lucide-react';
+import { X, Heart, Loader, Check, AlertCircle, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '../../lib/supabase';
 
@@ -80,6 +80,7 @@ export default function VoteModal({
   const handlePaystackError = (err) => {
     console.error('Paystack error:', err);
     setProcessing(false);
+    setPaymentStep('details');
 
     const errorString = JSON.stringify(err || {}).toLowerCase();
 
@@ -128,6 +129,7 @@ export default function VoteModal({
     if (!window.PaystackPop) {
       setError('Payment system not loaded.');
       setProcessing(false);
+      setPaymentStep('details');
       return;
     }
 
@@ -162,6 +164,7 @@ export default function VoteModal({
         },
         onClose: () => {
           setProcessing(false);
+          setPaymentStep('details');
           setError('Payment cancelled');
         }
       });
@@ -218,21 +221,30 @@ export default function VoteModal({
 
     } catch (error) {
       setError('Payment verification failed.');
-      setPaymentStep('selection');
+      setPaymentStep('details');
       setProcessing(false);
       if (onVoteError) onVoteError(error.message);
     }
   };
 
-  const processPayment = () => {
-    // Only show the minimum-votes alert when Pay is clicked with < MIN_VOTES
+  const continueToCheckout = () => {
     if (voteCount < MIN_VOTES) {
       setMinVotesAlert(true);
       return;
     }
 
-    if (!currentUser && !guestInfo.email) {
-      setError('Please enter your email address');
+    setError('');
+    setPaymentStep('details');
+  };
+
+  const processPayment = () => {
+    if (!currentUser && (!guestInfo.name.trim() || !guestInfo.email.trim())) {
+      setError('Please enter your name and email address');
+      return;
+    }
+
+    if (!currentUser && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email.trim())) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -336,119 +348,183 @@ export default function VoteModal({
                     </p>
                   </div>
                 </div>
+              ) : paymentStep === 'processing' ? (
+                <div className="p-8 text-center">
+                  <Loader className="w-10 h-10 text-orange-400 animate-spin mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-white">Processing your vote</h3>
+                  <p className="text-sm text-white/60 mt-1">Please wait while we confirm your payment.</p>
+                </div>
               ) : (
-                <>
-                  {/* Quick Vote Buttons */}
-                  <div className="p-3 border-b border-white/10">
-                    <label className="block text-xs font-medium text-white/80 mb-2">
-                      Quick Vote for @{profile?.username}
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {quickVotes.map((votes) => (
-                        <button
-                          key={votes}
-                          onClick={() => handleQuickVoteSelect(votes)}
-                          className={`p-2 rounded-lg border transition-all ${
-                            voteCount === votes && !customVotes
-                              ? 'border-orange-500 bg-orange-500/10'
-                              : 'border-white/10 hover:border-white/20 bg-white/5'
-                          }`}
-                        >
-                          <span className="block text-base font-bold text-white">{votes}</span>
-                          <span className="text-[10px] text-white/40">votes</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Vote Input */}
-                  <div className="p-3 border-b border-white/10">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={customVotes}
-                      onChange={handleCustomVoteChange}
-                      placeholder="Enter number of votes you want to cast"
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-base text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors text-center"
-                    />
-                  </div>
-
-                  {/* Vote Summary */}
-                  <div className="p-3 border-b border-white/10">
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-white/60">Votes:</span>
-                        <span className="text-xl font-bold text-white">{voteCount}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-white/60">Total:</span>
-                        <span className="text-white/80">₦{totalNGN}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Guest Info (email only shown for guests) */}
-                  {!currentUser && (
-                    <div className="p-3 border-b border-white/10 space-y-2">
-                      <label className="block text-xs font-medium text-white/80">
-                        Your Information
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="Email address *"
-                        value={guestInfo.email}
-                        onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors"
-                        required
-                      />
-                      <input
-                        type="text"
-                        placeholder="Your name (optional)"
-                        value={guestInfo.name}
-                        onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  {/* Paystack Badge */}
-                  <div className="px-3 py-2">
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2">
-                      <span className="text-green-400 text-xs">✓ Secure payment via Paystack</span>
-                    </div>
-                  </div>
-
-                  {/* Error */}
-                  {error && (
-                    <div className="px-3 py-1">
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                        <p className="text-xs text-red-400">{error}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pay Button */}
-                  <div className="p-3">
-                    <button
-                      onClick={processPayment}
-                      disabled={processing}
-                      className="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                <AnimatePresence mode="wait" initial={false}>
+                  {paymentStep === 'selection' ? (
+                    <motion.div
+                      key="selection"
+                      initial={{ opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -24 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {processing ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <Loader className="w-4 h-4 animate-spin" />
-                          Processing...
-                        </span>
-                      ) : (
-                        `Pay ₦${totalNGN} with Paystack`
-                      )}
-                    </button>
+                      <div className="p-3 border-b border-white/10">
+                        <label className="block text-xs font-medium text-white/80 mb-2">
+                          Choose votes for @{profile?.username}
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {quickVotes.map((votes) => (
+                            <button
+                              key={votes}
+                              type="button"
+                              onClick={() => handleQuickVoteSelect(votes)}
+                              className={`p-2 rounded-lg border transition-all ${
+                                voteCount === votes && !customVotes
+                                  ? 'border-orange-500 bg-orange-500/10'
+                                  : 'border-white/10 hover:border-white/20 bg-white/5'
+                              }`}
+                            >
+                              <span className="block text-base font-bold text-white">{votes}</span>
+                              <span className="text-[10px] text-white/40">votes</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                    <p className="text-[10px] text-white/40 text-center mt-2">
-                      By proceeding, you agree to our Terms of Service
-                    </p>
-                  </div>
-                </>
+                      <div className="p-3 border-b border-white/10">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={customVotes}
+                          onChange={handleCustomVoteChange}
+                          placeholder="Or enter a custom vote amount"
+                          aria-label="Custom number of votes"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-base text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors text-center"
+                        />
+                      </div>
+
+                      <div className="p-3">
+                        <div className="bg-white/5 rounded-lg p-3 mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-white/60">Votes:</span>
+                            <span className="text-xl font-bold text-white">{voteCount}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-white/60">Total:</span>
+                            <span className="text-white/80">₦{totalNGN}</span>
+                          </div>
+                        </div>
+                        {error && (
+                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 mb-3" role="alert">
+                            <p className="text-xs text-red-400">{error}</p>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={continueToCheckout}
+                          className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                        >
+                          Continue to checkout
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="details"
+                      initial={{ opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -24 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="p-3 border-b border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError('');
+                            setPaymentStep('selection');
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Change vote amount
+                        </button>
+                      </div>
+
+                      <div className="p-3 border-b border-white/10">
+                        <div className="bg-white/5 rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-white/60">Votes for @{profile?.username}</span>
+                            <span className="font-semibold text-white">{voteCount}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-white/60">Amount due</span>
+                            <span className="font-bold text-orange-400">₦{totalNGN}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {!currentUser ? (
+                        <div className="p-3 border-b border-white/10 space-y-3">
+                          <label className="block text-xs font-medium text-white/80">
+                            Your details
+                          </label>
+                          <input
+                            type="text"
+                            autoComplete="name"
+                            placeholder="Full name *"
+                            value={guestInfo.name}
+                            onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors"
+                            required
+                          />
+                          <input
+                            type="email"
+                            autoComplete="email"
+                            placeholder="Email address *"
+                            value={guestInfo.email}
+                            onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:border-orange-500 focus:outline-none transition-colors"
+                            required
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-3 border-b border-white/10">
+                          <p className="text-xs text-white/50 mb-1">Paying as</p>
+                          <p className="text-sm text-white">{currentUser.email}</p>
+                          {currentUser.user_metadata?.full_name && (
+                            <p className="text-xs text-white/60 mt-1">{currentUser.user_metadata.full_name}</p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="p-3 space-y-3">
+                        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2">
+                          <span className="text-green-400 text-xs">Secure payment via Paystack</span>
+                        </div>
+                        {error && (
+                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2" role="alert">
+                            <p className="text-xs text-red-400">{error}</p>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={processPayment}
+                          disabled={processing}
+                          className="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          {processing ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <Loader className="w-4 h-4 animate-spin" />
+                              Processing...
+                            </span>
+                          ) : (
+                            `Pay ₦${totalNGN} with Paystack`
+                          )}
+                        </button>
+                        <p className="text-[10px] text-white/40 text-center">
+                          By proceeding, you agree to our Terms of Service
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
             </div>
           </motion.div>
