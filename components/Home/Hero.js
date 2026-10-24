@@ -13,8 +13,8 @@ const Hero = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
-  // NEW: track registration navigation in progress
-  const [registering, setRegistering] = useState(false);
+  // Track vote navigation in progress
+  const [navigating, setNavigating] = useState(false);
 
   // Fallback slides - using local banner images
   const FALLBACK_SLIDES = [
@@ -32,10 +32,9 @@ const Hero = () => {
     }
   ];
 
-  // NEW: prefetch the signup route as soon as the Hero mounts
-  // so navigation feels instant even on poor networks
+  // Prefetch routes so navigation feels instant even on poor networks
   useEffect(() => {
-    router.prefetch('/auth/signup');
+    router.prefetch('/vote');
     router.prefetch('/auth/login');
   }, [router]);
 
@@ -132,16 +131,14 @@ const Hero = () => {
     }
   };
 
-  // Handle register click
-  // NEW: show instant loading state, disable button, then navigate.
-  // The small timeout lets React paint the loading state first, so on
-  // a slow network the user still sees immediate feedback.
-  const handleRegister = () => {
-    if (registering) return; // guard against double-click
-    setRegistering(true);
+  // Handle vote click (guests)
+  // Show instant loading state, disable button, then navigate to /vote
+  const handleVote = () => {
+    if (navigating) return; // guard against double-click
+    setNavigating(true);
     // Let the browser paint the loading state before we navigate
     setTimeout(() => {
-      router.push('/auth/signup');
+      router.push('/vote');
     }, 50);
   };
 
@@ -211,22 +208,22 @@ const Hero = () => {
             </button>
           ) : (
             <button 
-              onClick={handleRegister}
-              disabled={registering}
-              aria-busy={registering}
+              onClick={handleVote}
+              disabled={navigating}
+              aria-busy={navigating}
               className={`metallic-green font-bold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 text-sm flex items-center justify-center gap-2 min-w-[150px] ${
-                registering
+                navigating
                   ? 'opacity-70 cursor-wait pointer-events-none'
                   : 'hover:shadow-xl hover:-translate-y-0.5'
               }`}
             >
-              {registering ? (
+              {navigating ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin text-white" />
                   <span className="text-white font-extrabold">Loading…</span>
                 </>
               ) : (
-                <span className="text-white font-extrabold">Register Now</span>
+                <span className="text-white font-extrabold">Vote</span>
               )}
             </button>
           )}
@@ -244,22 +241,22 @@ const Hero = () => {
           </button>
         ) : (
           <button 
-            onClick={handleRegister}
-            disabled={registering}
-            aria-busy={registering}
+            onClick={handleVote}
+            disabled={navigating}
+            aria-busy={navigating}
             className={`w-full metallic-green font-bold py-3 rounded-xl shadow-lg transition-all duration-300 text-sm flex items-center justify-center gap-2 ${
-              registering
+              navigating
                 ? 'opacity-70 cursor-wait pointer-events-none'
                 : 'hover:shadow-xl'
             }`}
           >
-            {registering ? (
+            {navigating ? (
               <>
                 <Loader className="w-4 h-4 animate-spin text-white" />
                 <span className="text-white font-extrabold">Loading…</span>
               </>
             ) : (
-              <span className="text-white font-extrabold">Register Now</span>
+              <span className="text-white font-extrabold">Vote</span>
             )}
           </button>
         )}

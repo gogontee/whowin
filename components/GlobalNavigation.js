@@ -18,7 +18,8 @@ import {
   Info,
   Menu,
   X,
-  Clapperboard
+  Clapperboard,
+  Vote
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -33,7 +34,6 @@ const GlobalNavigation = () => {
   const [activeMobileTab, setActiveMobileTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [hoveringRegister, setHoveringRegister] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [authLoaded, setAuthLoaded] = useState(false);
@@ -174,7 +174,7 @@ const GlobalNavigation = () => {
     if (pathname.startsWith('/vote')) return 'explore';
     if (pathname.startsWith('/about')) return 'about';
     const usernameMatch = pathname.match(/^\/([^\/]+)$/);
-    if (usernameMatch && !['candidates', 'event-gallery', 'previous-seasons', 'updates', 'explore', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
+    if (usernameMatch && !['candidates', 'event-gallery', 'previous-seasons', 'updates', 'explore', 'vote', 'ranking', 'live-tv', 'login', 'auth', 'profile', 'about'].includes(usernameMatch[1])) {
       return 'profile';
     }
     return 'home';
@@ -223,17 +223,6 @@ const GlobalNavigation = () => {
     }
   };
 
-  const handleRegisterClick = (e) => {
-    e.preventDefault();
-    router.push('/auth/signup');
-  };
-
-  const handleMobileRegisterClick = (e) => {
-    e.preventDefault();
-    setHoveringRegister(true);
-    router.push('/auth/signup');
-  };
-
   const handleProfileTabClick = (e) => {
     e.preventDefault();
     if (isLoggedIn && userProfile?.username) {
@@ -265,12 +254,11 @@ const GlobalNavigation = () => {
   const logoUrl = '/logo.png';
   const activeTab = getActiveTab();
 
-  // NOTE: 'explore' (Flame/Vote) is hidden for now — kept here so it can be restored later.
+  // Bottom tab: Home · Updates · Vote · Profile
   const mobileNavItems = [
     { id: 'home', icon: Home, label: 'Home', href: '/' },
     { id: 'updates', icon: Bell, label: 'Updates', href: '/updates' },
-    // { id: 'explore', icon: Flame, label: 'Explore', isSpecial: true, href: '/vote' }, // HIDDEN FOR NOW
-    { id: 'gallery', icon: Images, label: 'Gallery', href: '/event-gallery' },
+    { id: 'explore', icon: Vote, label: 'Vote', href: '/vote' },
     {
       id: 'profile',
       icon: User,
@@ -360,6 +348,20 @@ const GlobalNavigation = () => {
 
             {/* RIGHT: Actions */}
             <div className="flex items-center gap-3 shrink-0">
+              {/* Vote Button (desktop) */}
+              <Link
+                href="/vote"
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border shadow-lg transition-all duration-300 hover:-translate-y-0.5 ${
+                  activeTab === 'explore'
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-500 border-green-400/60 text-white'
+                    : 'bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 border-amber-400/50 text-black hover:from-green-500 hover:via-emerald-500 hover:to-green-500 hover:text-white'
+                }`}
+                aria-label="Vote"
+              >
+                <Vote className="w-4 h-4" />
+                <span className="text-xs font-extrabold uppercase tracking-wide">Vote</span>
+              </Link>
+
               {/* Live TV */}
               <Link
                 href="/live-tv"
@@ -368,23 +370,6 @@ const GlobalNavigation = () => {
               >
                 <Tv className="w-5 h-5 text-white" />
               </Link>
-
-              {/* Register Button (guest only) */}
-              {!authLoaded ? (
-                <div className="w-20 h-9 bg-white/5 rounded-lg animate-pulse" />
-              ) : !isLoggedIn ? (
-                <button
-                  onClick={handleRegisterClick}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 border border-green-400/50 shadow-lg transition-all duration-300"
-                  onMouseEnter={() => setHoveringRegister(true)}
-                  onMouseLeave={() => setHoveringRegister(false)}
-                >
-                  <LogIn className="w-3.5 h-3.5 text-white" />
-                  <span className="text-xs font-semibold text-white leading-none">
-                    Register
-                  </span>
-                </button>
-              ) : null}
 
               {/* User / Profile */}
               <div className="relative">
@@ -487,17 +472,19 @@ const GlobalNavigation = () => {
 
             {/* Mobile Right Icons */}
             <div className="flex items-center space-x-2">
-              {!authLoaded ? (
-                <div className="w-16 h-7 bg-white/5 rounded animate-pulse"></div>
-              ) : !isLoggedIn ? (
-                <button
-                  onClick={handleMobileRegisterClick}
-                  className="px-2.5 py-1 rounded-md bg-gradient-to-r from-green-600 to-emerald-500 border border-green-400/50 flex items-center space-x-1 shadow"
-                >
-                  <LogIn className="w-3 h-3 text-white" />
-                  <span className="text-xs font-semibold text-white">Register</span>
-                </button>
-              ) : null}
+              {/* Vote Button (mobile compact) */}
+              <Link
+                href="/vote"
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border shadow transition-colors ${
+                  activeTab === 'explore'
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-500 border-green-400/60 text-white'
+                    : 'bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 border-amber-400/50 text-black'
+                }`}
+                aria-label="Vote"
+              >
+                <Vote className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-extrabold uppercase">Vote</span>
+              </Link>
 
               <Link href="/live-tv" className="p-1.5 rounded-lg bg-white/10 border border-white/20">
                 <Tv className="w-4 h-4 text-white" />
@@ -595,7 +582,7 @@ const GlobalNavigation = () => {
                         </>
                       )}
                       <div className="relative p-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 shadow-lg">
-                        <Flame className="w-4 h-4 text-white" fill="white" />
+                        <item.icon className="w-4 h-4 text-white" fill="white" />
                       </div>
                     </div>
                   </div>
