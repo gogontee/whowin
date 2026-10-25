@@ -38,7 +38,7 @@ export default function VoteModal({
 
   // Price per vote in Naira
   const PRICE_PER_VOTE_NGN = 100;
-  const MIN_VOTES = 5;
+  const MIN_VOTES = 10;
 
   // Quick vote presets
   const quickVotes = [20, 50, 100, 200, 500, 1000];
