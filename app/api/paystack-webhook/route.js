@@ -61,11 +61,11 @@ export async function POST(req) {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    // 2. Find candidate
+    // 2. Find candidate (case-insensitive to avoid mismatches)
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('username', candidateUsername)
+      .ilike('username', candidateUsername)
       .maybeSingle();
 
     if (profileErr || !profile) {
@@ -73,25 +73,27 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
     }
 
-    // 3. Insert vote — use .select() to CONFIRM it was written
+    // 3. Insert vote — the DB trigger will auto-update profiles.total_votes
     const { data: insertedRows, error: insertError } = await supabaseAdmin
       .from('vote_transactions')
       .insert({
         user_id: null,
         guest_email: customer.email,
+        guest_name: null,
         candidate_id: profile.id,
         package_name: `${votes} Votes Package`,
         votes: votes,
-        price_per_vote: (amount / 100) / votes,
-        total_amount: amount / 100,
+        price_per_vote: Math.round((amount / 100) / votes),
+        total_amount: Math.round(amount / 100),
+        discount_percentage: 0,
+        original_amount: Math.round(amount / 100),
         payment_method: 'paystack',
         payment_provider: 'paystack',
         payment_id: reference,
         reference: reference,
         status: 'completed',
-        metadata: { source: 'webhook' },
       })
-      .select('id, votes'); // <-- CONFIRM INSERT
+      .select('id, votes, total_amount');
 
     if (insertError) {
       console.error('[WEBHOOK] Insert failed:', insertError);
@@ -103,20 +105,9 @@ export async function POST(req) {
       return NextResponse.json({ error: 'RLS blocked insert' }, { status: 500 });
     }
 
+    // ✅ The DB trigger `trigger_update_candidate_votes` handles updating profiles.total_votes
     console.log('[WEBHOOK] Vote inserted successfully:', insertedRows[0]);
-
-    // 4. Increment candidate vote count — only AFTER confirmed insert
-    const { error: rpcErr } = await supabaseAdmin.rpc('increment_votes', {
-      candidate_id: profile.id,
-      vote_count: votes,
-    });
-
-    if (rpcErr) {
-      console.error('[WEBHOOK] increment_votes RPC failed:', rpcErr);
-      // Don't fail the webhook — the vote row exists, count will reconcile on next fetch
-    } else {
-      console.log('[WEBHOOK] Vote count incremented by', votes);
-    }
+    console.log('[WEBHOOK] profiles.total_votes updated automatically via DB trigger');
 
     return NextResponse.json({ received: true, inserted: true });
   } catch (error) {
