@@ -484,7 +484,6 @@ export default function ProfileManagement() {
 
     setUpdating(true);
     try {
-      const profileIds = profiles.map(p => p.id);
       const updateData = {
         [controlName]: value,
         updated_at: new Date().toISOString()
@@ -493,7 +492,7 @@ export default function ProfileManagement() {
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
-        .in('id', profileIds);
+        .not('id', 'is', null);
 
       if (error) throw error;
 
@@ -501,7 +500,7 @@ export default function ProfileManagement() {
 
       const label = controlName === 'social_control' ? 'Social' : controlName === 'vote_control' ? 'Vote' : 'Status';
       const state = typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value;
-      alert(`✅ ${label} set to ${state} for all ${profiles.length} profiles`);
+      alert(`✅ ${label} set to ${state} for all profiles`);
 
     } catch (error) {
       console.error(`Error bulk toggling ${controlName}:`, error);
@@ -723,7 +722,7 @@ export default function ProfileManagement() {
       {/* Bulk Controls - Enhanced */}
       <div className="bg-white/5 rounded-xl border border-white/10 p-3 sm:p-4 mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <span className="text-xs sm:text-sm text-white/60 font-medium">Bulk Controls ({profiles.length} profiles)</span>
+          <span className="text-xs sm:text-sm text-white/60 font-medium">Bulk Controls (all profiles)</span>
           <div className="flex flex-wrap items-center gap-2">
             {/* Status Bulk Control */}
             <div className="relative">
@@ -2507,8 +2506,8 @@ export default function ProfileManagement() {
                   </h3>
                   <p className="text-sm text-white/70 text-center mb-6">
                     {pendingBulkStatus === 'active'
-                      ? 'Your users will now have access to all buttons in their profile page.'
-                      : 'Your users will lose all approval benefits.'}
+                      ? 'All users will now have access to all buttons in their profile page.'
+                      : 'All users will lose all approval benefits.'}
                   </p>
                   <div className="flex gap-3">
                     <button
