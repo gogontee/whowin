@@ -175,11 +175,32 @@ export default function VoteModal({
     }
   };
 
-  // ---- Payment success ----
+  // ---- Payment success (NOW WITH SECURE VERIFICATION) ----
   const handlePaymentSuccess = async (response, totalAmount, email, name) => {
     setPaymentStep('processing');
     
     try {
+      // 1. Securely verify the payment with Paystack via your API route
+      const verifyResponse = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: response.reference }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok || !verifyData.success) {
+        // If it's a bank transfer and the status is pending, we throw an error so they don't get a false "Success"
+        throw new Error(verifyData.error || 'Payment verification failed. If you paid via bank transfer, please wait a moment and try again.');
+      }
+
+      // 2. Optional: Verify the amount paid matches the expected amount (in kobo)
+      const expectedAmountInKobo = Math.round(totalAmount * 100);
+      if (verifyData.data.amount < expectedAmountInKobo) {
+        throw new Error('Payment amount mismatch. Please contact support.');
+      }
+
+      // 3. Only after Paystack confirms the money is there, insert the vote
       const voteData = {
         user_id: currentUser?.id || null,
         guest_email: !currentUser ? email : null,
@@ -199,11 +220,20 @@ export default function VoteModal({
         },
       };
 
+      // Use upsert to prevent duplicates if the webhook fires simultaneously
       const { error: insertError } = await supabase
         .from('vote_transactions')
-        .insert(voteData);
+        .upsert(voteData, { onConflict: 'reference', ignoreDuplicates: true });
 
-      if (insertError) throw insertError;
+      if (insertError && insertError.code !== '23505') { // Ignore duplicate error code
+        throw insertError;
+      }
+
+      // 4. Update candidate vote count (if using RPC)
+      await supabase.rpc('increment_votes', {
+        candidate_id: profile.id,
+        vote_count: voteCount
+      });
 
       setPaymentStep('success');
       setProcessing(false);
@@ -220,7 +250,8 @@ export default function VoteModal({
       }, 3000);
 
     } catch (error) {
-      setError('Payment verification failed.');
+      console.error('Vote processing error:', error);
+      setError(error.message || 'Payment verification failed.');
       setPaymentStep('details');
       setProcessing(false);
       if (onVoteError) onVoteError(error.message);
@@ -351,8 +382,8 @@ export default function VoteModal({
               ) : paymentStep === 'processing' ? (
                 <div className="p-8 text-center">
                   <Loader className="w-10 h-10 text-orange-400 animate-spin mx-auto mb-3" />
-                  <h3 className="text-lg font-bold text-white">Processing your vote</h3>
-                  <p className="text-sm text-white/60 mt-1">Please wait while we confirm your payment.</p>
+                  <h3 className="text-lg font-bold text-white">Verifying your payment</h3>
+                  <p className="text-sm text-white/60 mt-1">Please wait while we confirm your payment with the bank.</p>
                 </div>
               ) : (
                 <AnimatePresence mode="wait" initial={false}>

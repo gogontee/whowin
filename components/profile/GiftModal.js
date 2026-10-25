@@ -20,105 +20,15 @@ const RingIcon = ({ className }) => (
 
 // Gift definitions with colors
 const GIFTS = [
-  { 
-    id: 'flower', 
-    name: 'Flower', 
-    emoji: '🌹', 
-    amount: 20000,
-    color: 'from-pink-400 to-rose-500',
-    bgColor: 'bg-pink-500/10',
-    borderColor: 'border-pink-500/30',
-    textColor: 'text-pink-400',
-    icon: Flower
-  },
-  { 
-    id: 'blow_kisses', 
-    name: 'Blow Kisses', 
-    emoji: '😘', 
-    amount: 50000,
-    color: 'from-red-400 to-pink-500',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-    textColor: 'text-red-400',
-    icon: Heart
-  },
-  { 
-    id: 'silver_ring', 
-    name: 'Silver Ring', 
-    emoji: '💍', 
-    amount: 100000,
-    color: 'from-gray-300 to-gray-400',
-    bgColor: 'bg-gray-500/10',
-    borderColor: 'border-gray-400/30',
-    textColor: 'text-gray-300',
-    icon: RingIcon
-  },
-  { 
-    id: 'love', 
-    name: 'Love', 
-    emoji: '❤️', 
-    amount: 300000,
-    color: 'from-red-500 to-red-600',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-    textColor: 'text-red-500',
-    icon: Heart
-  },
-  { 
-    id: 'heart', 
-    name: 'Heart', 
-    emoji: '💖', 
-    amount: 250000,
-    color: 'from-rose-400 to-pink-500',
-    bgColor: 'bg-rose-500/10',
-    borderColor: 'border-rose-500/30',
-    textColor: 'text-rose-400',
-    icon: Heart
-  },
-  { 
-    id: 'golden_ring', 
-    name: 'Golden Ring', 
-    emoji: '💛', 
-    amount: 350000,
-    color: 'from-yellow-400 to-amber-500',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30',
-    textColor: 'text-yellow-400',
-    icon: RingIcon
-  },
-  { 
-    id: 'trophy', 
-    name: 'Trophy', 
-    emoji: '🏆', 
-    amount: 500000,
-    color: 'from-amber-400 to-yellow-500',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
-    textColor: 'text-amber-400',
-    icon: Trophy
-  },
-  { 
-    id: 'crown', 
-    name: 'Crown', 
-    emoji: '👑', 
-    amount: 700000,
-    color: 'from-yellow-400 to-gold-500',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30',
-    textColor: 'text-yellow-400',
-    icon: Crown
-  },
-  { 
-    id: 'dragon', 
-    name: 'Dragon', 
-    emoji: '🐉', 
-    amount: 1000000,
-    color: 'from-emerald-400 to-green-500',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
-    textColor: 'text-emerald-400',
-    icon: Diamond
-  },
+  { id: 'flower', name: 'Flower', emoji: '🌹', amount: 20000, color: 'from-pink-400 to-rose-500', bgColor: 'bg-pink-500/10', borderColor: 'border-pink-500/30', textColor: 'text-pink-400', icon: Flower },
+  { id: 'blow_kisses', name: 'Blow Kisses', emoji: '😘', amount: 50000, color: 'from-red-400 to-pink-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', textColor: 'text-red-400', icon: Heart },
+  { id: 'silver_ring', name: 'Silver Ring', emoji: '💍', amount: 100000, color: 'from-gray-300 to-gray-400', bgColor: 'bg-gray-500/10', borderColor: 'border-gray-400/30', textColor: 'text-gray-300', icon: RingIcon },
+  { id: 'love', name: 'Love', emoji: '❤️', amount: 300000, color: 'from-red-500 to-red-600', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', textColor: 'text-red-500', icon: Heart },
+  { id: 'heart', name: 'Heart', emoji: '💖', amount: 250000, color: 'from-rose-400 to-pink-500', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/30', textColor: 'text-rose-400', icon: Heart },
+  { id: 'golden_ring', name: 'Golden Ring', emoji: '💛', amount: 350000, color: 'from-yellow-400 to-amber-500', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30', textColor: 'text-yellow-400', icon: RingIcon },
+  { id: 'trophy', name: 'Trophy', emoji: '🏆', amount: 500000, color: 'from-amber-400 to-yellow-500', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30', textColor: 'text-amber-400', icon: Trophy },
+  { id: 'crown', name: 'Crown', emoji: '👑', amount: 700000, color: 'from-yellow-400 to-gold-500', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30', textColor: 'text-yellow-400', icon: Crown },
+  { id: 'dragon', name: 'Dragon', emoji: '🐉', amount: 1000000, color: 'from-emerald-400 to-green-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30', textColor: 'text-emerald-400', icon: Diamond },
 ];
 
 export default function GiftModal({ 
@@ -260,10 +170,31 @@ export default function GiftModal({
     }
   };
 
+  // ---- Payment success (NOW WITH SECURE VERIFICATION) ----
   const handlePaymentSuccess = async (response, totalAmount, email, name) => {
     setPaymentStep('processing');
     
     try {
+      // 1. Securely verify the payment with Paystack via your API route
+      const verifyResponse = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: response.reference }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok || !verifyData.success) {
+        throw new Error(verifyData.error || 'Payment verification failed. If you paid via bank transfer, please wait a moment and try again.');
+      }
+
+      // 2. Verify amount (in kobo)
+      const expectedAmountInKobo = Math.round(totalAmount * 100);
+      if (verifyData.data.amount < expectedAmountInKobo) {
+        throw new Error('Payment amount mismatch. Please contact support.');
+      }
+
+      // 3. Insert the gift only after Paystack confirms
       const giftData = {
         user_id: currentUser?.id || null,
         guest_email: !currentUser ? email : null,
@@ -283,11 +214,14 @@ export default function GiftModal({
         },
       };
 
+      // Use upsert to prevent duplicates if webhook fires simultaneously
       const { error: insertError } = await supabase
         .from('gift_transactions')
-        .insert(giftData);
+        .upsert(giftData, { onConflict: 'reference', ignoreDuplicates: true });
 
-      if (insertError) throw insertError;
+      if (insertError && insertError.code !== '23505') { // Ignore duplicate key error
+        throw insertError;
+      }
 
       setPaymentStep('success');
       setProcessing(false);
@@ -304,7 +238,8 @@ export default function GiftModal({
       }, 3000);
 
     } catch (error) {
-      setError('Payment verification failed.');
+      console.error('Gift processing error:', error);
+      setError(error.message || 'Payment verification failed.');
       setPaymentStep('selection');
       setProcessing(false);
       if (onGiftError) onGiftError(error.message);
@@ -347,7 +282,6 @@ export default function GiftModal({
     onClose();
   };
 
-  // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -429,6 +363,12 @@ export default function GiftModal({
                       Total: ₦{totalNGN}
                     </p>
                   </div>
+                </div>
+              ) : paymentStep === 'processing' ? (
+                 <div className="p-8 text-center">
+                  <Loader className="w-10 h-10 text-yellow-400 animate-spin mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-white">Verifying your payment</h3>
+                  <p className="text-sm text-white/60 mt-1">Please wait while we confirm your payment with the bank.</p>
                 </div>
               ) : (
                 <>
