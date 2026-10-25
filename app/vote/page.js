@@ -152,12 +152,6 @@ export default function VotePage() {
     return username.charAt(0).toUpperCase() + username.slice(1);
   };
 
-  const formatVotes = (votes) => {
-    if (votes >= 1000000) return (votes / 1000000).toFixed(1) + 'M';
-    if (votes >= 1000) return (votes / 1000).toFixed(1) + 'K';
-    return votes.toString();
-  };
-
   const handleCardClick = (username) => {
     router.push(`/${username}/voteprofile`);
   };
@@ -325,19 +319,9 @@ export default function VotePage() {
 
                   {/* Candidate Info */}
                   <div className="p-2.5">
-                    <h3 className="text-sm font-bold text-white mb-1 truncate group-hover:text-[#C58B2A] transition-colors">
+                    <h3 className="text-sm font-bold text-white mb-2 truncate group-hover:text-[#C58B2A] transition-colors">
                       {formatUsername(candidate.username)}
                     </h3>
-
-                    {/* Vote count — only when visibility is on */}
-                    {candidate.vote_visibility === 'on' && (
-                      <div className="mb-2">
-                        <div className="text-[8px] text-white/40">VOTES</div>
-                        <div className="text-xs font-bold text-[#C58B2A]">
-                          {formatVotes(candidate.total_votes || 0)}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Vote + Gift buttons */}
                     <div className="grid grid-cols-2 gap-1.5">
