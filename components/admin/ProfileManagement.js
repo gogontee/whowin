@@ -136,46 +136,109 @@ export default function ProfileManagement() {
   const fetchProfiles = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('profiles')
-        .select('*', { count: 'exact' });
+      const buildProfilesQuery = () => {
+        let query = supabase
+          .from('profiles')
+          .select('id, role, total_votes, created_at', { count: 'exact' });
 
-      if (debouncedSearchTerm) {
-        // Sanitize search term to avoid breaking the query
-        const sanitized = debouncedSearchTerm.trim().replace(/[%,()]/g, '');
+        if (debouncedSearchTerm) {
+          const sanitized = debouncedSearchTerm.trim().replace(/[%,()]/g, '');
 
-        if (sanitized) {
-          query = query.or(
-            `username.ilike.%${sanitized}%,full_name.ilike.%${sanitized}%,email.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`
-          );
+          if (sanitized) {
+            query = query.or(
+              `username.ilike.%${sanitized}%,full_name.ilike.%${sanitized}%,email.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`
+            );
+          }
         }
+
+        if (statusFilter !== 'all') {
+          query = query.eq('account_status', statusFilter);
+        }
+
+        if (verificationFilter !== 'all') {
+          query = query.eq('verification_level', verificationFilter);
+        }
+
+        return query;
+      };
+
+      const allProfiles = [];
+      const profileBatchSize = 1000;
+      let count = 0;
+
+      for (let from = 0; ; from += profileBatchSize) {
+        const { data, error, count: resultCount } = await buildProfilesQuery()
+          .order('id', { ascending: true })
+          .range(from, from + profileBatchSize - 1);
+
+        if (error) throw error;
+        if (from === 0) count = resultCount || 0;
+        allProfiles.push(...(data || []));
+        if (!data || data.length < profileBatchSize) break;
       }
 
-      if (statusFilter !== 'all') {
-        query = query.eq('account_status', statusFilter);
+      const giftStatsForRanking = {};
+      const giftBatchSize = 1000;
+
+      for (let from = 0; ; from += giftBatchSize) {
+        const { data, error } = await supabase
+          .from('gift_transactions')
+          .select('candidate_id, amount')
+          .eq('status', 'completed')
+          .not('candidate_id', 'is', null)
+          .order('id', { ascending: true })
+          .range(from, from + giftBatchSize - 1);
+
+        if (error) throw error;
+        (data || []).forEach(({ candidate_id, amount }) => {
+          if (!giftStatsForRanking[candidate_id]) {
+            giftStatsForRanking[candidate_id] = { count: 0, totalAmount: 0 };
+          }
+          giftStatsForRanking[candidate_id].count += 1;
+          giftStatsForRanking[candidate_id].totalAmount += Number(amount) || 0;
+        });
+        if (!data || data.length < giftBatchSize) break;
       }
 
-      if (verificationFilter !== 'all') {
-        query = query.eq('verification_level', verificationFilter);
-      }
-
-      const from = (currentPage - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, error, count } = await query
-        .range(from, to)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const sortedData = (data || []).sort((a, b) => {
+      const sortedProfiles = allProfiles.sort((a, b) => {
         if (a.role === 'admin' && b.role !== 'admin') return -1;
         if (b.role === 'admin' && a.role !== 'admin') return 1;
+
+        const voteDifference = (Number(b.total_votes) || 0) - (Number(a.total_votes) || 0);
+        if (voteDifference !== 0) return voteDifference;
+
+        const giftDifference =
+          (giftStatsForRanking[b.id]?.totalAmount || 0) -
+          (giftStatsForRanking[a.id]?.totalAmount || 0);
+        if (giftDifference !== 0) return giftDifference;
+
+        const giftCountDifference =
+          (giftStatsForRanking[b.id]?.count || 0) -
+          (giftStatsForRanking[a.id]?.count || 0);
+        if (giftCountDifference !== 0) return giftCountDifference;
+
         return new Date(b.created_at) - new Date(a.created_at);
       });
 
-      setProfiles(sortedData);
-      setTotalCount(count || 0);
+      setTotalCount(count);
+
+      const pageIds = sortedProfiles
+        .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+        .map(profile => profile.id);
+      let data = [];
+
+      if (pageIds.length > 0) {
+        const { data: pageProfiles, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', pageIds);
+
+        if (error) throw error;
+        const profilesById = new Map((pageProfiles || []).map(profile => [profile.id, profile]));
+        data = pageIds.map(id => profilesById.get(id)).filter(Boolean);
+      }
+
+      setProfiles(data);
 
       const { data: visibilityData, error: visibilityError } = await supabase
         .from('profiles')
@@ -185,7 +248,7 @@ export default function ProfileManagement() {
         setVoteVisibilityOn(visibilityData.every(profile => profile.vote_visibility === 'on'));
       }
 
-      if (data && data.length > 0) {
+      if (data.length > 0) {
         const profileIds = data.map(p => p.id);
         
         const { data: voteData } = await supabase
