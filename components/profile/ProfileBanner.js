@@ -39,13 +39,50 @@ export default function ProfileBanner({
   const [bankLoading, setBankLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const isAdmin = profile?.role === 'admin';
-  const canViewBank = isAdmin && !isOwner;
+  // ===== Viewer role detection (admin check) =====
+  // The pill must be visible ONLY to:
+  //   - the profile owner (isOwner = true)
+  //   - an admin viewing another user's profile
+  // A regular signed-in viewer must never see it.
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
+
+  const isProfileOwner = Boolean(isOwner);
+  const canViewBank = isProfileOwner || (viewerIsAdmin && !isProfileOwner);
+  // Simpler form: canViewBank = isProfileOwner || viewerIsAdmin
+  // (admin and owner are the only two permitted viewers)
 
   // Check if stats should be shown
   const shouldShowStats = () => {
     return profile?.vote_visibility === 'on';
   };
+
+  // ===== Resolve whether the current viewer is an admin =====
+  useEffect(() => {
+    let mounted = true;
+
+    const checkAdmin = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (mounted) setViewerIsAdmin(false);
+          return;
+        }
+        const { data: row } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (mounted) setViewerIsAdmin(row?.role === 'admin');
+      } catch (err) {
+        console.error('Error checking admin role:', err);
+        if (mounted) setViewerIsAdmin(false);
+      }
+    };
+
+    checkAdmin();
+
+    return () => { mounted = false; };
+  }, []);
 
   // ===== Fetch bank details when modal opens =====
   useEffect(() => {
@@ -408,13 +445,13 @@ export default function ProfileBanner({
             </>
           )}
 
-          {/* ===== Bank Details pill — visible to admins viewing another profile ===== */}
+          {/* ===== Bank Details pill — visible to owner OR admin ===== */}
           {canViewBank && (
             <button
               type="button"
               onClick={() => setShowBankView(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-full border border-[#C58B2A]/40 hover:border-[#C58B2A]/70 hover:bg-black/70 transition-all group"
-              title="View bank details"
+              title={isProfileOwner ? 'View your bank details' : 'View bank details'}
             >
               <Wallet className="w-4 h-4 text-[#C58B2A] group-hover:scale-110 transition-transform" />
               <span className="text-white font-semibold text-xs">Bank</span>
@@ -507,7 +544,7 @@ export default function ProfileBanner({
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-white">
-                      {isOwner && !isAdmin ? 'Your Bank Details' : 'Bank Details'}
+                      {isProfileOwner ? 'Your Bank Details' : 'Bank Details'}
                     </h2>
                     <p className="text-xs text-white/40">
                       @{profile?.username}
@@ -532,7 +569,7 @@ export default function ProfileBanner({
                 ) : (
                   <>
                     {/* Owner-only notice: what the bank details are used for */}
-                    {isOwner && (
+                    {isProfileOwner && (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5">
                         <div className="flex items-start gap-2.5">
                           <Shield className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -611,7 +648,7 @@ export default function ProfileBanner({
                     {!hasBankDetails && (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
                         <p className="text-xs text-amber-300">
-                          {isOwner
+                          {isProfileOwner
                             ? 'You have not added your bank details yet. Click Edit to add them.'
                             : 'This user has not added bank details yet.'}
                         </p>
@@ -646,14 +683,16 @@ export default function ProfileBanner({
       </AnimatePresence>
 
       {/* ===== Edit Bank Details (reuses the BankDetails modal) ===== */}
-      <BankDetails
-        profile={profile}
-        isOpen={showBankEdit}
-        onClose={() => setShowBankEdit(false)}
-        onUpdate={() => {
-          fetchBankDetails();
-        }}
-      />
+      {canViewBank && (
+        <BankDetails
+          profile={profile}
+          isOpen={showBankEdit}
+          onClose={() => setShowBankEdit(false)}
+          onUpdate={() => {
+            fetchBankDetails();
+          }}
+        />
+      )}
     </>
   );
 }

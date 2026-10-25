@@ -223,7 +223,7 @@ const Hero = () => {
                   <span className="text-white font-extrabold">Loading…</span>
                 </>
               ) : (
-                <span className="text-white font-extrabold">Vote</span>
+                <span className="text-white font-extrabold">VOTE YOUR FAVOURITE HERE</span>
               )}
             </button>
           )}
@@ -256,7 +256,7 @@ const Hero = () => {
                 <span className="text-white font-extrabold">Loading…</span>
               </>
             ) : (
-              <span className="text-white font-extrabold">Vote</span>
+              <span className="text-white font-extrabold">VOTE YOUR FAVOURITE HERE</span>
             )}
           </button>
         )}

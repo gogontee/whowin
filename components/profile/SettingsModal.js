@@ -55,6 +55,16 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(profile.avatar_url || null);
 
+  // ===== Determine if this viewer can see/manage bank details =====
+  // The settings modal is used by:
+  //   - the profile owner (isOwner = true)
+  //   - an admin acting on a profile (isOwner = false, but the admin is the current user)
+  // The Bank Details card must ONLY be visible in those two cases, never to a
+  // regular signed-in viewer who somehow opened Settings.
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
+
+  const canManageBankDetails = Boolean(isOwner) || viewerIsAdmin;
+
   // ===== Bank Details state =====
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [bankDetails, setBankDetails] = useState({
@@ -64,12 +74,40 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
   });
   const [bankLoading, setBankLoading] = useState(false);
 
-  // ===== Fetch bank details whenever the settings modal opens =====
+  // ===== Resolve whether the current logged-in user is an admin =====
   useEffect(() => {
-    if (!isOwner && isOpen && profile?.id) {
+    let mounted = true;
+
+    const checkAdmin = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (mounted) setViewerIsAdmin(false);
+          return;
+        }
+        const { data: row } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (mounted) setViewerIsAdmin(row?.role === 'admin');
+      } catch (err) {
+        console.error('Error checking admin role:', err);
+        if (mounted) setViewerIsAdmin(false);
+      }
+    };
+
+    if (isOpen) checkAdmin();
+
+    return () => { mounted = false; };
+  }, [isOpen, supabase]);
+
+  // ===== Fetch bank details only for owner or admin =====
+  useEffect(() => {
+    if (isOpen && profile?.id && canManageBankDetails) {
       fetchBankDetails();
     }
-  }, [isOwner, isOpen, profile?.id]);
+  }, [isOpen, profile?.id, canManageBankDetails]);
 
   const fetchBankDetails = async () => {
     setBankLoading(true);
@@ -101,9 +139,10 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
 
   // Mask account number — show only last 4 digits
   const maskAccountNumber = (num) => {
-    if (!num) return '';
-    if (num.length <= 4) return num;
-    return '•'.repeat(num.length - 4) + num.slice(-4);
+    if (num === null || num === undefined || num === '') return '';
+    const str = String(num);
+    if (str.length <= 4) return str;
+    return '•'.repeat(str.length - 4) + str.slice(-4);
   };
 
   const handlePhotoChange = async (e) => {
@@ -312,84 +351,79 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                   </div>
                 </div>
 
-                {/* ===== Bank Details Section ===== */}
-                {!isOwner && (
+                {/* ===== Bank Details Section — owner or admin only ===== */}
+                {canManageBankDetails && (
                   <div className="space-y-3 pt-3 border-t border-white/10">
-                  <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-[#D4AF37]" />
-                    Bank Details
-                  </h3>
+                    <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-[#D4AF37]" />
+                      Bank Details
+                    </h3>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowBankDetails(true)}
-                    disabled={bankLoading}
-                    className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#D4AF37]/40 rounded-xl p-3.5 transition-all group disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        hasBankDetails 
-                          ? 'bg-green-500/20' 
-                          : 'bg-amber-500/20'
-                      }`}>
-                        {hasBankDetails ? (
-                          <Check className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <AlertCircle className="w-5 h-5 text-amber-400" />
-                        )}
+                    <button
+                      type="button"
+                      onClick={() => setShowBankDetails(true)}
+                      disabled={bankLoading}
+                      className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#D4AF37]/40 rounded-xl p-3.5 transition-all group disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          hasBankDetails 
+                            ? 'bg-green-500/20' 
+                            : 'bg-amber-500/20'
+                        }`}>
+                          {hasBankDetails ? (
+                            <Check className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-amber-400" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {bankLoading ? (
+                            <div className="flex items-center gap-2">
+                              <Loader className="w-3.5 h-3.5 text-white/40 animate-spin" />
+                              <span className="text-xs text-white/40">Loading...</span>
+                            </div>
+                          ) : hasBankDetails ? (
+                            <>
+                              <p className="text-sm font-medium text-white">
+                                Click here to view your bank details
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                                <span className="text-xs text-white/60 flex items-center gap-1">
+                                  <Building2 className="w-3 h-3 text-white/40" />
+                                  {bankDetails.bank_name}
+                                </span>
+                                <span className="text-xs text-white/50 flex items-center gap-1 font-mono tracking-wider">
+                                  <CreditCard className="w-3 h-3 text-white/40" />
+                                  {maskAccountNumber(bankDetails.account_number)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-white">
+                                Click here to add bank details
+                              </p>
+                              <p className="text-xs text-white/40 mt-0.5">
+                                Required to receive your gifting earnings
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-[#D4AF37] transition-colors flex-shrink-0" />
                       </div>
+                    </button>
 
-                      <div className="flex-1 min-w-0">
-                        {bankLoading ? (
-                          <div className="flex items-center gap-2">
-                            <Loader className="w-3.5 h-3.5 text-white/40 animate-spin" />
-                            <span className="text-xs text-white/40">Loading...</span>
-                          </div>
-                        ) : hasBankDetails ? (
-                          <>
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="w-3 h-3 text-white/40" />
-                              <span className="text-sm font-medium text-white truncate">
-                                {bankDetails.bank_name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <User className="w-3 h-3 text-white/40" />
-                              <span className="text-xs text-white/60 truncate">
-                                {bankDetails.account_name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <CreditCard className="w-3 h-3 text-white/40" />
-                              <span className="text-xs text-white/50 font-mono tracking-wider">
-                                {maskAccountNumber(bankDetails.account_number)}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm font-medium text-white">
-                              Add your bank details
-                            </p>
-                            <p className="text-xs text-white/40 mt-0.5">
-                              Required to receive your gifting earnings
-                            </p>
-                          </>
-                        )}
+                    {!hasBankDetails && !bankLoading && (
+                      <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                          You need to add your bank details to receive earnings from gifts.
+                        </p>
                       </div>
-
-                      <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-[#D4AF37] transition-colors flex-shrink-0" />
-                    </div>
-                  </button>
-
-                  {!hasBankDetails && !bankLoading && (
-                    <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                        You need to add your bank details to receive earnings from gifts.
-                      </p>
-                    </div>
-                  )}
+                    )}
                   </div>
                 )}
 
@@ -508,87 +542,85 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
                 </div>
 
                 {/* Social Links */}
-                {!isOwner && (
-                  <div className="space-y-3 pt-3 border-t border-white/10">
-                    <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-[#D4AF37]" />
-                      Social Links
-                    </h3>
+                <div className="space-y-3 pt-3 border-t border-white/10">
+                  <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-[#D4AF37]" />
+                    Social Links
+                  </h3>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1">
-                          <Instagram className="w-3 h-3 inline mr-1 text-pink-500" />
-                          Instagram
-                        </label>
-                        <input
-                          type="text"
-                          name="instagram"
-                          value={formData.instagram || ''}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                          placeholder="@ella_james"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1">
-                          <Music className="w-3 h-3 inline mr-1 text-black" />
-                          TikTok
-                        </label>
-                        <input
-                          type="text"
-                          name="tiktok"
-                          value={formData.tiktok || ''}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                          placeholder="@ella_james"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1">
-                          <Facebook className="w-3 h-3 inline mr-1 text-blue-600" />
-                          Facebook
-                        </label>
-                        <input
-                          type="text"
-                          name="facebook"
-                          value={formData.facebook || ''}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                          placeholder="@ella_james"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1">
-                          <Youtube className="w-3 h-3 inline mr-1 text-red-600" />
-                          YouTube
-                        </label>
-                        <input
-                          type="text"
-                          name="youtube"
-                          value={formData.youtube || ''}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                          placeholder="@ella_james"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-white/40 mb-1">
-                          <Twitter className="w-3 h-3 inline mr-1 text-blue-400" />
-                          Twitter/X
-                        </label>
-                        <input
-                          type="text"
-                          name="twitter"
-                          value={formData.twitter || ''}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
-                          placeholder="@ella_james"
-                        />
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1">
+                        <Instagram className="w-3 h-3 inline mr-1 text-pink-500" />
+                        Instagram
+                      </label>
+                      <input
+                        type="text"
+                        name="instagram"
+                        value={formData.instagram || ''}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                        placeholder="@ella_james"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1">
+                        <Music className="w-3 h-3 inline mr-1 text-black" />
+                        TikTok
+                      </label>
+                      <input
+                        type="text"
+                        name="tiktok"
+                        value={formData.tiktok || ''}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                        placeholder="@ella_james"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1">
+                        <Facebook className="w-3 h-3 inline mr-1 text-blue-600" />
+                        Facebook
+                      </label>
+                      <input
+                        type="text"
+                        name="facebook"
+                        value={formData.facebook || ''}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                        placeholder="@ella_james"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1">
+                        <Youtube className="w-3 h-3 inline mr-1 text-red-600" />
+                        YouTube
+                      </label>
+                      <input
+                        type="text"
+                        name="youtube"
+                        value={formData.youtube || ''}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                        placeholder="@ella_james"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs text-white/40 mb-1">
+                        <Twitter className="w-3 h-3 inline mr-1 text-blue-400" />
+                        Twitter/X
+                      </label>
+                      <input
+                        type="text"
+                        name="twitter"
+                        value={formData.twitter || ''}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-[#D4AF37] focus:outline-none transition-colors"
+                        placeholder="@ella_james"
+                      />
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Preferences */}
                 <div className="space-y-3 pt-3 border-t border-white/10">
@@ -647,8 +679,8 @@ export default function SettingsModal({ profile, isOpen, onClose, onUpdate, supa
         )}
       </AnimatePresence>
 
-      {/* ===== Bank Details Modal ===== */}
-      {!isOwner && (
+      {/* ===== Bank Details Modal — only mounted for owner or admin ===== */}
+      {canManageBankDetails && (
         <BankDetails
           profile={profile}
           isOpen={showBankDetails}
