@@ -356,10 +356,10 @@ const GlobalNavigation = () => {
                     ? 'bg-gradient-to-r from-green-600 to-emerald-500 border-green-400/60 text-white'
                     : 'bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 border-amber-400/50 text-black hover:from-green-500 hover:via-emerald-500 hover:to-green-500 hover:text-white'
                 }`}
-                aria-label="Vote Your Favourite"
+                aria-label="Vote Here"
               >
                 <Vote className="w-4 h-4" />
-                <span className="text-xs font-extrabold uppercase tracking-wide">Vote</span>
+                <span className="text-xs font-extrabold uppercase tracking-wide">Vote Here</span>
               </Link>
 
               {/* Live TV */}
