@@ -104,8 +104,8 @@ export default function HomePage() {
     checkContent();
   }, [supabase]);
 
-  const handleRegisterClick = () => {
-    router.push('/auth/signup');
+  const handleVoteClick = () => {
+    router.push('/vote');
   };
 
   const handleMyProfileClick = () => {
@@ -159,25 +159,19 @@ export default function HomePage() {
     return (
       <div className="bg-gradient-to-r from-orange-500/20 to-yellow-500/20 rounded-2xl p-5 md:p-7 text-center border border-white/10">
         <h3 className="text-lg md:text-2xl font-bold text-white mb-2 md:mb-3">
-          Want to Be a Contestant on Who Win?
+          Vote or Send Gifts to Your Favorite Candidate
         </h3>
         <p className="text-white/70 text-sm md:text-base mb-4 md:mb-6 max-w-2xl mx-auto">
-          Find out how to become a candidate on Who Wins Reality Show.
-          Take the first step towards your aspiration.
+          Find out how to vote or send a gift to your favorite candidate on Who Wins Reality Show.
+          Take the first step towards supporting your star.
         </p>
         <div className="flex flex-col sm:flex-row gap-2 md:gap-3 justify-center">
           <button
-            onClick={handleRegisterClick}
+            onClick={handleVoteClick}
             className="bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-green-500 hover:to-emerald-400 text-gray-900 hover:text-white font-bold px-5 py-2.5 md:px-6 md:py-3 rounded-xl text-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
           >
-            Register Here
+            Click here to vote
           </button>
-          <Link
-            href="/about"
-            className="bg-transparent hover:bg-white/10 text-white font-semibold px-5 py-2 md:px-6 md:py-2.5 rounded-xl text-sm border border-white/30 hover:border-white/50 transition-all duration-300 inline-flex items-center justify-center"
-          >
-            LEARN MORE
-          </Link>
         </div>
       </div>
     );
