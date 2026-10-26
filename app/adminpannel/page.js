@@ -259,8 +259,8 @@ export default function AdminPanelPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-burnt-orange-950 to-black">
-      {/* ===== STICKY HEADER - Stays below GlobalNavigation ===== */}
-      <div className="sticky top-16 z-40 bg-black/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
+      {/* ===== STICKY HEADER - Sits flush under GlobalNavigation with small padding ===== */}
+      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-white/10 shadow-lg pt-2">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -403,7 +403,7 @@ export default function AdminPanelPage() {
         </div>
       </div>
 
-      {/* ===== CONTENT - With padding to account for sticky header ===== */}
+      {/* ===== CONTENT ===== */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'profiles' ? (
           <ProfileManagement />
