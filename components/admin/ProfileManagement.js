@@ -101,6 +101,10 @@ export default function ProfileManagement() {
   // Track which bio is being viewed in the popup
   const [bioViewProfile, setBioViewProfile] = useState(null);
 
+  // New state for manual vote editing
+  const [editingVotesProfile, setEditingVotesProfile] = useState(null);
+  const [newVoteAmount, setNewVoteAmount] = useState('');
+
   const ITEMS_PER_PAGE = 10;
 
   const accountStatusOptions = [
@@ -251,11 +255,8 @@ export default function ProfileManagement() {
       if (data.length > 0) {
         const profileIds = data.map(p => p.id);
         
-        const { data: voteData } = await supabase
-          .from('vote_statistics')
-          .select('candidate_id, total_votes')
-          .in('candidate_id', profileIds);
-
+        // === CHANGE: Only fetch the total_amount from vote_transactions ===
+        // We no longer fetch total_votes from vote_statistics because we use profiles.total_votes
         const { data: voteAmountData } = await supabase
           .from('vote_transactions')
           .select('candidate_id, total_amount')
@@ -264,15 +265,15 @@ export default function ProfileManagement() {
 
         const voteStatsMap = {};
         
-        if (voteData) {
-          voteData.forEach(stat => {
-            if (!voteStatsMap[stat.candidate_id]) {
-              voteStatsMap[stat.candidate_id] = { totalVotes: 0, totalAmount: 0 };
-            }
-            voteStatsMap[stat.candidate_id].totalVotes = stat.total_votes || 0;
-          });
-        }
+        // 1. Set the vote count from profiles.total_votes
+        data.forEach(profile => {
+          voteStatsMap[profile.id] = {
+            totalVotes: Number(profile.total_votes) || 0,
+            totalAmount: 0
+          };
+        });
 
+        // 2. Add the total amount from vote_transactions
         if (voteAmountData) {
           voteAmountData.forEach(vote => {
             if (!voteStatsMap[vote.candidate_id]) {
@@ -493,6 +494,55 @@ export default function ProfileManagement() {
     } catch (error) {
       console.error('Error deleting profile:', error);
       alert('Failed to delete profile');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // ===== NEW: Save Manual Vote Edit =====
+  const handleSaveVotes = async () => {
+    if (!editingVotesProfile) return;
+    
+    const newVotes = parseInt(newVoteAmount, 10);
+    if (isNaN(newVotes) || newVotes < 0) {
+      alert('Please enter a valid positive number');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          total_votes: newVotes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingVotesProfile.id);
+
+      if (error) throw error;
+
+      // Update local state so UI reflects immediately
+      setProfiles(profiles.map(p => 
+        p.id === editingVotesProfile.id ? { ...p, total_votes: newVotes } : p
+      ));
+
+      // Update voteStats state so the UI reflects it immediately
+      setVoteStats(prev => ({
+        ...prev,
+        [editingVotesProfile.id]: {
+          ...prev[editingVotesProfile.id],
+          totalVotes: newVotes,
+          totalAmount: prev[editingVotesProfile.id]?.totalAmount || 0
+        }
+      }));
+      
+      setEditingVotesProfile(null);
+      setNewVoteAmount('');
+      alert('Vote count updated successfully!');
+
+    } catch (error) {
+      console.error('Error updating votes:', error);
+      alert('Failed to update votes. Please try again.');
     } finally {
       setUpdating(false);
     }
@@ -1479,8 +1529,20 @@ export default function ProfileManagement() {
                               </td>
                               <td className="p-3">
                                 <div className="space-y-0.5">
-                                  <div className="text-xs font-semibold text-burnt-orange-400">
-                                    {voteData.votes} votes
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs font-semibold text-burnt-orange-400">
+                                      {voteData.votes} votes
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingVotesProfile(profile);
+                                        setNewVoteAmount(voteData.votes);
+                                      }}
+                                      className="p-1 hover:bg-white/10 rounded transition-colors"
+                                      title="Edit votes"
+                                    >
+                                      <Edit className="w-3 h-3 text-white/40 hover:text-white" />
+                                    </button>
                                   </div>
                                   <div className="text-[10px] text-white/40">
                                     ₦{voteData.amount.toLocaleString()}
@@ -2007,7 +2069,19 @@ export default function ProfileManagement() {
                       <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-white/10">
                         <div>
                           <div className="text-[10px] text-white/40">Votes</div>
-                          <div className="text-sm font-semibold text-burnt-orange-400">{voteData.votes}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-sm font-semibold text-burnt-orange-400">{voteData.votes}</div>
+                            <button
+                              onClick={() => {
+                                setEditingVotesProfile(profile);
+                                setNewVoteAmount(voteData.votes);
+                              }}
+                              className="p-1 hover:bg-white/10 rounded transition-colors"
+                              title="Edit votes"
+                            >
+                              <Edit className="w-3 h-3 text-white/40 hover:text-white" />
+                            </button>
+                          </div>
                           <div className="text-[10px] text-white/40">₦{voteData.amount.toLocaleString()}</div>
                         </div>
                         <div>
@@ -2412,7 +2486,19 @@ export default function ProfileManagement() {
                       <div className="mt-2 pt-2 border-t border-white/10 grid grid-cols-2 gap-2">
                         <div>
                           <div className="text-[10px] text-white/40">Votes</div>
-                          <div className="text-sm font-semibold text-burnt-orange-400">{voteData.votes}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-sm font-semibold text-burnt-orange-400">{voteData.votes}</div>
+                            <button
+                              onClick={() => {
+                                setEditingVotesProfile(profile);
+                                setNewVoteAmount(voteData.votes);
+                              }}
+                              className="p-1 hover:bg-white/10 rounded transition-colors"
+                              title="Edit votes"
+                            >
+                              <Edit className="w-3 h-3 text-white/40 hover:text-white" />
+                            </button>
+                          </div>
                           <div className="text-[10px] text-white/40">₦{voteData.amount.toLocaleString()}</div>
                         </div>
                         <div>
@@ -2538,6 +2624,73 @@ export default function ProfileManagement() {
                         Close
                       </button>
                     </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ===== EDIT VOTES MODAL ===== */}
+          <AnimatePresence>
+            {editingVotesProfile && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"
+                onClick={() => setEditingVotesProfile(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gradient-to-b from-gray-900 to-black rounded-xl border border-white/10 p-6 max-w-sm w-full shadow-2xl"
+                >
+                  <div className="w-14 h-14 bg-burnt-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Vote className="w-7 h-7 text-burnt-orange-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white text-center mb-2">
+                    Edit User Votes
+                  </h3>
+                  <p className="text-xs text-white/60 text-center mb-6">
+                    Update the total vote count for <span className="text-white font-medium">@{editingVotesProfile.username}</span>.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">New Total Votes</label>
+                      <input
+                        type="number"
+                        value={newVoteAmount}
+                        onChange={(e) => setNewVoteAmount(e.target.value)}
+                        placeholder="Enter new vote count"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:border-burnt-orange-500 focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setEditingVotesProfile(null)}
+                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveVotes}
+                      disabled={updating}
+                      className="flex-1 py-2.5 bg-gradient-to-r from-burnt-orange-500 to-yellow-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {updating ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Votes'
+                      )}
+                    </button>
                   </div>
                 </motion.div>
               </motion.div>

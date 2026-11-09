@@ -139,17 +139,8 @@ export default function ProfileBanner({
     
     setLoadingStats(true);
     try {
-      // Fetch vote count - sum of votes from vote_transactions
-      const { data: voteData, error: voteError } = await supabase
-        .from('vote_transactions')
-        .select('votes')
-        .eq('candidate_id', profile.id)
-        .eq('status', 'completed');
-
-      if (voteError) throw voteError;
-
-      // Calculate total votes
-      const totalVotes = voteData?.reduce((sum, item) => sum + (item.votes || 0), 0) || 0;
+      // === CHANGE: Fetch vote count directly from profile.total_votes ===
+      const totalVotes = Number(profile.total_votes) || 0;
       setVoteCount(totalVotes);
 
       // Fetch gift count - count of rows in gift_transactions
@@ -177,7 +168,7 @@ export default function ProfileBanner({
     if (profile?.id) {
       fetchStats();
     }
-  }, [profile?.id, profile?.vote_visibility]);
+  }, [profile?.id, profile?.vote_visibility, profile?.total_votes]);
 
   // If profile doesn't exist, don't render anything
   if (!profile) {

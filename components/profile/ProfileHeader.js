@@ -34,69 +34,18 @@ export default function ProfileHeader({
     setShowVoteCount(profile?.vote_visibility === 'on');
   }, [profile?.vote_visibility]);
 
-  // Fetch live vote count directly from database
+  // Fetch live vote count directly from profile.total_votes
   useEffect(() => {
     if (!profile?.id || !showVoteCount) return;
 
-    const fetchVotes = async () => {
-      setLoadingVotes(true);
-      try {
-        const { data, error } = await supabase
-          .from('vote_transactions')
-          .select('votes')
-          .eq('candidate_id', profile.id)
-          .eq('status', 'completed');
+    const totalVotes = Number(profile.total_votes) || 0;
+    setLiveVotes(totalVotes);
+    setLoadingVotes(false);
 
-        if (error) {
-          console.error('Error fetching votes:', error);
-          setLiveVotes(0);
-          return;
-        }
-
-        const totalVotes = data?.reduce((sum, tx) => sum + (tx.votes || 0), 0) || 0;
-        setLiveVotes(totalVotes);
-      } catch (error) {
-        console.error('Error fetching votes:', error);
-        setLiveVotes(0);
-      } finally {
-        setLoadingVotes(false);
-      }
-    };
-
-    fetchVotes();
-
-    const subscription = supabase
-      .channel(`votes-${profile.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'vote_transactions',
-          filter: `candidate_id=eq.${profile.id}`
-        },
-        (payload) => {
-          setLiveVotes(prev => prev + (payload.new?.votes || 0));
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'vote_transactions',
-          filter: `candidate_id=eq.${profile.id}`
-        },
-        () => {
-          fetchVotes();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [profile?.id, supabase, showVoteCount]);
+    // We no longer need the real-time subscription to vote_transactions 
+    // because the parent page (app/[username]/page.js) silently refreshes 
+    // the profile every 3 seconds, which updates profile.total_votes.
+  }, [profile?.id, profile?.total_votes, showVoteCount]);
 
   // Fetch unique supporters count (only for owner)
   useEffect(() => {
